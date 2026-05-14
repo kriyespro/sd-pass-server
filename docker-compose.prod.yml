@@ -4,6 +4,8 @@
 # in this directory (Compose auto-loads `.env` for ${VAR} substitution — needed for `down`).
 #
 # Traefik host port defaults to 9080 so host nginx can keep :80. Override with TRAEFIK_HTTP_PUBLISH.
+# Gunicorn (Django) host port defaults to 9898 so the dashboard is reachable without extra nginx.
+# Set WEB_HTTP_PUBLISH empty only if you terminate HTTP elsewhere and remove the ports block manually.
 
 services:
   db:
@@ -57,6 +59,8 @@ services:
       - sites_data:/app/data/sites
       - uploads_data:/app/data/uploads
       - traefik_dynamic:/app/data/traefik/dynamic
+    ports:
+      - '${WEB_HTTP_PUBLISH:-9898}:8000'
     expose:
       - '8000'
     depends_on:

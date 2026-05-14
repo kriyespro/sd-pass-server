@@ -73,7 +73,12 @@ def verify_single_custom_domain(project_id: int) -> dict:
     from django.urls import reverse
 
     from apps.domains.services import write_project_router_file
-    from apps.domains.verification import a_record_matches_ip, challenge_txt_present
+    from apps.domains.verification import (
+        a_record_matches_ip,
+        challenge_txt_present,
+        domain_via_cloudflare_proxy,
+        local_http_probe,
+    )
     from apps.logs.models import LogKind
     from apps.logs.services import append_project_log
     from apps.notifications.models import NotificationLevel
@@ -90,15 +95,33 @@ def verify_single_custom_domain(project_id: int) -> dict:
     if project.custom_hostname_verified:
         return {'ok': True, 'skipped': 'already_verified'}
 
-    # Primary: A-record check
     platform_ip = (getattr(settings, 'PLATFORM_PUBLIC_IP', '') or '').strip()
+    gunicorn_port = int(getattr(settings, 'STUDENT_GUNICORN_PORT', 9898) or 9898)
     verified = False
     method = 'none'
+
+    # 1. Direct A-record match (grey cloud / no proxy)
     if platform_ip:
         verified = a_record_matches_ip(host, platform_ip)
-        method = 'a_record'
+        if verified:
+            method = 'a_record_direct'
 
-    # Fallback: legacy TXT challenge (for projects that still have a token)
+    # 2. Cloudflare orange-cloud proxy: DNS shows CF IPs → probe locally
+    if not verified and domain_via_cloudflare_proxy(host):
+        if local_http_probe(host, gunicorn_port):
+            verified = True
+            method = 'cloudflare_proxy_probe'
+        else:
+            append_project_log(
+                project,
+                LogKind.SYSTEM,
+                f'Custom domain check for {host}: Cloudflare proxy detected but our '
+                f'server did not respond for that hostname. Check the A record points '
+                f'to {platform_ip or "this server"} in Cloudflare DNS.',
+            )
+            return {'ok': True, 'verified': False, 'method': 'cloudflare_probe_failed'}
+
+    # 3. Legacy TXT challenge fallback
     if not verified:
         token = (project.custom_domain_challenge_token or '').strip()
         if token:

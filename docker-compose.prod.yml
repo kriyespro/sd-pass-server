@@ -4,9 +4,9 @@
 # in this directory (Compose auto-loads `.env` for ${VAR} substitution — needed for `down`).
 #
 # Traefik host port defaults to 9080 so host nginx can keep :80. Override with TRAEFIK_HTTP_PUBLISH.
-# Gunicorn (Django) host port defaults to 9898 so the dashboard is reachable without extra nginx.
-# Set WEB_HTTP_PUBLISH empty only if you terminate HTTP elsewhere and remove the ports block manually.
-
+# Gunicorn is published as WEB_HTTP_BIND:WEB_HTTP_PUBLISH -> container :8000 (default 0.0.0.0:9898).
+# With nginx + TLS on host port 9898: set WEB_HTTP_BIND=127.0.0.1 and WEB_HTTP_PUBLISH=9988, then nginx
+# proxies https://...:9898 -> http://127.0.0.1:9988. See deploy/nginx-studentcloud.example.conf.
 services:
   db:
     image: postgres:16-alpine
@@ -60,7 +60,7 @@ services:
       - uploads_data:/app/data/uploads
       - traefik_dynamic:/app/data/traefik/dynamic
     ports:
-      - '${WEB_HTTP_PUBLISH:-9898}:8000'
+      - '${WEB_HTTP_BIND:-0.0.0.0}:${WEB_HTTP_PUBLISH:-9898}:8000'
     expose:
       - '8000'
     depends_on:

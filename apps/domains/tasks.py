@@ -64,10 +64,16 @@ def apply_traefik_route(prev: dict) -> dict:
 
 @app.task(name='domains.verify_single_custom_domain')
 def verify_single_custom_domain(project_id: int) -> dict:
+    """
+    Verify a student's custom domain by checking its A record points to
+    PLATFORM_PUBLIC_IP (primary). Falls back to legacy TXT challenge if the
+    project still has a challenge token and no public IP is configured.
+    """
+    from django.conf import settings
     from django.urls import reverse
 
     from apps.domains.services import write_project_router_file
-    from apps.domains.verification import challenge_txt_present
+    from apps.domains.verification import a_record_matches_ip, challenge_txt_present
     from apps.logs.models import LogKind
     from apps.logs.services import append_project_log
     from apps.notifications.models import NotificationLevel
@@ -79,16 +85,35 @@ def verify_single_custom_domain(project_id: int) -> dict:
     if not project:
         return {'ok': False, 'reason': 'missing_project'}
     host = (project.custom_hostname or '').strip()
-    token = (project.custom_domain_challenge_token or '').strip()
     if not host:
         return {'ok': True, 'skipped': 'no_hostname'}
     if project.custom_hostname_verified:
         return {'ok': True, 'skipped': 'already_verified'}
-    if not token:
-        return {'ok': False, 'reason': 'no_challenge_token'}
 
-    if not challenge_txt_present(host, token):
-        return {'ok': True, 'verified': False}
+    # Primary: A-record check
+    platform_ip = (getattr(settings, 'PLATFORM_PUBLIC_IP', '') or '').strip()
+    verified = False
+    method = 'none'
+    if platform_ip:
+        verified = a_record_matches_ip(host, platform_ip)
+        method = 'a_record'
+
+    # Fallback: legacy TXT challenge (for projects that still have a token)
+    if not verified:
+        token = (project.custom_domain_challenge_token or '').strip()
+        if token:
+            verified = challenge_txt_present(host, token)
+            if verified:
+                method = 'txt'
+
+    if not verified:
+        append_project_log(
+            project,
+            LogKind.SYSTEM,
+            f'Custom domain check for {host}: A record does not yet point to '
+            f'{platform_ip or "server IP"}. Retry in a few minutes.',
+        )
+        return {'ok': True, 'verified': False, 'method': method}
 
     Project.objects.filter(pk=project_id).update(custom_hostname_verified=True)
     invalidate_custom_host_cache(host)
@@ -99,23 +124,23 @@ def verify_single_custom_domain(project_id: int) -> dict:
         append_project_log(
             project,
             LogKind.SYSTEM,
-            f'Custom domain verified for {host}, but Traefik route file failed: {exc}',
+            f'Custom domain verified for {host} (via {method}), but Traefik route file failed: {exc}',
         )
         return {'ok': True, 'verified': True, 'traefik_error': str(exc)}
 
     append_project_log(
         project,
         LogKind.SYSTEM,
-        f'Custom domain verified for {host}; Traefik route updated.',
+        f'Custom domain verified for {host} (via {method}); Traefik route updated.',
     )
     create_notification(
         user_id=project.owner_id,
         title='Custom domain verified',
-        body=f'{host} passed DNS verification. Traffic can use this hostname once DNS points here.',
+        body=f'{host} is now active. Your site is accessible at https://{host}/',
         level=NotificationLevel.SUCCESS,
         link_url=reverse('projects:domain', kwargs={'slug': project.slug}),
     )
-    return {'ok': True, 'verified': True}
+    return {'ok': True, 'verified': True, 'method': method}
 
 
 @app.task(name='domains.poll_custom_domain_verification')

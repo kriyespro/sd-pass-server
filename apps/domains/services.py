@@ -12,8 +12,14 @@ def project_fqdn(project) -> str:
 def write_project_router_file(project) -> tuple[Path, str]:
     """Render Traefik file-provider YAML for one project and write it to TRAEFIK_DYNAMIC_DIR."""
     fqdn = project_fqdn(project)
-    router_name = f'proj{project.pk}'
-    service_name = f'proj{project.pk}-svc'
+    safe_sub = ''.join(
+        c if c.isalnum() or c in '-_' else '-'
+        for c in (project.subdomain or 'app').lower()
+    )
+    # Include subdomain in router/service IDs so file updates replace cleanly (Traefik
+    # may log "already configured, skipping" when reusing the same name with stale in-memory state).
+    router_name = f'proj-{project.pk}-{safe_sub}'
+    service_name = f'proj-{project.pk}-{safe_sub}-svc'
     extra_hosts: list[str] = []
     raw = (getattr(project, 'custom_hostname', None) or '').strip().rstrip('.')
     verified = bool(getattr(project, 'custom_hostname_verified', False))
@@ -29,13 +35,13 @@ def write_project_router_file(project) -> tuple[Path, str]:
             'entry_points': settings.TRAEFIK_ENTRYPOINTS,
             'cert_resolver': settings.TRAEFIK_CERT_RESOLVER,
             'upstream_url': settings.TRAEFIK_UPSTREAM_URL,
-            'use_tls': getattr(settings, 'TRAEFIK_TLS_ON_PROJECT_ROUTES', True),
+            'use_tls': getattr(settings, 'TRAEFIK_TLS_ON_PROJECT_ROUTES', False),
         },
     )
     out_dir = settings.TRAEFIK_DYNAMIC_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f'{project.subdomain}.yml'
-    path.write_text(content, encoding='utf-8')
+    path.write_text(content.rstrip() + '\n', encoding='utf-8')
     return path, fqdn
 
 

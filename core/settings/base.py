@@ -50,6 +50,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'core.middleware.normalize_forwarded_host.NormalizeForwardedHostMiddleware',
+    'core.middleware.recover_proxy_host.RecoverProxyHostMiddleware',
     'core.middleware.dynamic_allowed_hosts.DynamicAllowedHostsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'core.middleware.student_static_site.StudentStaticSiteMiddleware',
@@ -133,7 +135,8 @@ STUDENT_APPS_BASE_DOMAIN = env(
     'STUDENT_APPS_BASE_DOMAIN',
     default='apps.localhost',
 )
-# *.apps.localhost cannot get real public certs; use plain HTTP on Traefik "web" in dev.
+# docker-compose.prod.yml only defines Traefik entrypoint "web" (:80 → host TRAEFIK_HTTP_PUBLISH).
+# Default must match that. Use TRAEFIK_ENTRYPOINTS=websecure only if your Traefik static config adds it.
 _STUDENT_APPS_LOCAL = STUDENT_APPS_BASE_DOMAIN.rstrip('.').endswith('.localhost')
 TRAEFIK_DYNAMIC_DIR = Path(
     env('TRAEFIK_DYNAMIC_DIR', default=str(BASE_DIR / 'data' / 'traefik' / 'dynamic'))
@@ -141,11 +144,11 @@ TRAEFIK_DYNAMIC_DIR = Path(
 TRAEFIK_CERT_RESOLVER = env('TRAEFIK_CERT_RESOLVER', default='letsencrypt')
 TRAEFIK_ENTRYPOINTS = env.list(
     'TRAEFIK_ENTRYPOINTS',
-    default=['web'] if _STUDENT_APPS_LOCAL else ['websecure'],
+    default=['web'],
 )
 TRAEFIK_TLS_ON_PROJECT_ROUTES = env.bool(
     'TRAEFIK_TLS_ON_PROJECT_ROUTES',
-    default=not _STUDENT_APPS_LOCAL,
+    default=False,
 )
 TRAEFIK_UPSTREAM_URL = env(
     'TRAEFIK_UPSTREAM_URL',
@@ -168,6 +171,14 @@ if STUDENT_SITE_PUBLIC_SCHEME not in ('http', 'https'):
 CLOUDFLARE_API_TOKEN = env('CLOUDFLARE_API_TOKEN', default='')
 CLOUDFLARE_ZONE_ID = env('CLOUDFLARE_ZONE_ID', default='')
 PLATFORM_PUBLIC_IP = env('PLATFORM_PUBLIC_IP', default='')
+
+# When True: if Host is 127.0.0.1/localhost but X-Forwarded-Host matches ALLOWED_HOSTS,
+# rewrite Host (fixes nginx omitting proxy_set_header Host). Only safe if Gunicorn is
+# bound to 127.0.0.1 (WEB_HTTP_BIND=127.0.0.1), not 0.0.0.0.
+RECOVER_PROXY_HOST_FROM_FORWARDED = env.bool(
+    'RECOVER_PROXY_HOST_FROM_FORWARDED',
+    default=False,
+)
 
 LOG_RETENTION_DAYS = env.int('LOG_RETENTION_DAYS', default=7)
 

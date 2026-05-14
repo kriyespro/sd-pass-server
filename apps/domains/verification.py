@@ -65,32 +65,47 @@ def domain_via_cloudflare_proxy(hostname: str) -> bool:
     return bool(ips) and all(_is_cloudflare_ip(ip) for ip in ips)
 
 
-def local_http_probe(hostname: str, probe_url: str = 'http://127.0.0.1:8000/') -> bool:
+def local_http_probe(hostname: str, probe_url: str = 'http://web:8000/') -> bool:
     """
-    Hit Gunicorn directly at *probe_url* with ``Host: {hostname}``.
-    Inside Docker the correct address is ``http://web:8000/`` (set via
-    ``STUDENT_PROBE_URL`` in settings). Outside Docker use the host port.
+    Hit Gunicorn at *probe_url* with ``Host: {hostname}``.
 
-    Returns True if Django responds (any status other than 400 DisallowedHost),
-    which — combined with Cloudflare proxy IP detection — proves the student's
-    A record points to this server.
+    Tries *probe_url* first (``http://web:8000/`` when called from the Celery
+    worker container), then falls back to ``http://127.0.0.1:8000/`` so manual
+    ``exec web`` tests also work (Docker DNS for ``web`` may not loop back to
+    the container itself).
+
+    Returns True if Django responds with any status except 400 (DisallowedHost).
     """
     import urllib.error
     import urllib.request
 
-    req = urllib.request.Request(probe_url.rstrip('/') + '/')
-    req.add_header('Host', hostname)
-    req.add_header('X-Forwarded-Proto', 'https')
-    try:
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            return resp.status < 500
-    except urllib.error.HTTPError as e:
-        if e.code == 400:
-            return False  # DisallowedHost → hostname not registered in our app
-        return True  # 301, 403, 404 etc. → Django accepted the host
-    except Exception as exc:  # noqa: BLE001
-        logger.warning('local_http_probe failed for %s (url=%s): %s', hostname, probe_url, exc)
-        return False
+    candidates = [probe_url.rstrip('/') + '/']
+    if '127.0.0.1' not in probe_url:
+        candidates.append('http://127.0.0.1:8000/')
+
+    for url in candidates:
+        req = urllib.request.Request(url)
+        req.add_header('Host', hostname)
+        req.add_header('X-Forwarded-Proto', 'https')
+        try:
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                logger.info('local_http_probe: %s → %s (url=%s)', hostname, resp.status, url)
+                return resp.status < 500
+        except urllib.error.HTTPError as e:
+            if e.code == 400:
+                logger.info('local_http_probe: %s → 400 DisallowedHost (url=%s)', hostname, url)
+                return False  # Django rejected — hostname not registered in this app
+            logger.info('local_http_probe: %s → %s (url=%s) — accepted', hostname, e.code, url)
+            return True  # 301, 302, 403, 404 etc. → Django accepted the host
+        except OSError:
+            logger.debug('local_http_probe: %s unreachable at %s, trying next', hostname, url)
+            continue
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('local_http_probe: unexpected error for %s (url=%s): %s', hostname, url, exc)
+            continue
+
+    logger.warning('local_http_probe: all candidates failed for %s', hostname)
+    return False
 
 
 def a_record_matches_ip(hostname: str, expected_ip: str) -> bool:

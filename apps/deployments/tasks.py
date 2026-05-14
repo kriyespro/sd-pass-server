@@ -100,7 +100,12 @@ def deploy_after_scan(scan_result: dict) -> dict:
     base = settings.STUDENT_APPS_BASE_DOMAIN.strip().strip('.')
     fqdn = f'{proj.subdomain}.{base}'
     site_port = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
-    site_url = f'http://{fqdn}:{site_port}/' if site_port else f'http://{fqdn}/'
+    scheme = getattr(settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http') or 'http'
+    if scheme not in ('http', 'https'):
+        scheme = 'http'
+    site_url = (
+        f'{scheme}://{fqdn}:{site_port}/' if site_port else f'{scheme}://{fqdn}/'
+    )
     if proj.project_type == ProjectType.STATIC and extract_ok:
         link_url = site_url
         body = f'Your static files are published. Open {site_url}'

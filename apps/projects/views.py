@@ -45,6 +45,9 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         ctx['student_apps_base_is_ipv4'] = bool(_STUDENT_APPS_IPV4.match(base))
         ctx['student_public_port'] = getattr(settings, 'STUDENT_PUBLIC_HTTP_PORT', 0) or 0
         ctx['student_site_port'] = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
+        ctx['student_site_scheme'] = getattr(
+            settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http'
+        )
         return ctx
 
 

@@ -157,6 +157,13 @@ STUDENT_PUBLIC_HTTP_PORT = env.int(
 )
 # Optional port appended to {subdomain}.{STUDENT_APPS_BASE_DOMAIN} links only (e.g. 9080 for Traefik).
 STUDENT_SITE_HTTP_PORT = env.int('STUDENT_SITE_HTTP_PORT', default=0)
+# Scheme for dashboard / notification links to student sites (http or https).
+STUDENT_SITE_PUBLIC_SCHEME = env(
+    'STUDENT_SITE_PUBLIC_SCHEME',
+    default='http',
+).strip().rstrip(':').lower() or 'http'
+if STUDENT_SITE_PUBLIC_SCHEME not in ('http', 'https'):
+    STUDENT_SITE_PUBLIC_SCHEME = 'http'
 
 CLOUDFLARE_API_TOKEN = env('CLOUDFLARE_API_TOKEN', default='')
 CLOUDFLARE_ZONE_ID = env('CLOUDFLARE_ZONE_ID', default='')

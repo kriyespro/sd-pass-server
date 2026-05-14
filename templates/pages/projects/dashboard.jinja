@@ -67,7 +67,7 @@
                   {% if p.project_type == 'static' %}
                     {% set site_fqdn = p.subdomain ~ '.' ~ apps_base_domain %}
                     {% set port_seg = ':' ~ student_site_port if student_site_port else '' %}
-                    {% set site_url = 'http://' ~ site_fqdn ~ port_seg ~ '/' %}
+                    {% set site_url = student_site_scheme ~ '://' ~ site_fqdn ~ port_seg ~ '/' %}
                     <a href="{{ site_url }}" class="font-mono text-sky-300 hover:text-sky-200">Site</a>
                     <span class="text-slate-600">·</span>
                     <span class="mt-1 block max-w-xs select-all break-all font-mono text-[10px] leading-snug text-slate-500" title="Copy this URL if “Site” opens a blank tab">{{ site_url }}</span>

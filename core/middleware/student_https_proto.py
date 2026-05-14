@@ -35,5 +35,15 @@ class StudentTraefikHttpsProtoMiddleware:
         if host != base and not host.endswith(f'.{base}'):
             return self.get_response(request)
 
+        # Traefik often sends X-Forwarded-Proto: http on the internal hop; Django takes the
+        # first comma-separated value, so "http, https" still counts as http. Replace fully
+        # in META and WSGI environ so SecurityMiddleware sees HTTPS.
+        request.META.pop('HTTP_X_FORWARDED_PROTO', None)
         request.META['HTTP_X_FORWARDED_PROTO'] = 'https'
+        environ = getattr(request, 'environ', None)
+        if environ is not None:
+            environ.pop('HTTP_X_FORWARDED_PROTO', None)
+            environ['HTTP_X_FORWARDED_PROTO'] = 'https'
+            environ['wsgi.url_scheme'] = 'https'
+            environ['HTTPS'] = 'on'
         return self.get_response(request)

@@ -50,10 +50,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'core.middleware.student_https_proto.StudentTraefikHttpsProtoMiddleware',
     'core.middleware.normalize_forwarded_host.NormalizeForwardedHostMiddleware',
     'core.middleware.recover_proxy_host.RecoverProxyHostMiddleware',
     'core.middleware.dynamic_allowed_hosts.DynamicAllowedHostsMiddleware',
-    'core.middleware.student_https_proto.StudentTraefikHttpsProtoMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'core.middleware.student_static_site.StudentStaticSiteMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',

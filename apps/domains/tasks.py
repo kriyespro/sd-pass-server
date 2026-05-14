@@ -96,7 +96,7 @@ def verify_single_custom_domain(project_id: int) -> dict:
         return {'ok': True, 'skipped': 'already_verified'}
 
     platform_ip = (getattr(settings, 'PLATFORM_PUBLIC_IP', '') or '').strip()
-    gunicorn_port = int(getattr(settings, 'STUDENT_GUNICORN_PORT', 9898) or 9898)
+    probe_url = (getattr(settings, 'STUDENT_PROBE_URL', '') or 'http://web:8000/').strip()
     verified = False
     method = 'none'
 
@@ -108,7 +108,7 @@ def verify_single_custom_domain(project_id: int) -> dict:
 
     # 2. Cloudflare orange-cloud proxy: DNS shows CF IPs → probe locally
     if not verified and domain_via_cloudflare_proxy(host):
-        if local_http_probe(host, gunicorn_port):
+        if local_http_probe(host, probe_url):
             verified = True
             method = 'cloudflare_proxy_probe'
         else:

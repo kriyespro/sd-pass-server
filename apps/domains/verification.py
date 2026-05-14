@@ -65,30 +65,31 @@ def domain_via_cloudflare_proxy(hostname: str) -> bool:
     return bool(ips) and all(_is_cloudflare_ip(ip) for ip in ips)
 
 
-def local_http_probe(hostname: str, gunicorn_port: int = 9898) -> bool:
+def local_http_probe(hostname: str, probe_url: str = 'http://127.0.0.1:8000/') -> bool:
     """
-    Hit Gunicorn directly on 127.0.0.1:{gunicorn_port} with Host: {hostname}.
-    If Django responds (not 400 Bad Request / DisallowedHost), the hostname is
-    registered in our system AND (combined with Cloudflare proxy detection) the
-    student's A record points to this server.
-    """
-    import urllib.request
-    import urllib.error
+    Hit Gunicorn directly at *probe_url* with ``Host: {hostname}``.
+    Inside Docker the correct address is ``http://web:8000/`` (set via
+    ``STUDENT_PROBE_URL`` in settings). Outside Docker use the host port.
 
-    url = f'http://127.0.0.1:{gunicorn_port}/'
-    req = urllib.request.Request(url)
+    Returns True if Django responds (any status other than 400 DisallowedHost),
+    which — combined with Cloudflare proxy IP detection — proves the student's
+    A record points to this server.
+    """
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(probe_url.rstrip('/') + '/')
     req.add_header('Host', hostname)
     req.add_header('X-Forwarded-Proto', 'https')
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=6) as resp:
             return resp.status < 500
     except urllib.error.HTTPError as e:
-        # 400 = DisallowedHost (not registered), 4xx others = app responding = OK
         if e.code == 400:
-            return False
-        return True  # 403, 404, 301 etc. all mean Django accepted the host
+            return False  # DisallowedHost → hostname not registered in our app
+        return True  # 301, 403, 404 etc. → Django accepted the host
     except Exception as exc:  # noqa: BLE001
-        logger.warning('local_http_probe failed for %s: %s', hostname, exc)
+        logger.warning('local_http_probe failed for %s (url=%s): %s', hostname, probe_url, exc)
         return False
 
 

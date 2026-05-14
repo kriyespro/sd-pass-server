@@ -175,8 +175,10 @@ if STUDENT_SITE_PUBLIC_SCHEME not in ('http', 'https'):
 CLOUDFLARE_API_TOKEN = env('CLOUDFLARE_API_TOKEN', default='')
 CLOUDFLARE_ZONE_ID = env('CLOUDFLARE_ZONE_ID', default='')
 PLATFORM_PUBLIC_IP = env('PLATFORM_PUBLIC_IP', default='')
-# Port Gunicorn is published on; used for local HTTP probe when verifying Cloudflare-proxied custom domains.
-STUDENT_GUNICORN_PORT = env.int('STUDENT_GUNICORN_PORT', default=9898)
+# Internal URL used to probe Gunicorn when verifying Cloudflare-proxied custom domains.
+# Inside Docker Compose use the service name: http://web:8000/
+# On a bare-metal install without Docker use: http://127.0.0.1:{gunicorn_port}/
+STUDENT_PROBE_URL = env('STUDENT_PROBE_URL', default='http://web:8000/')
 
 # When True: if Host is 127.0.0.1/localhost but X-Forwarded-Host matches ALLOWED_HOSTS,
 # rewrite Host (fixes nginx omitting proxy_set_header Host). Only safe if Gunicorn is

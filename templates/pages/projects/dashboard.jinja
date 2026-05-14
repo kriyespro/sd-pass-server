@@ -2,6 +2,21 @@
 {% block title %}Projects — StudentCloud Deploy{% endblock %}
 {% block content %}
 <section class="space-y-6">
+  {% if student_apps_base_is_ipv4 and apps_base_domain %}
+    <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+      <p class="font-semibold text-amber-50">Student hostnames use your server IP as the domain</p>
+      <p class="mt-1 text-amber-100/90">
+        Browsers must resolve names like <code class="rounded bg-slate-950/80 px-1 font-mono text-xs">radha.{{ apps_base_domain }}</code>.
+        Add a line to <code class="font-mono text-xs">/etc/hosts</code> (or Windows hosts) on the machine you browse from:
+        <code class="mt-2 block select-all break-all rounded bg-slate-950 px-2 py-1.5 font-mono text-xs text-emerald-200">{{ apps_base_domain }} radha.{{ apps_base_domain }}</code>
+        (repeat the hostname for each project subdomain). The port in the URL must match Traefik:
+        <code class="font-mono text-xs">TRAEFIK_HTTP_PUBLISH</code> and <code class="font-mono text-xs">STUDENT_SITE_HTTP_PORT</code> must be the same (e.g. both <span class="font-mono">8090</span>).
+      </p>
+      <p class="mt-2 text-xs text-amber-200/80">
+        If a tab shows <code class="font-mono">about:blank#blocked</code>, try copy-pasting the URL below, another browser, or disable strict/adblock for this site.
+      </p>
+    </div>
+  {% endif %}
   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
     <div>
       <h1 class="text-2xl font-semibold text-white">Your projects</h1>
@@ -45,8 +60,12 @@
               <td class="px-4 py-3 text-xs text-slate-400">
                 {% if apps_base_domain %}
                   {% if p.project_type == 'static' %}
-                    <a href="http://{{ p.subdomain }}.{{ apps_base_domain }}{% if student_site_port %}:{{ student_site_port }}{% endif %}/" class="font-mono text-sky-300 hover:text-sky-200" rel="noopener noreferrer">Site</a>
+                    {% set site_fqdn = p.subdomain ~ '.' ~ apps_base_domain %}
+                    {% set port_seg = ':' ~ student_site_port if student_site_port else '' %}
+                    {% set site_url = 'http://' ~ site_fqdn ~ port_seg ~ '/' %}
+                    <a href="{{ site_url }}" class="font-mono text-sky-300 hover:text-sky-200">Site</a>
                     <span class="text-slate-600">·</span>
+                    <span class="mt-1 block max-w-xs select-all break-all font-mono text-[10px] leading-snug text-slate-500" title="Copy this URL if “Site” opens a blank tab">{{ site_url }}</span>
                   {% endif %}
                   <span class="font-mono text-emerald-200/90">{{ p.subdomain }}.{{ apps_base_domain }}</span>
                 {% else %}

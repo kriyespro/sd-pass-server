@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -16,6 +18,8 @@ from .forms import ProjectCustomHostnameForm, ProjectForm
 from .models import Project
 from .services import soft_delete_project
 from .tasks import on_project_created
+
+_STUDENT_APPS_IPV4 = re.compile(r'^(?:\d{1,3}\.){3}\d{1,3}$')
 
 
 class ProjectDashboardView(LoginRequiredMixin, ListView):
@@ -36,7 +40,9 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         ctx['project_count'] = Project.objects.filter(
             owner=self.request.user, is_deleted=False
         ).count()
-        ctx['apps_base_domain'] = settings.STUDENT_APPS_BASE_DOMAIN
+        base = (settings.STUDENT_APPS_BASE_DOMAIN or '').strip()
+        ctx['apps_base_domain'] = base
+        ctx['student_apps_base_is_ipv4'] = bool(_STUDENT_APPS_IPV4.match(base))
         ctx['student_public_port'] = getattr(settings, 'STUDENT_PUBLIC_HTTP_PORT', 0) or 0
         ctx['student_site_port'] = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
         return ctx

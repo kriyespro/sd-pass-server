@@ -1,19 +1,62 @@
 """
 When TLS terminates at nginx/Cloudflare and Traefik talks HTTP to Gunicorn, Django
-still sees ``X-Forwarded-Proto: http`` (or missing) and ``SECURE_SSL_REDIRECT``
-returns 301 to https in a loop for curl/tests that hit Traefik :9080 directly.
+still sees ``X-Forwarded-Proto: http`` and ``SECURE_SSL_REDIRECT`` returns 301 in a
+redirect loop.
 
-If ``STUDENT_TRUST_TRAEFIK_HTTPS`` is True, requests whose Host matches the student
-platform (``{subdomain}.{STUDENT_APPS_BASE_DOMAIN}`` or the base domain) are treated
-as HTTPS by setting ``X-Forwarded-Proto`` before ``SecurityMiddleware`` runs.
+If ``STUDENT_TRUST_TRAEFIK_HTTPS`` is True, requests whose Host either:
+  • matches ``{subdomain}.{STUDENT_APPS_BASE_DOMAIN}`` / the base domain itself, OR
+  • is a verified custom hostname stored in the Project model
 
-Only enable when public student URLs are always HTTPS (``STUDENT_SITE_PUBLIC_SCHEME=https``).
+are treated as HTTPS by injecting ``X-Forwarded-Proto: https`` before
+``SecurityMiddleware`` runs.
+
+Only enable when all public student URLs are served over HTTPS
+(``STUDENT_SITE_PUBLIC_SCHEME=https``).
+
+Custom-hostname lookups are cached in Django's cache for 60 s to avoid per-request
+DB queries.
 """
 from __future__ import annotations
+
+import time
 
 from django.conf import settings
 
 from core.middleware.student_static_site import _host_without_port
+
+# Simple in-process cache: {hostname: (bool, expires_ts)}
+_custom_host_cache: dict[str, tuple[bool, float]] = {}
+_CACHE_TTL = 60  # seconds
+
+
+def _is_verified_custom_host(host: str) -> bool:
+    """Return True if *host* is a verified custom hostname for any Project."""
+    now = time.monotonic()
+    entry = _custom_host_cache.get(host)
+    if entry is not None and entry[1] > now:
+        return entry[0]
+    try:
+        from apps.projects.models import Project  # avoid circular import at module level
+        verified = Project.objects.filter(
+            custom_hostname__iexact=host,
+            custom_hostname_verified=True,
+        ).exists()
+    except Exception:  # noqa: BLE001
+        verified = False
+    _custom_host_cache[host] = (verified, now + _CACHE_TTL)
+    return verified
+
+
+def _patch_https(request) -> None:
+    """Inject X-Forwarded-Proto: https into request META and WSGI environ."""
+    request.META.pop('HTTP_X_FORWARDED_PROTO', None)
+    request.META['HTTP_X_FORWARDED_PROTO'] = 'https'
+    environ = getattr(request, 'environ', None)
+    if environ is not None:
+        environ.pop('HTTP_X_FORWARDED_PROTO', None)
+        environ['HTTP_X_FORWARDED_PROTO'] = 'https'
+        environ['wsgi.url_scheme'] = 'https'
+        environ['HTTPS'] = 'on'
 
 
 class StudentTraefikHttpsProtoMiddleware:
@@ -27,23 +70,20 @@ class StudentTraefikHttpsProtoMiddleware:
             return self.get_response(request)
 
         raw_host = request.META.get('HTTP_HOST', '')
-        host = _host_without_port(raw_host)
+        host = _host_without_port(raw_host).lower()
+        if not host:
+            return self.get_response(request)
+
         base = settings.STUDENT_APPS_BASE_DOMAIN.strip().strip('.').lower()
-        if not base or not host:
+
+        # Match platform subdomain (e.g. radha.apps.crorepatinetwork.com) or base domain
+        if base and (host == base or host.endswith(f'.{base}')):
+            _patch_https(request)
             return self.get_response(request)
 
-        if host != base and not host.endswith(f'.{base}'):
+        # Match verified custom hostnames (e.g. dulhanindia.in)
+        if _is_verified_custom_host(host):
+            _patch_https(request)
             return self.get_response(request)
 
-        # Traefik often sends X-Forwarded-Proto: http on the internal hop; Django takes the
-        # first comma-separated value, so "http, https" still counts as http. Replace fully
-        # in META and WSGI environ so SecurityMiddleware sees HTTPS.
-        request.META.pop('HTTP_X_FORWARDED_PROTO', None)
-        request.META['HTTP_X_FORWARDED_PROTO'] = 'https'
-        environ = getattr(request, 'environ', None)
-        if environ is not None:
-            environ.pop('HTTP_X_FORWARDED_PROTO', None)
-            environ['HTTP_X_FORWARDED_PROTO'] = 'https'
-            environ['wsgi.url_scheme'] = 'https'
-            environ['HTTPS'] = 'on'
         return self.get_response(request)

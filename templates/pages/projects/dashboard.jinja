@@ -15,6 +15,11 @@
       <p class="mt-2 text-xs text-amber-200/80">
         If a tab shows <code class="font-mono">about:blank#blocked</code>, try copy-pasting the URL below, another browser, or disable strict/adblock for this site.
       </p>
+      <p class="mt-3 border-t border-amber-500/30 pt-3 text-xs text-amber-100/95">
+        <strong class="text-amber-50">Status “Pending” on a static project?</strong> There is no published site until you upload a ZIP and the
+        <strong class="text-amber-50">Celery worker</strong> completes the scan — then status becomes <strong class="text-amber-50">Running</strong>.
+        Check <code class="rounded bg-slate-950/80 px-1 font-mono text-[10px]">docker compose … ps</code>: <strong class="text-amber-50">worker</strong> must be Up. Until then, opening the Site URL may show an error or empty response.
+      </p>
     </div>
   {% endif %}
   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

@@ -63,6 +63,14 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         form.instance.owner = self.request.user
         response = super().form_valid(form)
         on_project_created.delay(self.object.pk)
+        try:
+            write_project_router_file(self.object)
+        except OSError as exc:
+            messages.warning(
+                self.request,
+                f'Project was created, but Traefik could not write its route file ({exc}). '
+                'Restart the web container (runs regenerate_traefik_routes) or fix volume permissions.',
+            )
         messages.success(self.request, f'Project “{self.object.name}” was created.')
         if self.request.htmx:
             return HttpResponseClientRedirect(self.get_success_url())

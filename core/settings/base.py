@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'core.middleware.normalize_forwarded_host.NormalizeForwardedHostMiddleware',
     'core.middleware.recover_proxy_host.RecoverProxyHostMiddleware',
     'core.middleware.dynamic_allowed_hosts.DynamicAllowedHostsMiddleware',
+    'core.middleware.student_https_proto.StudentTraefikHttpsProtoMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'core.middleware.student_static_site.StudentStaticSiteMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -135,6 +136,9 @@ STUDENT_APPS_BASE_DOMAIN = env(
     'STUDENT_APPS_BASE_DOMAIN',
     default='apps.localhost',
 )
+# When True, Host matching *.STUDENT_APPS_BASE_DOMAIN gets X-Forwarded-Proto=https before
+# SecurityMiddleware (TLS at nginx; Traefik→Gunicorn is HTTP). Requires public student URLs to be HTTPS.
+STUDENT_TRUST_TRAEFIK_HTTPS = env.bool('STUDENT_TRUST_TRAEFIK_HTTPS', default=False)
 # docker-compose.prod.yml only defines Traefik entrypoint "web" (:80 → host TRAEFIK_HTTP_PUBLISH).
 # Default must match that. Use TRAEFIK_ENTRYPOINTS=websecure only if your Traefik static config adds it.
 _STUDENT_APPS_LOCAL = STUDENT_APPS_BASE_DOMAIN.rstrip('.').endswith('.localhost')

@@ -1,0 +1,68 @@
+{% extends "base.jinja" %}
+{% block title %}Platform overview — Ops{% endblock %}
+{% block content %}
+<section class="space-y-8">
+  <div>
+    <h1 class="text-2xl font-semibold text-white">Platform overview</h1>
+    <p class="mt-1 text-sm text-slate-400">Staff-only snapshot: accounts, projects, recent security scans.</p>
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Active users</p>
+      <p class="mt-2 text-3xl font-semibold text-white">{{ user_count }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Projects</p>
+      <p class="mt-2 text-3xl font-semibold text-white">{{ project_count }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Running</p>
+      <p class="mt-2 text-3xl font-semibold text-emerald-300">{{ projects_running }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Failed</p>
+      <p class="mt-2 text-3xl font-semibold text-rose-300">{{ projects_failed }}</p>
+    </div>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+      <h2 class="border-b border-slate-800 bg-slate-950/50 px-4 py-3 text-sm font-semibold text-slate-200">Recent security scans</h2>
+      <ul class="max-h-96 divide-y divide-slate-800 overflow-y-auto text-sm">
+        {% for s in recent_scans %}
+          <li class="px-4 py-3">
+            <span class="font-mono text-xs text-slate-500">{{ s.created_at.strftime("%m-%d %H:%M") }}</span>
+            <span class="ml-2 font-semibold text-slate-200">{{ s.get_status_display() }}</span>
+            {% if s.upload.project %}
+              <span class="mt-1 block truncate text-slate-400">{{ s.upload.project.name }} · {{ s.upload.project.owner.email }}</span>
+            {% endif %}
+            {% if s.summary %}
+              <span class="mt-1 line-clamp-2 block text-xs text-slate-500">{{ s.summary }}</span>
+            {% endif %}
+          </li>
+        {% else %}
+          <li class="px-4 py-8 text-center text-slate-500">No scans yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+      <h2 class="border-b border-slate-800 bg-slate-950/50 px-4 py-3 text-sm font-semibold text-slate-200">Recent batches</h2>
+      <ul class="max-h-96 divide-y divide-slate-800 overflow-y-auto text-sm">
+        {% for b in recent_batches %}
+          <li class="flex items-center justify-between gap-2 px-4 py-3">
+            <div class="min-w-0">
+              <p class="font-medium text-white">{{ b.name }}</p>
+              <p class="truncate text-xs text-slate-500">Trainer: {{ b.trainer.email }}</p>
+            </div>
+            <span class="shrink-0 rounded-full bg-slate-800 px-2 py-1 text-xs text-emerald-200">{{ b.student_count }} students</span>
+          </li>
+        {% else %}
+          <li class="px-4 py-8 text-center text-slate-500">No batches yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

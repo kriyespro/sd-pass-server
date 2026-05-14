@@ -1,0 +1,33 @@
+{% extends "base.jinja" %}
+{% block title %}Logs — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-4xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+    · <a href="{{ url('projects:upload_zip', slug=project.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
+    · <a href="{{ url('projects:environment', slug=project.slug) }}" class="text-emerald-400 hover:text-emerald-300">Env</a>
+  </p>
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-xl font-semibold text-white">Project logs</h1>
+        <p class="mt-1 text-sm text-slate-400">Build, deploy, and system messages from background jobs. Refreshes every 30s.</p>
+      </div>
+      <span id="logs-poll-indicator" class="htmx-indicator h-2 w-2 shrink-0 rounded-full bg-emerald-400" title="Refreshing…"></span>
+    </div>
+    <div
+      class="mt-6"
+      hx-get="{{ url('projects:logs_partial', slug=project.slug) }}?page={{ request.GET.get('page', '1') }}"
+      hx-trigger="load, every 30s"
+      hx-target="#log-table-body"
+      hx-swap="innerHTML"
+      hx-indicator="#logs-poll-indicator"
+    >
+      <div id="log-table-body" class="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/40">
+        {% include "partials/logs/_log_table.jinja" %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

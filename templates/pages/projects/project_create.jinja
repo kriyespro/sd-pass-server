@@ -1,0 +1,12 @@
+{% extends "base.jinja" %}
+{% block title %}New project — StudentCloud Deploy{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-4">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Back to projects</a>
+  </p>
+  <div id="project-form-panel">
+    {% include "partials/projects/_project_form_panel.jinja" %}
+  </div>
+</section>
+{% endblock %}

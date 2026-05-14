@@ -1,0 +1,48 @@
+{% extends "base.jinja" %}
+{% block title %}Trainer — Env key audit{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-4xl space-y-6">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-white">Environment key names</h1>
+      <p class="mt-1 text-sm text-slate-400">
+        Trainee projects you supervise. Only variable <span class="text-slate-300">names</span> are listed; values are never shown.
+      </p>
+    </div>
+    <a href="{{ url('trainer:overview') }}" class="text-sm text-sky-300 hover:text-sky-200">← Batches</a>
+  </div>
+
+  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
+    <table class="min-w-full divide-y divide-slate-800 text-sm">
+      <thead class="bg-slate-950/50 text-left text-xs font-semibold uppercase text-slate-400">
+        <tr>
+          <th class="px-4 py-3">Student</th>
+          <th class="px-4 py-3">Project</th>
+          <th class="px-4 py-3">Type</th>
+          <th class="px-4 py-3">Keys</th>
+          <th class="px-4 py-3 text-right">Detail</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800 text-slate-200">
+        {% for p in audit_projects %}
+          <tr class="hover:bg-slate-900/40">
+            <td class="px-4 py-3 text-slate-300">{{ p.owner.email }}</td>
+            <td class="px-4 py-3 font-medium text-white">{{ p.name }}</td>
+            <td class="px-4 py-3 text-slate-400">{{ p.get_project_type_display() }}</td>
+            <td class="px-4 py-3 tabular-nums text-slate-400">{{ p.env_key_count }}</td>
+            <td class="px-4 py-3 text-right">
+              <a href="{{ url('trainer:env_audit_project', slug=p.slug) }}" class="text-sky-300 hover:text-sky-200">View names</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5" class="px-4 py-10 text-center text-slate-500">
+              No supervised trainee projects yet, or none have been created.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

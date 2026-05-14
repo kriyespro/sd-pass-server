@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}StudentCloud Deploy{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+  <style>
+    .htmx-indicator { opacity: 0; transition: opacity 150ms ease; }
+    .htmx-request.htmx-indicator,
+    form.htmx-request .htmx-indicator { opacity: 1; }
+  </style>
+</head>
+<body class="min-h-full antialiased">
+  <div class="mx-auto flex min-h-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
+    {% include "partials/_nav.jinja" %}
+    {% include "partials/_messages.jinja" %}
+    <main class="flex-1 pt-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

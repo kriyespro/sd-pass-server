@@ -1,0 +1,42 @@
+{% extends "base.jinja" %}
+{% block title %}Log in — StudentCloud Deploy{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-8">
+  <h1 class="text-2xl font-semibold text-white">Log in</h1>
+  <p class="mt-2 text-sm text-slate-400">Use your email and password.</p>
+  <form method="post" class="mt-6 space-y-4">
+    {{ csrf_input }}
+    {% if form.non_field_errors() %}
+      <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+        {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
+      </div>
+    {% endif %}
+    <div>
+      <label for="id_username" class="block text-sm font-medium text-slate-200">Email</label>
+      <input id="id_username" name="username" type="email" autocomplete="email" required
+        class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2"
+        value="{{ form.username.value() or '' }}">
+      {% if form.username.errors %}
+        {% for err in form.username.errors %}
+          <p class="mt-1 text-sm text-rose-300">{{ err }}</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <div>
+      <label for="id_password" class="block text-sm font-medium text-slate-200">Password</label>
+      <input id="id_password" name="password" type="password" autocomplete="current-password" required
+        class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2">
+      {% if form.password.errors %}
+        {% for err in form.password.errors %}
+          <p class="mt-1 text-sm text-rose-300">{{ err }}</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <button type="submit" class="w-full rounded-lg bg-emerald-500 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Continue</button>
+  </form>
+  <p class="mt-4 text-center text-sm text-slate-400">
+    New here?
+    <a href="{{ url('accounts:register') }}" class="font-semibold text-emerald-400 hover:text-emerald-300">Create an account</a>
+  </p>
+</div>
+{% endblock %}

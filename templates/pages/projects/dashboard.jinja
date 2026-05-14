@@ -1,0 +1,87 @@
+{% extends "base.jinja" %}
+{% block title %}Projects — StudentCloud Deploy{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-white">Your projects</h1>
+      <p class="text-sm text-slate-400">Status, type, and subdomain for each app.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      <a href="{{ url('projects:create') }}" class="inline-flex items-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">New project</a>
+      {% if quota %}
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+          <span class="font-semibold text-white">Quota:</span>
+          {{ quota.ram_mb }} MB RAM · {{ quota.cpu_cores }} CPU · {{ quota.disk_gb }} GB disk ·
+          {{ project_count }} / {{ quota.max_projects }} projects
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
+    {% if projects %}
+      <table class="min-w-full divide-y divide-slate-800 text-sm">
+        <thead class="bg-slate-950/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <tr>
+            <th class="px-4 py-3">Name</th>
+            <th class="px-4 py-3">Type</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Subdomain</th>
+            <th class="px-4 py-3">Host</th>
+            <th class="px-4 py-3">Created</th>
+            <th class="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 text-slate-200">
+          {% for p in projects %}
+            <tr class="hover:bg-slate-900">
+              <td class="px-4 py-3 font-medium text-white">{{ p.name }}</td>
+              <td class="px-4 py-3 text-slate-300">{{ p.get_project_type_display() }}</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/30">{{ p.get_status_display() }}</span>
+              </td>
+              <td class="px-4 py-3 font-mono text-xs text-slate-300">{{ p.subdomain }}</td>
+              <td class="px-4 py-3 text-xs text-slate-400">
+                {% if apps_base_domain %}
+                  {% if p.project_type == 'static' %}
+                    <a href="http://{{ p.subdomain }}.{{ apps_base_domain }}{% if student_public_port %}:{{ student_public_port }}{% endif %}/" class="font-mono text-sky-300 hover:text-sky-200" target="_blank" rel="noopener">Site</a>
+                    <span class="text-slate-600">·</span>
+                  {% endif %}
+                  <span class="font-mono text-emerald-200/90">{{ p.subdomain }}.{{ apps_base_domain }}</span>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 text-slate-400">{{ p.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              <td class="px-4 py-3 text-right text-xs font-medium">
+                <a href="{{ url('projects:logs', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Logs</a>
+                <span class="text-slate-600">·</span>
+                <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
+                {% if p.project_type == 'static' %}
+                  <span class="text-slate-600">·</span>
+                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-sky-400 hover:text-sky-300">Files</a>
+                {% endif %}
+                <span class="text-slate-600">·</span>
+                <a href="{{ url('projects:environment', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Env</a>
+                <span class="text-slate-600">·</span>
+                <a href="{{ url('projects:databases', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">DB</a>
+                <span class="text-slate-600">·</span>
+                <a href="{{ url('projects:backups', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Backups</a>
+                <span class="text-slate-600">·</span>
+                <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>
+                <span class="text-slate-600">·</span>
+                <a href="{{ url('projects:delete', slug=p.slug) }}" class="text-rose-400 hover:text-rose-300">Delete</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="px-6 py-10 text-center text-slate-400">
+        No projects yet. Use <span class="font-semibold text-slate-200">New project</span> to create one.
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

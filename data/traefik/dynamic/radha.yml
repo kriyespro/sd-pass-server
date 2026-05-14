@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj11:
+      rule: "Host(`radha.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj11-svc
+
+
+  services:
+    proj11-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj4:
+      rule: "Host(`flask-demo.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj4-svc
+
+
+  services:
+    proj4-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

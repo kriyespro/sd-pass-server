@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj12:
+      rule: "Host(`ram.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj12-svc
+
+
+  services:
+    proj12-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

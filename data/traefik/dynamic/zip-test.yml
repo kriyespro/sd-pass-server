@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj5:
+      rule: "Host(`zip-test.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj5-svc
+
+
+  services:
+    proj5-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

@@ -1,0 +1,28 @@
+{% extends "base.jinja" %}
+{% block title %}Backups — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-3xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">Backups</h1>
+    <p class="mt-2 text-sm text-slate-400">
+      Scheduled dumps and off-site storage are planned. Beat task <code class="text-emerald-300">backups.run_scheduled_backups</code> is a stub until pg_dump + object storage is implemented.
+    </p>
+    {% if backup_jobs %}
+      <ul class="mt-4 divide-y divide-slate-800 rounded-xl border border-slate-800 text-sm">
+        {% for job in backup_jobs %}
+          <li class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <span class="font-mono text-xs text-slate-400">{{ job.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+            <span class="rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-emerald-200">{{ job.get_status_display() }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-4 py-6 text-center text-sm text-slate-500">No backup jobs recorded yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

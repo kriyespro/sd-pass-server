@@ -1,0 +1,13 @@
+.venv
+venv
+__pycache__
+*.pyc
+.git
+.env
+db.sqlite3
+staticfiles
+media
+*.md
+.pytest_cache
+.idea
+.DS_Store

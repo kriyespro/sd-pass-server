@@ -1,0 +1,42 @@
+{% extends "base.jinja" %}
+{% block title %}Trainer — Batches{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-3xl space-y-6">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-white">Your batches</h1>
+      <p class="mt-1 text-sm text-slate-400">Students assigned to batches you lead (read-only overview).</p>
+    </div>
+    <a href="{{ url('trainer:env_audit') }}" class="shrink-0 rounded-lg bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-300 ring-1 ring-sky-500/35 hover:bg-sky-500/20">
+      Env key audit
+    </a>
+  </div>
+
+  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
+    <table class="min-w-full divide-y divide-slate-800 text-sm">
+      <thead class="bg-slate-950/50 text-left text-xs font-semibold uppercase text-slate-400">
+        <tr>
+          <th class="px-4 py-3">Batch</th>
+          <th class="px-4 py-3">Students</th>
+          <th class="px-4 py-3">Approval</th>
+          <th class="px-4 py-3 text-slate-500">Created</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800 text-slate-200">
+        {% for b in trainer_batches %}
+          <tr class="hover:bg-slate-900/40">
+            <td class="px-4 py-3 font-medium text-white">{{ b.name }}</td>
+            <td class="px-4 py-3">{{ b.student_count }}</td>
+            <td class="px-4 py-3">{% if b.requires_approval %}<span class="text-amber-300">Required</span>{% else %}<span class="text-slate-500">No</span>{% endif %}</td>
+            <td class="px-4 py-3 text-xs text-slate-500">{{ b.created_at.strftime("%Y-%m-%d") }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="4" class="px-4 py-10 text-center text-slate-500">No batches assigned to you yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

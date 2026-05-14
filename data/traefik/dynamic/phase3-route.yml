@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj7:
+      rule: "Host(`phase3-route.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj7-svc
+
+
+  services:
+    proj7-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

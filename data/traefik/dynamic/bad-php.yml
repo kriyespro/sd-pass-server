@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj6:
+      rule: "Host(`bad-php.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj6-svc
+
+
+  services:
+    proj6-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

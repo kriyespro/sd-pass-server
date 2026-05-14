@@ -1,0 +1,48 @@
+<div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-slate-950/30">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h2 class="text-lg font-semibold text-white">New project</h2>
+      <p class="mt-1 text-sm text-slate-400">Name, stack type, optional subdomain, short description.</p>
+    </div>
+  </div>
+
+  <form
+    method="post"
+    action="{{ url('projects:create') }}"
+    class="mt-6 space-y-4"
+    hx-post="{{ url('projects:create') }}"
+    hx-target="#project-form-panel"
+    hx-swap="innerHTML"
+  >
+    <div id="project-form-hx-indicator" class="htmx-indicator mb-2 text-sm font-medium text-emerald-300">Saving…</div>
+    {{ csrf_input }}
+
+    {% if form.non_field_errors() %}
+      <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+        {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
+      </div>
+    {% endif %}
+
+    {% for field in form %}
+      <div>
+        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-200">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}
+          <p class="mt-1 text-xs text-slate-500">{{ field.help_text|safe }}</p>
+        {% endif %}
+        {% if field.errors %}
+          {% for err in field.errors %}
+            <p class="mt-1 text-sm text-rose-300">{{ err }}</p>
+          {% endfor %}
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    <div class="flex flex-wrap items-center gap-3 pt-2">
+      <button type="submit" class="inline-flex items-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+        Create project
+      </button>
+      <a href="{{ url('projects:dashboard') }}" class="text-sm font-medium text-slate-400 hover:text-white">Cancel</a>
+    </div>
+  </form>
+</div>

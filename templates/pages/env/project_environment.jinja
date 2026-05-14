@@ -1,0 +1,54 @@
+{% extends "base.jinja" %}
+{% block title %}Environment — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">Environment variables</h1>
+    <p class="mt-2 text-sm text-slate-400">Values are encrypted at rest (Fernet). This screen is owner-only.</p>
+    <form method="post" class="mt-6 space-y-4">
+      {{ csrf_input }}
+      {% if form.non_field_errors() %}
+        <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+          {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
+        </div>
+      {% endif %}
+      <div>
+        <label class="block text-sm font-medium text-slate-200" for="{{ form.key.id_for_label }}">Key</label>
+        {{ form.key }}
+        {% if form.key.errors %}
+          {% for err in form.key.errors %}<p class="mt-1 text-sm text-rose-300">{{ err }}</p>{% endfor %}
+        {% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-200" for="{{ form.value.id_for_label }}">Value</label>
+        {{ form.value }}
+        {% if form.value.errors %}
+          {% for err in form.value.errors %}<p class="mt-1 text-sm text-rose-300">{{ err }}</p>{% endfor %}
+        {% endif %}
+      </div>
+      <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Save variable</button>
+    </form>
+  </div>
+
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+    <h2 class="text-sm font-semibold text-slate-300">Saved keys</h2>
+    {% if env_vars %}
+      <ul class="mt-2 divide-y divide-slate-800 text-sm text-slate-300">
+        {% for v in env_vars %}
+          <li class="flex justify-between py-2">
+            <span class="font-mono text-emerald-200">{{ v.key }}</span>
+            <span class="text-slate-500">encrypted</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mt-2 text-sm text-slate-500">No variables yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

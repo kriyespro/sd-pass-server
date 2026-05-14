@@ -1,0 +1,31 @@
+{% extends "base.jinja" %}
+{% block title %}Delete project — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    <span class="text-slate-600">·</span>
+    <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+  <div class="rounded-2xl border border-rose-900/50 bg-rose-950/20 p-6">
+    <h1 class="text-xl font-semibold text-white">Delete this project?</h1>
+    <p class="mt-3 text-sm text-slate-300">
+      This will remove <span class="font-semibold text-white">{{ project.name }}</span> from your dashboard and stop serving it.
+      Published static files, uploaded ZIPs, environment variables, logs, database records, and backups stored in the app for this project will be deleted.
+      {% if apps_base_domain %}
+        The hostname <code class="rounded bg-slate-900 px-1 text-rose-200">{{ project.subdomain }}.{{ apps_base_domain }}</code> will no longer show this site.
+      {% endif %}
+    </p>
+    <p class="mt-3 text-sm text-slate-400">
+      You can create a new project later with the same name; the old internal links will stop working.
+    </p>
+    <form method="post" class="mt-6 flex flex-wrap items-center gap-3">
+      {{ csrf_input }}
+      <button type="submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500">
+        Yes, delete project
+      </button>
+      <a href="{{ url('projects:dashboard') }}" class="text-sm font-medium text-slate-400 hover:text-slate-200">Cancel</a>
+    </form>
+  </div>
+</section>
+{% endblock %}

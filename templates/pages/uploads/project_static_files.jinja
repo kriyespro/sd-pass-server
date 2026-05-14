@@ -1,0 +1,52 @@
+{% extends "base.jinja" %}
+{% block title %}Upload static files — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    · <a href="{{ url('projects:upload_zip', slug=project.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP upload</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">Upload multiple static files</h1>
+    <p class="mt-2 text-sm text-slate-400">
+      For <span class="font-semibold text-slate-200">Static</span> projects only. You can pick several loose files <em>or</em> a whole project folder so paths like <code class="text-emerald-300">images/hero.jpg</code> match your HTML (Chrome, Edge, Firefox).
+      Allowed: HTML, CSS, JS, images, fonts, SVG, JSON, webmanifest. Max {{ upload_max_mb }} MB total per request, up to {{ max_files }} files (same relative paths overwrite). Use <code class="text-emerald-300">index.html</code> at the site root for <code class="text-emerald-300">/</code>. For very large sites, use <a href="{{ url('projects:upload_zip', slug=project.slug) }}" class="text-sky-400 hover:text-sky-300">ZIP upload</a>.
+    </p>
+    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4">
+      {{ csrf_input }}
+      {% if form.non_field_errors() %}
+        <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+          {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
+        </div>
+      {% endif %}
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-200" for="static-files-input">Files (multi-select)</label>
+          <input
+            id="static-files-input"
+            type="file"
+            name="files"
+            multiple
+            accept=".html,.htm,.css,.js,.mjs,.json,.svg,.map,.woff,.woff2,.ttf,.eot,.otf,.ico,.png,.jpg,.jpeg,.gif,.webp,.webmanifest,image/*"
+            class="block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-sky-500 file:px-3 file:py-1 file:text-slate-950"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-200" for="static-folder-input">Or choose a folder</label>
+          <input
+            id="static-folder-input"
+            type="file"
+            name="files"
+            webkitdirectory
+            multiple
+            class="block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-violet-500 file:px-3 file:py-1 file:text-slate-950"
+          />
+          <p class="mt-1 text-xs text-slate-500">Choose the <strong>project root</strong> (the folder that contains <code class="text-slate-400">index.html</code> and your <code class="text-slate-400">images</code> folder) so links like <code class="text-slate-400">images/photo.jpg</code> work. If you only pick the <code class="text-slate-400">images</code> folder, files land at the site root without an <code class="text-slate-400">images/</code> prefix.</p>
+        </div>
+      </div>
+      <button type="submit" class="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400">Save files to site</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj2:
+      rule: "Host(`plain-project-41a623c1.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj2-svc
+
+
+  services:
+    proj2-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

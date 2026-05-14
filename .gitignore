@@ -1,0 +1,18 @@
+.env
+*.pyc
+__pycache__/
+*.sqlite3
+db.sqlite3
+.venv/
+venv/
+.idea/
+.DS_Store
+staticfiles/
+media/
+data/sites/
+
+# All .txt files (notes, deploy docs, etc.)
+*.txt
+# Keep Python dependency manifest tracked — remove this line only if you truly
+# want requirements.txt ignored (not recommended).
+!requirements.txt

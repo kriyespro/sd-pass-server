@@ -1,0 +1,15 @@
+http:
+  routers:
+    proj8:
+      rule: "Host(`kriss.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj8-svc
+
+
+  services:
+    proj8-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"

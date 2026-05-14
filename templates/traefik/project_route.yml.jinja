@@ -1,0 +1,29 @@
+http:
+  routers:
+    {{ router_name }}:
+      rule: "Host(`{{ host }}`)"
+      entryPoints:{% for ep in entry_points %}
+        - {{ ep }}
+{% endfor %}
+      service: {{ service_name }}
+{% if use_tls %}
+      tls:
+        certResolver: {{ cert_resolver }}
+{% endif %}
+{% for extra in extra_hosts %}
+    {{ router_name }}cust{{ loop.index }}:
+      rule: "Host(`{{ extra }}`)"
+      entryPoints:{% for ep in entry_points %}
+        - {{ ep }}
+{% endfor %}
+      service: {{ service_name }}
+{% if use_tls %}
+      tls:
+        certResolver: {{ cert_resolver }}
+{% endif %}
+{% endfor %}
+  services:
+    {{ service_name }}:
+      loadBalancer:
+        servers:
+          - url: "{{ upstream_url }}"

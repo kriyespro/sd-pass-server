@@ -1,5 +1,9 @@
 # Compose-only production-style stack. Copy env.prod.example to .env.prod and set secrets + hosts.
-# Usage: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Commands: always pass --env-file .env.prod OR symlink/copy secrets into a file named `.env`
+# in this directory (Compose auto-loads `.env` for ${VAR} substitution — needed for `down`).
+#
+# Traefik host port defaults to 9080 so host nginx can keep :80. Override with TRAEFIK_HTTP_PUBLISH.
 
 services:
   db:
@@ -7,7 +11,8 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-studentcloud}
       POSTGRES_USER: ${POSTGRES_USER:-studentcloud}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      # No :? here so `docker compose down` works without env; MUST set a strong password in .env.prod before up.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -31,7 +36,7 @@ services:
       - --providers.file.watch=true
       - --log.level=INFO
     ports:
-      - '80:80'
+      - '${TRAEFIK_HTTP_PUBLISH:-9080}:80'
     volumes:
       - traefik_dynamic:/dynamic:ro
     depends_on:

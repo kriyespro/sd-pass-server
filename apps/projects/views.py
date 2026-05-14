@@ -38,6 +38,7 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         ).count()
         ctx['apps_base_domain'] = settings.STUDENT_APPS_BASE_DOMAIN
         ctx['student_public_port'] = getattr(settings, 'STUDENT_PUBLIC_HTTP_PORT', 0) or 0
+        ctx['student_site_port'] = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
         return ctx
 
 

@@ -16,6 +16,26 @@ _FLATTEN_IF_MISSING_TOP = frozenset(
 )
 
 
+def _host_without_port(raw: str) -> str:
+    """
+    Host part of HTTP Host header. Do not use split(':')[0] — it breaks
+    ``radha.example.com:9898`` into ``radha`` instead of ``radha.example.com``.
+    """
+    raw = (raw or '').strip()
+    if not raw:
+        return ''
+    if raw.startswith('['):
+        end = raw.find(']')
+        if end != -1 and len(raw) > end + 1 and raw[end + 1] == ':':
+            return raw[: end + 1].lower()
+        return raw.lower()
+    if ':' in raw:
+        host, maybe_port = raw.rsplit(':', 1)
+        if maybe_port.isdigit():
+            return host.lower()
+    return raw.lower()
+
+
 def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
     """
     Map request path to a path relative to site root for django.views.static.serve.
@@ -146,7 +166,7 @@ class StudentStaticSiteMiddleware:
         if request.method not in ('GET', 'HEAD'):
             return None
 
-        host = request.get_host().split(':')[0].lower()
+        host = _host_without_port(request.get_host())
         resolved = _resolve_project_for_static_host(host)
         if resolved is None:
             return None

@@ -17,7 +17,7 @@
   <div class="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4">
     <div class="flex-1">
       <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Current Plan</p>
-      <p class="mt-0.5 text-lg font-semibold text-white">{{ plan_labels[plan] }}</p>
+      <p class="mt-0.5 text-lg font-semibold text-white">{{ plan_labels.get(plan, plan | capitalize) }}</p>
       {% if subscription.current_period_end %}
         <p class="mt-1 text-xs text-slate-400">
           Active until {{ subscription.current_period_end.strftime('%d %b %Y') }}

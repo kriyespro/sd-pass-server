@@ -1,9 +1,13 @@
+import logging
+
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.views.generic import FormView
+
+logger = logging.getLogger(__name__)
 
 from .models import PLAN_LABELS, PLAN_LIMITS, PLAN_PRICES, Subscription
 from .services import get_or_create_subscription, redeem_coupon
@@ -34,7 +38,11 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        sub = get_or_create_subscription(self.request.user)
+        try:
+            sub = get_or_create_subscription(self.request.user)
+        except Exception as exc:
+            logger.exception('RedeemCouponView: get_or_create_subscription failed: %s', exc)
+            raise
         ctx['subscription'] = sub
         ctx['plan_labels'] = PLAN_LABELS
         ctx['plan_limits'] = PLAN_LIMITS

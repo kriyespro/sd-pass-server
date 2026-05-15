@@ -2,9 +2,10 @@ from .base import *  # noqa: F403, F405
 
 DEBUG = False
 
-DATABASES = {
-    'default': env.db('DATABASE_URL'),  # noqa: F405
-}
+_db = env.db('DATABASE_URL')  # noqa: F405
+_db.setdefault('CONN_MAX_AGE', 60)   # reuse DB connection for 60 s per worker
+_db.setdefault('CONN_HEALTH_CHECKS', True)
+DATABASES = {'default': _db}
 
 # Comma-separated in env: include your dashboard host, platform base domain, and every student custom host.
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])  # noqa: F405

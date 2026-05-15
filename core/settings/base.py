@@ -214,6 +214,27 @@ REST_FRAMEWORK = {
 }
 
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
+
+# ── Cache ─────────────────────────────────────────────────────────────────────
+# Use Redis (DB 1) so all Gunicorn workers share one cache instead of each
+# keeping a separate in-process LocMemCache that resets on restart.
+_redis_base = env('REDIS_URL', default='redis://127.0.0.1:6379')
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f"{_redis_base.rstrip('/')}/1",
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 2,
+            'SOCKET_TIMEOUT': 2,
+            'IGNORE_EXCEPTIONS': True,  # fall back to no-cache on Redis outage
+        },
+        'TIMEOUT': 300,
+        'KEY_PREFIX': 'sdpaas',
+    }
+}
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default=CELERY_BROKER_URL)
 CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
 CELERY_TASK_EAGER_PROPAGATES = True

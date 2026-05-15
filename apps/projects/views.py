@@ -57,6 +57,24 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
     template_name = 'pages/projects/project_create.jinja'
     success_url = reverse_lazy('projects:dashboard')
 
+    def _limit_reached(self):
+        limit = user_project_limit(self.request.user)
+        count = Project.objects.filter(owner=self.request.user, is_deleted=False).count()
+        return count >= limit, limit
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            reached, limit = self._limit_reached()
+            if reached:
+                messages.warning(
+                    request,
+                    f'You have reached your project limit ({limit} website'
+                    f'{"s" if limit != 1 else ""}). '
+                    'Upgrade your plan with a coupon code to create more projects.',
+                )
+                return HttpResponseRedirect(reverse('billing:redeem'))
+        return super().dispatch(request, *args, **kwargs)
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user

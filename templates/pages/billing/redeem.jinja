@@ -55,16 +55,6 @@
     <h2 class="text-base font-semibold text-white">Redeem Coupon Code</h2>
     <p class="mt-1 text-sm text-slate-400">Got a coupon? Enter it below to activate your plan instantly.</p>
 
-    {% with msgs = messages %}
-      {% for msg in msgs %}
-        <div class="mt-4 rounded-lg border
-          {{ 'border-emerald-700/60 bg-emerald-950/40 text-emerald-100' if msg.tags == 'success' else 'border-rose-700/60 bg-rose-950/40 text-rose-100' }}
-          px-3 py-2 text-sm">
-          {{ msg }}
-        </div>
-      {% endfor %}
-    {% endwith %}
-
     <form method="post" action="{{ url('billing:redeem') }}" class="mt-5 space-y-4">
       {{ csrf_input }}
       <div>

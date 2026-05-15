@@ -1,11 +1,16 @@
 {% if messages %}
   <div class="mt-4 space-y-2">
     {% for message in messages %}
-      <div class="rounded-lg border px-3 py-2 text-sm
-        {% if message.tags == 'success' %}border-emerald-700/60 bg-emerald-950/40 text-emerald-100
-        {% elif message.tags == 'error' %}border-rose-700/60 bg-rose-950/40 text-rose-100
+      <div class="rounded-lg border px-4 py-3 text-sm font-medium
+        {% if 'success' in message.tags %}border-emerald-700/60 bg-emerald-950/40 text-emerald-100
+        {% elif 'error' in message.tags %}border-rose-700/60 bg-rose-950/40 text-rose-100
+        {% elif 'warning' in message.tags %}border-amber-600/60 bg-amber-950/40 text-amber-100
+        {% elif 'info' in message.tags %}border-sky-700/60 bg-sky-950/40 text-sky-100
         {% else %}border-slate-700 bg-slate-900 text-slate-100{% endif %}">
         {{ message }}
+        {% if 'warning' in message.tags %}
+          <a href="{{ url('billing:redeem') }}" class="ml-2 underline font-semibold hover:text-white">Upgrade now →</a>
+        {% endif %}
       </div>
     {% endfor %}
   </div>

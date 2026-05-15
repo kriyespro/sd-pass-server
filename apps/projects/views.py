@@ -11,8 +11,8 @@ from django.views import View
 from django.views.generic import CreateView, ListView
 from django_htmx.http import HttpResponseClientRedirect
 
+from apps.billing.services import user_project_limit
 from apps.domains.services import write_project_router_file
-from apps.students.models import QuotaConfig
 
 from .forms import ProjectCustomHostnameForm, ProjectForm
 from .models import Project
@@ -36,10 +36,10 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['quota'] = QuotaConfig.objects.filter(user=self.request.user).first()
         ctx['project_count'] = Project.objects.filter(
             owner=self.request.user, is_deleted=False
         ).count()
+        ctx['plan_limit'] = user_project_limit(self.request.user)
         base = (settings.STUDENT_APPS_BASE_DOMAIN or '').strip()
         ctx['apps_base_domain'] = base
         ctx['student_apps_base_is_ipv4'] = bool(_STUDENT_APPS_IPV4.match(base))

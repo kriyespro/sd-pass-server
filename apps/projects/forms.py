@@ -4,9 +4,9 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 
-from apps.students.models import QuotaConfig
+from apps.billing.services import user_project_limit
 
-from .models import Project
+from .models import Project, ProjectType
 
 _FIELD_CLASS = (
     'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 '
@@ -69,7 +69,7 @@ class ProjectCustomHostnameForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ('name', 'project_type', 'subdomain', 'description')
+        fields = ('name', 'subdomain', 'description')
 
     def __init__(self, *args, user=None, **kwargs):
         self.user = user
@@ -77,13 +77,17 @@ class ProjectForm(forms.ModelForm):
         self.fields['subdomain'].required = False
         self.fields['description'].required = False
         self.fields['subdomain'].help_text = (
-            'Optional. Letters, numbers, hyphens only. Leave blank to auto-generate from the name.'
+            'Optional — auto-generated from the name if left blank. '
+            'Lowercase letters, numbers and hyphens only. No spaces.'
         )
+        self.fields['subdomain'].widget.attrs['placeholder'] = 'e.g. my-portfolio (no spaces)'
+        self.fields['name'].widget.attrs['placeholder'] = 'My Portfolio Site'
+        self.fields['description'].widget.attrs['placeholder'] = 'Short description (optional)'
         for _name, field in self.fields.items():
             field.widget.attrs.setdefault('class', _FIELD_CLASS)
 
     def clean_subdomain(self):
-        raw = (self.cleaned_data.get('subdomain') or '').strip()
+        raw = (self.cleaned_data.get('subdomain') or '').strip().lower()
         if not raw:
             return ''
         slug = slugify(raw)
@@ -97,11 +101,11 @@ class ProjectForm(forms.ModelForm):
         data = super().clean()
         if self.user is None:
             return data
-        cfg = QuotaConfig.objects.filter(user=self.user).first()
+        limit = user_project_limit(self.user)
         count = Project.objects.filter(owner=self.user, is_deleted=False).count()
-        max_projects = cfg.max_projects if cfg else 0
-        if max_projects and count >= max_projects:
+        if count >= limit:
             raise forms.ValidationError(
-                'You have reached your project limit. Ask your trainer or admin to raise your quota.'
+                f'You have reached your project limit ({limit} website{"s" if limit != 1 else ""}). '
+                'Upgrade your plan with a coupon code to add more.'
             )
         return data

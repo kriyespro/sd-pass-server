@@ -1,0 +1,93 @@
+{% extends "base.jinja" %}
+{% block title %}Upgrade Plan — StudentCloud Deploy{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-3xl space-y-8">
+
+  {# ── Page header ── #}
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-white">Upgrade Your Plan</h1>
+      <p class="mt-1 text-sm text-slate-400">Enter a coupon code to unlock more websites.</p>
+    </div>
+    <a href="{{ url('projects:dashboard') }}" class="text-sm font-medium text-slate-400 hover:text-white">← Back</a>
+  </div>
+
+  {# ── Current plan badge ── #}
+  {% set plan = subscription.plan_slug %}
+  <div class="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-4">
+    <div class="flex-1">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Current Plan</p>
+      <p class="mt-0.5 text-lg font-semibold text-white">{{ plan_labels[plan] }}</p>
+      {% if subscription.current_period_end %}
+        <p class="mt-1 text-xs text-slate-400">
+          Active until {{ subscription.current_period_end.strftime('%d %b %Y') }}
+        </p>
+      {% endif %}
+    </div>
+    <span class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
+      {{ subscription.max_projects }} website{{ 's' if subscription.max_projects != 1 }}
+    </span>
+  </div>
+
+  {# ── Pricing cards ── #}
+  <div class="grid gap-4 sm:grid-cols-3">
+    {% for p in plans %}
+      <div class="relative rounded-2xl border {{ 'border-emerald-500/60 bg-emerald-500/5 ring-1 ring-emerald-500/30' if p.highlight else 'border-slate-800 bg-slate-900/60' }} p-5">
+        {% if p.highlight %}
+          <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-0.5 text-xs font-bold text-slate-950">Most Popular</span>
+        {% endif %}
+        <p class="text-base font-semibold text-white">{{ p.name }}</p>
+        <p class="mt-1 text-2xl font-bold text-white">{{ p.price }}<span class="text-sm font-normal text-slate-400">/{{ p.period }}</span></p>
+        <p class="mt-3 text-sm text-slate-400">
+          <span class="font-semibold text-emerald-300">{{ p.sites }} websites</span>
+        </p>
+        <ul class="mt-3 space-y-1 text-xs text-slate-400">
+          <li>✓ Static site hosting</li>
+          <li>✓ Custom domain support</li>
+          <li>✓ 1-year validity</li>
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# ── Coupon redemption form ── #}
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h2 class="text-base font-semibold text-white">Redeem Coupon Code</h2>
+    <p class="mt-1 text-sm text-slate-400">Got a coupon? Enter it below to activate your plan instantly.</p>
+
+    {% with msgs = messages %}
+      {% for msg in msgs %}
+        <div class="mt-4 rounded-lg border
+          {{ 'border-emerald-700/60 bg-emerald-950/40 text-emerald-100' if msg.tags == 'success' else 'border-rose-700/60 bg-rose-950/40 text-rose-100' }}
+          px-3 py-2 text-sm">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" action="{{ url('billing:redeem') }}" class="mt-5 space-y-4">
+      {{ csrf_input }}
+      <div>
+        <label for="{{ form.code.id_for_label }}" class="block text-sm font-medium text-slate-200">
+          {{ form.code.label }}
+        </label>
+        {{ form.code }}
+        {% if form.code.errors %}
+          {% for err in form.code.errors %}
+            <p class="mt-1 text-sm text-rose-300">{{ err }}</p>
+          {% endfor %}
+        {% endif %}
+      </div>
+      <button type="submit"
+        class="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 active:scale-95 transition-transform">
+        Activate Plan
+      </button>
+    </form>
+
+    <p class="mt-4 text-xs text-slate-500">
+      Need a coupon? Contact your trainer or admin. Each code is single-use and tied to your account once redeemed.
+    </p>
+  </div>
+
+</section>
+{% endblock %}

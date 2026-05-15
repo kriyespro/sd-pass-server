@@ -6,106 +6,131 @@
     <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
       <p class="font-semibold text-amber-50">Student hostnames use your server IP as the domain</p>
       <p class="mt-1 text-amber-100/90">
-        Browsers must resolve names like <code class="rounded bg-slate-950/80 px-1 font-mono text-xs">radha.{{ apps_base_domain }}</code>.
-        Add a line to <code class="font-mono text-xs">/etc/hosts</code> (or Windows hosts) on the machine you browse from:
-        <code class="mt-2 block select-all break-all rounded bg-slate-950 px-2 py-1.5 font-mono text-xs text-emerald-200">{{ apps_base_domain }} radha.{{ apps_base_domain }}</code>
-        (repeat the hostname for each project subdomain). The port in the URL must match Traefik:
-        <code class="font-mono text-xs">TRAEFIK_HTTP_PUBLISH</code> and <code class="font-mono text-xs">STUDENT_SITE_HTTP_PORT</code> must be the same (e.g. both <span class="font-mono">8090</span>).
-      </p>
-      <p class="mt-2 text-xs text-amber-200/80">
-        If a tab shows <code class="font-mono">about:blank#blocked</code>, try copy-pasting the URL below, another browser, or disable strict/adblock for this site.
-      </p>
-      <p class="mt-3 border-t border-amber-500/30 pt-3 text-xs text-amber-100/95">
-        <strong class="text-amber-50">Status “Pending” on a static project?</strong> There is no published site until you upload a ZIP and the
-        <strong class="text-amber-50">Celery worker</strong> completes the scan — then status becomes <strong class="text-amber-50">Running</strong>.
-        Check <code class="rounded bg-slate-950/80 px-1 font-mono text-[10px]">docker compose … ps</code>: <strong class="text-amber-50">worker</strong> must be Up. Until then, opening the Site URL may show an error or empty response.
+        Add a line to <code class="font-mono text-xs">/etc/hosts</code> for each subdomain, e.g.
+        <code class="rounded bg-slate-950/80 px-1 font-mono text-xs">{{ apps_base_domain }} radha.{{ apps_base_domain }}</code>.
+        <code class="font-mono text-xs">TRAEFIK_HTTP_PUBLISH</code> and <code class="font-mono text-xs">STUDENT_SITE_HTTP_PORT</code> must match.
       </p>
     </div>
   {% endif %}
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+
+  {# ── Header row ── #}
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
-      <h1 class="text-2xl font-semibold text-white">Your projects</h1>
-      <p class="text-sm text-slate-400">Status, type, and subdomain for each app.</p>
+      <h1 class="text-2xl font-semibold text-white">Your Projects</h1>
+      <p class="text-sm text-slate-400">Static websites hosted on StudentCloud.</p>
     </div>
     <div class="flex flex-wrap items-center gap-3">
-      <a href="{{ url('projects:create') }}" class="inline-flex items-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">New project</a>
-      {% if quota %}
-        <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
-          <span class="font-semibold text-white">Quota:</span>
-          {{ quota.ram_mb }} MB RAM · {{ quota.cpu_cores }} CPU · {{ quota.disk_gb }} GB disk ·
-          {{ project_count }} / {{ quota.max_projects }} projects
-        </div>
-      {% endif %}
+      <a href="{{ url('projects:create') }}"
+         class="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow hover:bg-emerald-400 active:scale-95 transition-transform">
+        + New Project
+      </a>
+      <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-300">
+        <span>
+          <span class="font-semibold text-white">{{ project_count }}</span>
+          / {{ plan_limit }} site{{ 's' if plan_limit != 1 }}
+        </span>
+        {% if project_count >= plan_limit %}
+          <span class="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/30">Limit reached</span>
+        {% endif %}
+      </div>
+      <a href="{{ url('billing:redeem') }}"
+         class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/20 transition-colors">
+        🎟 Upgrade Plan
+      </a>
     </div>
   </div>
 
+  {# ── Projects table ── #}
   <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
     {% if projects %}
       <table class="min-w-full divide-y divide-slate-800 text-sm">
         <thead class="bg-slate-950/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
           <tr>
             <th class="px-4 py-3">Name</th>
-            <th class="px-4 py-3">Type</th>
             <th class="px-4 py-3">Status</th>
             <th class="px-4 py-3">Subdomain</th>
-            <th class="px-4 py-3">Host</th>
+            <th class="px-4 py-3">Live Site</th>
             <th class="px-4 py-3">Created</th>
             <th class="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800 text-slate-200">
           {% for p in projects %}
-            <tr class="hover:bg-slate-900">
+            <tr class="hover:bg-slate-900/80 transition-colors">
               <td class="px-4 py-3 font-medium text-white">{{ p.name }}</td>
-              <td class="px-4 py-3 text-slate-300">{{ p.get_project_type_display() }}</td>
               <td class="px-4 py-3">
-                <span class="inline-flex rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/30">{{ p.get_status_display() }}</span>
+                {% if p.status == 'running' %}
+                  <span class="inline-flex rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30">Running</span>
+                {% elif p.status == 'pending' %}
+                  <span class="inline-flex rounded-full bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">Pending</span>
+                {% elif p.status == 'failed' %}
+                  <span class="inline-flex rounded-full bg-rose-500/15 px-2 py-1 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/30">Failed</span>
+                {% else %}
+                  <span class="inline-flex rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">{{ p.get_status_display() }}</span>
+                {% endif %}
               </td>
               <td class="px-4 py-3 font-mono text-xs text-slate-300">{{ p.subdomain }}</td>
-              <td class="px-4 py-3 text-xs text-slate-400">
-                {% if apps_base_domain %}
-                  {% if p.project_type == 'static' %}
-                    {% set site_fqdn = p.subdomain ~ '.' ~ apps_base_domain %}
-                    {% set port_seg = ':' ~ student_site_port if student_site_port else '' %}
-                    {% set site_url = student_site_scheme ~ '://' ~ site_fqdn ~ port_seg ~ '/' %}
-                    <a href="{{ site_url }}" class="font-mono text-sky-300 hover:text-sky-200">Site</a>
-                    <span class="text-slate-600">·</span>
-                    <span class="mt-1 block max-w-xs select-all break-all font-mono text-[10px] leading-snug text-slate-500" title="Copy this URL if “Site” opens a blank tab">{{ site_url }}</span>
-                  {% endif %}
-                  <span class="font-mono text-emerald-200/90">{{ p.subdomain }}.{{ apps_base_domain }}</span>
+
+              {# ── Live site button ── #}
+              <td class="px-4 py-3">
+                {% if apps_base_domain and p.project_type == 'static' %}
+                  {% set site_fqdn = p.subdomain ~ '.' ~ apps_base_domain %}
+                  {% set port_seg = ':' ~ student_site_port if student_site_port else '' %}
+                  {% set site_url = student_site_scheme ~ '://' ~ site_fqdn ~ port_seg ~ '/' %}
+                  <a href="{{ site_url }}" target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30 hover:bg-sky-500/25 transition-colors">
+                    🌐 Visit Site
+                  </a>
+                  <div class="mt-1 max-w-[160px] select-all break-all font-mono text-[10px] text-slate-500">{{ site_url }}</div>
+                {% elif apps_base_domain %}
+                  <span class="font-mono text-xs text-slate-500">{{ p.subdomain }}.{{ apps_base_domain }}</span>
                 {% else %}
-                  —
+                  <span class="text-slate-600">—</span>
                 {% endif %}
               </td>
-              <td class="px-4 py-3 text-slate-400">{{ p.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-              <td class="px-4 py-3 text-right text-xs font-medium">
-                <a href="{{ url('projects:logs', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Logs</a>
-                <span class="text-slate-600">·</span>
-                <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
-                {% if p.project_type == 'static' %}
-                  <span class="text-slate-600">·</span>
-                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-sky-400 hover:text-sky-300">Files</a>
-                {% endif %}
-                <span class="text-slate-600">·</span>
-                <a href="{{ url('projects:environment', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Env</a>
-                <span class="text-slate-600">·</span>
-                <a href="{{ url('projects:databases', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">DB</a>
-                <span class="text-slate-600">·</span>
-                <a href="{{ url('projects:backups', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Backups</a>
-                <span class="text-slate-600">·</span>
-                <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>
-                <span class="text-slate-600">·</span>
-                <a href="{{ url('projects:delete', slug=p.slug) }}" class="text-rose-400 hover:text-rose-300">Delete</a>
+
+              <td class="px-4 py-3 text-slate-400">{{ p.created_at.strftime("%d %b %Y") }}</td>
+              <td class="px-4 py-3 text-right">
+                <div class="flex flex-wrap justify-end gap-x-2 gap-y-1 text-xs font-medium">
+                  <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:logs', slug=p.slug) }}" class="text-slate-400 hover:text-white">Logs</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:delete', slug=p.slug) }}" class="text-rose-400 hover:text-rose-300">Delete</a>
+                </div>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <div class="px-6 py-10 text-center text-slate-400">
-        No projects yet. Use <span class="font-semibold text-slate-200">New project</span> to create one.
+      <div class="px-6 py-14 text-center">
+        <p class="text-2xl">🌐</p>
+        <p class="mt-2 font-semibold text-slate-200">No projects yet</p>
+        <p class="mt-1 text-sm text-slate-400">Create your first static website to get started.</p>
+        <a href="{{ url('projects:create') }}"
+           class="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+          + Create First Project
+        </a>
       </div>
     {% endif %}
   </div>
+
+  {# ── Upgrade nudge when at limit ── #}
+  {% if project_count >= plan_limit %}
+    <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
+      <p class="font-semibold text-amber-50">You've used all {{ plan_limit }} website slot{{ 's' if plan_limit != 1 }}.</p>
+      <p class="mt-1 text-amber-100/80">Upgrade your plan with a coupon code to add more projects.</p>
+      <a href="{{ url('billing:redeem') }}"
+         class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400">
+        🎟 Redeem Coupon
+      </a>
+    </div>
+  {% endif %}
+
 </section>
 {% endblock %}

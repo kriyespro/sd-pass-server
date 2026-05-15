@@ -29,11 +29,16 @@ def redeem_coupon(user, code: str) -> tuple[bool, str]:
     Redeem *code* for *user*.
     Returns (True, plan_slug) on success or (False, error_message) on failure.
     """
-    code_clean = code.strip().upper().replace(' ', '')
+    code_clean = code.strip().replace(' ', '').replace('-', '')
     try:
-        coupon = CouponCode.objects.select_for_update().get(code=code_clean)
+        # Case-insensitive lookup; strip hyphens so GEETA == geeta == G-E-E-T-A
+        coupon = CouponCode.objects.select_for_update().get(code__iexact=code_clean)
     except CouponCode.DoesNotExist:
-        return False, 'Invalid coupon code. Please check and try again.'
+        # Try with hyphens preserved (for auto-generated XXXX-XXXX-XXXX-XXXX codes)
+        try:
+            coupon = CouponCode.objects.select_for_update().get(code__iexact=code.strip())
+        except CouponCode.DoesNotExist:
+            return False, 'Invalid coupon code. Please check and try again.'
 
     if not coupon.is_redeemable:
         if coupon.used_by_id:

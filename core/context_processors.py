@@ -1,6 +1,23 @@
 _NAV_CACHE_TTL = 30  # seconds — stale-ish but saves 2 DB queries per request
 
 
+def google_auth(request):
+    """Google OAuth button URL + flags on every page (login/register templates)."""
+    from django.conf import settings
+    from django.urls import NoReverseMatch, reverse
+
+    google_login_url = ''
+    try:
+        google_login_url = reverse('accounts:google_login')
+    except NoReverseMatch:
+        pass
+    return {
+        'google_login_url': google_login_url,
+        'google_oauth_configured': bool(getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '')),
+        'show_manual_auth': bool(getattr(settings, 'SHOW_MANUAL_AUTH', False)),
+    }
+
+
 def studentcloud_nav(request):
     """
     Jinja2 context: unread notifications + trainer menu visibility.

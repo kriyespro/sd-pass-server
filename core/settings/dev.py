@@ -3,6 +3,9 @@ from .base import *  # noqa: F403, F405
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
+# Optional email/password forms under a collapsible panel on login/register pages.
+SHOW_MANUAL_AUTH = env.bool('SHOW_MANUAL_AUTH', default=False)  # noqa: F405
+
 database_url = env('DATABASE_URL', default='')
 if database_url:
     DATABASES = {'default': env.db('DATABASE_URL')}

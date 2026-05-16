@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.shortcuts import redirect
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse_lazy
 from django.views.generic import CreateView, TemplateView
 
 from .forms import EmailAuthenticationForm, UserRegistrationForm
@@ -21,17 +21,8 @@ class AuthGatewayView(TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         mode = self.kwargs.get('mode', 'login')
-        ctx['auth_mode'] = mode
         ctx['is_register'] = mode == 'register'
-        ctx['show_manual_auth'] = getattr(settings, 'SHOW_MANUAL_AUTH', False)
-        ctx['google_oauth_configured'] = bool(
-            getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '')
-        )
-        try:
-            ctx['google_login_url'] = reverse('accounts:google_login')
-        except Exception:
-            ctx['google_login_url'] = ''
-        if ctx['show_manual_auth']:
+        if getattr(settings, 'SHOW_MANUAL_AUTH', False):
             if mode == 'register':
                 ctx['register_form'] = UserRegistrationForm()
             else:

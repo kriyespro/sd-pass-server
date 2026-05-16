@@ -1,0 +1,88 @@
+{# Shared login / sign-up panel #}
+{% set _is_register = is_register|default(false) %}
+<div class="mx-auto max-w-md">
+  <div class="rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950/90 p-8 shadow-2xl shadow-emerald-950/10">
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-emerald-400">StudentCloud Deploy</p>
+      <h1 class="mt-2 text-2xl font-bold text-white sm:text-3xl">
+        {{ 'Create your account' if _is_register else 'Welcome back' }}
+      </h1>
+      <p class="mt-2 text-sm text-slate-400">
+        {{ 'Sign up with Google to deploy your first site in minutes.' if _is_register else 'Sign in with Google to open your dashboard.' }}
+      </p>
+    </div>
+
+    <div class="mt-8">
+      {% if google_login_url %}
+        {% with button_label = ('Sign up with Google' if _is_register else 'Sign in with Google') %}
+          {% include "components/_google_sign_in_button.jinja" %}
+        {% endwith %}
+        {% if not google_oauth_configured %}
+          <p class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
+            Admin: add <code class="text-amber-100">GOOGLE_OAUTH_CLIENT_ID</code> and
+            <code class="text-amber-100">GOOGLE_OAUTH_CLIENT_SECRET</code> to <code class="text-amber-100">.env.prod</code>, then restart the web container.
+          </p>
+        {% else %}
+          <p class="mt-4 text-center text-xs text-slate-500">
+            We use your Google email and name only to create your account. No password to remember.
+          </p>
+        {% endif %}
+      {% else %}
+        <div class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+          <p class="font-semibold text-rose-50">Google sign-in URL missing</p>
+          <p class="mt-1 text-rose-100/90">Rebuild the web image so <code class="text-xs">django-allauth</code> is installed, then run <code class="text-xs">migrate</code>.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <p class="mt-6 text-center text-sm text-slate-400">
+      {% if _is_register %}
+        Already have an account?
+        <a href="{{ url('accounts:login') }}" class="font-semibold text-emerald-400 hover:text-emerald-300">Log in</a>
+      {% else %}
+        New here?
+        <a href="{{ url('accounts:register') }}" class="font-semibold text-emerald-400 hover:text-emerald-300">Create an account</a>
+      {% endif %}
+    </p>
+
+    {% if show_manual_auth|default(false) %}
+      <details class="mt-8 rounded-xl border border-slate-800 bg-slate-950/50">
+        <summary class="cursor-pointer px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200">
+          Email &amp; password (dev / admin)
+        </summary>
+        <div class="border-t border-slate-800 px-4 py-4">
+          {% if _is_register %}
+            <form method="post" action="{{ url('accounts:manual_register') }}" class="space-y-3">
+              {{ csrf_input }}
+              {% set reg_form = register_form if register_form is defined else form %}
+              {% for field in reg_form %}
+                <div>
+                  <label for="{{ field.id_for_label }}" class="block text-xs font-medium text-slate-300">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.errors %}{% for err in field.errors %}<p class="mt-1 text-xs text-rose-300">{{ err }}</p>{% endfor %}{% endif %}
+                </div>
+              {% endfor %}
+              <button type="submit" class="w-full rounded-lg bg-slate-700 py-2 text-sm font-semibold text-white hover:bg-slate-600">Create with email</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url('accounts:manual_login') }}" class="space-y-3">
+              {{ csrf_input }}
+              <div>
+                <label for="id_username" class="block text-xs font-medium text-slate-300">Email</label>
+                <input id="id_username" name="username" type="email" autocomplete="email" required
+                  class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                  value="{{ login_form.username.value() if login_form is defined and login_form.username.value() else '' }}">
+              </div>
+              <div>
+                <label for="id_password" class="block text-xs font-medium text-slate-300">Password</label>
+                <input id="id_password" name="password" type="password" autocomplete="current-password" required
+                  class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100">
+              </div>
+              <button type="submit" class="w-full rounded-lg bg-slate-700 py-2 text-sm font-semibold text-white hover:bg-slate-600">Log in with email</button>
+            </form>
+          {% endif %}
+        </div>
+      </details>
+    {% endif %}
+  </div>
+</div>

@@ -12,6 +12,8 @@ env = environ.Env()
 
 if os.path.isfile(BASE_DIR / '.env'):
     environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+elif os.path.isfile(BASE_DIR / '.env.prod'):
+    environ.Env.read_env(os.path.join(BASE_DIR, '.env.prod'))
 
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-set-secret-key-in-env')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
@@ -84,7 +86,7 @@ SITE_NAME = env('SITE_NAME', default='StudentCloud Deploy')
 
 GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 GOOGLE_OAUTH_CLIENT_SECRET = env('GOOGLE_OAUTH_CLIENT_SECRET', default='')
-SHOW_MANUAL_AUTH = env.bool('SHOW_MANUAL_AUTH', default=DEBUG)
+SHOW_MANUAL_AUTH = env.bool('SHOW_MANUAL_AUTH', default=False)
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -387,6 +389,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.csrf',
+                'core.context_processors.google_auth',
                 'core.context_processors.studentcloud_nav',
             ],
         },

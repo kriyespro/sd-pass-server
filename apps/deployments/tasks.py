@@ -122,4 +122,19 @@ def deploy_after_scan(scan_result: dict) -> dict:
         level=NotificationLevel.SUCCESS,
         link_url=link_url,
     )
+
+    # Queue AI image compression for static sites
+    if proj.project_type == ProjectType.STATIC and extract_ok:
+        create_notification(
+            user_id=proj.owner_id,
+            title='🤖 AI Image Optimizer is working…',
+            body=(
+                'Our best AI is scanning and compressing your site images in the background. '
+                'You will get another alert when it\'s done!'
+            ),
+            level=NotificationLevel.INFO,
+        )
+        from apps.deployments.compress_task import compress_site_images
+        compress_site_images.delay(proj.pk)
+
     return {**scan_result, 'deploy': 'stub_recorded'}

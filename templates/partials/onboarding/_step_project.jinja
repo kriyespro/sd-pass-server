@@ -5,7 +5,11 @@
       hx-target="body"
       hx-swap="none">
   {{ csrf_input }}
-  <p class="text-sm text-slate-300">Name your first website project. We will assign a subdomain automatically.</p>
+  <p class="text-sm text-slate-300">
+    Name your first website project. We assign a unique site address from your email
+    (e.g. <span class="font-mono text-slate-400">you.{{ apps_base_domain or 'yourschool.edu' }}</span>)
+    if the name is already taken.
+  </p>
 
   {% set form = onboarding_form %}
   {% if form %}

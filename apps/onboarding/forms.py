@@ -31,3 +31,11 @@ class OnboardingProjectForm(ProjectForm):
         super().__init__(*args, **kwargs)
         self.fields['name'].widget.attrs.setdefault('placeholder', 'My Portfolio Site')
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user and not (instance.subdomain or '').strip():
+            instance.subdomain = suggest_subdomain_base(self.user, instance.name)
+        if commit:
+            instance.save()
+        return instance
+

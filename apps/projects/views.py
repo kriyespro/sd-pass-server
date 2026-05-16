@@ -3,6 +3,7 @@ import re
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import IntegrityError
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
@@ -101,7 +102,13 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.owner = self.request.user
-        response = super().form_valid(form)
+        adjusted = getattr(form, 'subdomain_adjusted_from', '')
+        try:
+            response = super().form_valid(form)
+        except IntegrityError:
+            form.instance.subdomain = ''
+            form.instance.slug = ''
+            response = super().form_valid(form)
         on_project_created.delay(self.object.pk)
         try:
             write_project_router_file(self.object)
@@ -111,7 +118,17 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
                 f'Project was created, but Traefik could not write its route file ({exc}). '
                 'Restart the web container (runs regenerate_traefik_routes) or fix volume permissions.',
             )
-        messages.success(self.request, f'Project “{self.object.name}” was created.')
+        if adjusted:
+            messages.success(
+                self.request,
+                f'Project “{self.object.name}” was created. Subdomain “{adjusted}” was already '
+                f'taken — we assigned “{self.object.subdomain}” instead.',
+            )
+        else:
+            messages.success(
+                self.request,
+                f'Project “{self.object.name}” was created at {self.object.subdomain}.',
+            )
         if self.request.htmx:
             return HttpResponseClientRedirect(self.get_success_url())
         return response

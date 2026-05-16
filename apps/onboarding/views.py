@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import IntegrityError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -76,6 +77,7 @@ def _wizard_context_fixed(request, ob, **kwargs):
         'onboarding_project': project,
         'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
         'upload_max_files': MAX_STATIC_FILES_PER_POST,
+        'apps_base_domain': (getattr(settings, 'STUDENT_APPS_BASE_DOMAIN', None) or '').strip(),
     }
     ctx.update(kwargs)
     return ctx
@@ -141,17 +143,29 @@ class OnboardingStepView(LoginRequiredMixin, View):
             )
         project = form.save(commit=False)
         project.owner = request.user
-        project.save()
+        adjusted = getattr(form, 'subdomain_adjusted_from', '')
+        try:
+            project.save()
+        except IntegrityError:
+            project.subdomain = ''
+            project.slug = ''
+            project.save()
         on_project_created.delay(project.pk)
         try:
             write_project_router_file(project)
         except OSError:
             pass
         advance_step(ob, 2)
-        messages.success(
-            request,
-            f'Project “{project.name}” created — upload your site files next.',
+        msg = (
+            f'Project “{project.name}” created — your site address is '
+            f'“{project.subdomain}”. Upload your files next.'
         )
+        if adjusted:
+            msg = (
+                f'Project “{project.name}” created. Subdomain “{adjusted}” was already taken; '
+                f'we assigned “{project.subdomain}” instead. Upload your files next.'
+            )
+        messages.success(request, msg)
         return _finish(request)
 
     def _step_upload(self, request, ob):

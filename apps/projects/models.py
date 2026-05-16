@@ -1,9 +1,7 @@
 import secrets
-import uuid
 
 from django.conf import settings
 from django.db import models
-from django.utils.text import slugify
 
 
 class ProjectType(models.TextChoices):
@@ -95,19 +93,14 @@ class Project(models.Model):
         if self.custom_hostname:
             self.custom_hostname = self.custom_hostname.strip().rstrip('.') or None
 
+        from apps.projects.subdomain import allocate_unique_slug, allocate_unique_subdomain
+
         if not self.slug:
-            base = slugify(self.name) or 'project'
-            candidate = base
-            while Project.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
-                candidate = f'{base}-{uuid.uuid4().hex[:8]}'
-            self.slug = candidate
+            self.slug = allocate_unique_slug(self.name, exclude_pk=self.pk)
         if not self.subdomain:
             self.subdomain = self.slug
-        base_sub = self.subdomain
-        sub = base_sub
-        n = 1
-        while Project.objects.filter(subdomain=sub).exclude(pk=self.pk).exists():
-            sub = f'{base_sub}-{n}'
-            n += 1
-        self.subdomain = sub
+        self.subdomain = allocate_unique_subdomain(
+            self.subdomain,
+            exclude_pk=self.pk,
+        )
         super().save(*args, **kwargs)

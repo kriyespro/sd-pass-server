@@ -47,16 +47,39 @@
           this.label = 'Uploading…';
           var fd = new FormData(form);
           var xhr = new XMLHttpRequest();
+          var pulseTimer = null;
+          var bytesSent = false;
           xhr.open(form.method || 'POST', form.action);
           xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
           xhr.upload.addEventListener('progress', function (e) {
             if (e.lengthComputable && e.total > 0) {
-              self.uploadPct = Math.min(99, Math.round((e.loaded / e.total) * 100));
+              var raw = Math.round((e.loaded / e.total) * 100);
+              self.uploadPct = Math.min(raw >= 100 ? 88 : raw, 88);
+              if (e.loaded >= e.total) {
+                bytesSent = true;
+                self.label = 'Processing on server…';
+              }
             } else {
-              self.uploadPct = Math.min(self.uploadPct + 8, 90);
+              self.uploadPct = Math.min(self.uploadPct + 4, 80);
             }
           });
+          pulseTimer = setInterval(function () {
+            if (!self.uploading) return;
+            if (bytesSent && self.uploadPct < 98) {
+              self.uploadPct = Math.min(self.uploadPct + 1, 98);
+              self.label = 'Processing on server…';
+            } else if (!bytesSent && self.uploadPct < 85) {
+              self.uploadPct = Math.min(self.uploadPct + 2, 85);
+            }
+          }, 350);
+          function stopPulse() {
+            if (pulseTimer) {
+              clearInterval(pulseTimer);
+              pulseTimer = null;
+            }
+          }
           xhr.addEventListener('load', function () {
+            stopPulse();
             if (xhr.status === 422 && wizardRootId) {
               var doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
               var updated = doc.getElementById(wizardRootId);
@@ -96,10 +119,18 @@
             alert(msg);
           });
           xhr.addEventListener('error', function () {
+            stopPulse();
             reenableFileInputs();
             self.uploading = false;
             alert('Upload failed. Check your connection and try again.');
           });
+          xhr.addEventListener('timeout', function () {
+            stopPulse();
+            reenableFileInputs();
+            self.uploading = false;
+            alert('Upload timed out. Try fewer files or use ZIP upload from the project page.');
+          });
+          xhr.timeout = 0;
           xhr.send(fd);
         },
       };

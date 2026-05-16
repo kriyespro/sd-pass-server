@@ -7,6 +7,7 @@ from django.utils.text import slugify
 from apps.billing.services import user_project_limit
 
 from .models import Project, ProjectType
+from .subdomain import allocate_unique_subdomain, subdomain_is_available, suggest_subdomain_base
 
 _FIELD_CLASS = (
     'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 '
@@ -73,12 +74,13 @@ class ProjectForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         self.user = user
+        self.subdomain_adjusted_from = ''
         super().__init__(*args, **kwargs)
         self.fields['subdomain'].required = False
         self.fields['description'].required = False
         self.fields['subdomain'].help_text = (
-            'Optional — auto-generated from the name if left blank. '
-            'Lowercase letters, numbers and hyphens only. No spaces.'
+            'Optional — auto-generated from your project name or email if left blank. '
+            'If taken, we assign the next available name (e.g. you-2). Letters, numbers, hyphens only.'
         )
         self.fields['subdomain'].widget.attrs['placeholder'] = 'e.g. my-portfolio (no spaces)'
         self.fields['name'].widget.attrs['placeholder'] = 'My Portfolio Site'
@@ -95,6 +97,11 @@ class ProjectForm(forms.ModelForm):
             raise forms.ValidationError('Use only letters, numbers, and hyphens.')
         if len(slug) > 200:
             raise forms.ValidationError('Subdomain is too long.')
+        exclude_pk = self.instance.pk if self.instance and self.instance.pk else None
+        if not subdomain_is_available(slug, exclude_pk=exclude_pk):
+            suggested = allocate_unique_subdomain(slug, exclude_pk=exclude_pk)
+            self.subdomain_adjusted_from = slug
+            return suggested
         return slug
 
     def clean(self):

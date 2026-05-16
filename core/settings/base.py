@@ -2,6 +2,7 @@
 Shared Django settings for StudentCloud Deploy.
 """
 import os
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -24,6 +25,7 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
+    'axes',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -74,12 +76,23 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
 
 AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesBackend',
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
+
+# Brute-force protection for email/password login (manual auth / admin).
+AXES_FAILURE_LIMIT = env.int('AXES_FAILURE_LIMIT', default=5)
+AXES_COOLOFF_TIME = timedelta(minutes=env.int('AXES_COOLOFF_MINUTES', default=30))
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_PARAMETERS = [['ip_address', 'username']]
+AXES_USERNAME_FORM_FIELD = 'username'
+AXES_LOCKOUT_TEMPLATE = None
+AXES_ENABLE_ADMIN = True
 
 SITE_ID = 1
 SITE_DOMAIN = env('SITE_DOMAIN', default='localhost:8000')

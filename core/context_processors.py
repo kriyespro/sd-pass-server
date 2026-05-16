@@ -11,10 +11,16 @@ def google_auth(request):
         google_login_url = reverse('google_login')
     except NoReverseMatch:
         pass
+    cooloff = getattr(settings, 'AXES_COOLOFF_TIME', None)
+    cooloff_minutes = 30
+    if cooloff is not None and hasattr(cooloff, 'total_seconds'):
+        cooloff_minutes = max(1, int(cooloff.total_seconds() // 60))
     return {
         'google_login_url': google_login_url,
         'google_oauth_configured': bool(getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '')),
         'show_manual_auth': bool(getattr(settings, 'SHOW_MANUAL_AUTH', False)),
+        'axes_failure_limit': getattr(settings, 'AXES_FAILURE_LIMIT', 5),
+        'axes_cooloff_minutes': cooloff_minutes,
     }
 
 

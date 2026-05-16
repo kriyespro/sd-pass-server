@@ -1,0 +1,60 @@
+{# Shown when the user has no projects yet #}
+<div class="px-6 py-12 sm:py-16">
+  <div class="mx-auto flex max-w-md flex-col items-center text-center">
+    <div class="relative mb-8 w-full max-w-[280px]" aria-hidden="true">
+      <svg viewBox="0 0 280 200" class="h-auto w-full drop-shadow-lg" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="140" cy="178" rx="100" ry="12" class="fill-emerald-500/10"/>
+        <rect x="40" y="32" width="200" height="130" rx="16" class="fill-slate-800 stroke-slate-600" stroke-width="2"/>
+        <rect x="40" y="32" width="200" height="28" rx="16" class="fill-slate-700"/>
+        <circle cx="58" cy="46" r="5" class="fill-rose-400/80"/>
+        <circle cx="76" cy="46" r="5" class="fill-amber-400/80"/>
+        <circle cx="94" cy="46" r="5" class="fill-emerald-400/80"/>
+        <rect x="56" y="78" width="120" height="10" rx="5" class="fill-slate-600"/>
+        <rect x="56" y="98" width="168" height="8" rx="4" class="fill-slate-700"/>
+        <rect x="56" y="114" width="140" height="8" rx="4" class="fill-slate-700"/>
+        <rect x="56" y="130" width="88" height="8" rx="4" class="fill-slate-700"/>
+        <g class="translate-y-0 animate-[float_4s_ease-in-out_infinite]">
+          <circle cx="210" cy="52" r="28" class="fill-emerald-500/20 stroke-emerald-400/60" stroke-width="2"/>
+          <path d="M198 52h24M210 40v24" stroke="#34d399" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <path d="M20 120 Q50 90 80 110 T140 100 T200 115 T260 95" class="stroke-emerald-500/30" stroke-width="2" fill="none" stroke-dasharray="6 6"/>
+      </svg>
+    </div>
+    <h2 class="text-xl font-semibold text-white sm:text-2xl">Create your first project</h2>
+    <p class="mt-2 text-sm leading-relaxed text-slate-400">
+      Upload HTML, CSS, images, or a whole folder — we host it on your own subdomain in minutes.
+    </p>
+    <ul class="mt-5 space-y-2 text-left text-sm text-slate-500">
+      <li class="flex items-center gap-2">
+        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs text-emerald-400">1</span>
+        Name your site and get a free subdomain
+      </li>
+      <li class="flex items-center gap-2">
+        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs text-emerald-400">2</span>
+        Upload files or pick a project folder
+      </li>
+      <li class="flex items-center gap-2">
+        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs text-emerald-400">3</span>
+        Open your live link from the dashboard
+      </li>
+    </ul>
+    <a href="{{ url('projects:create') }}"
+       class="mt-8 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 active:scale-[0.98]">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/>
+      </svg>
+      Create your first project
+    </a>
+    {% if not onboarding_active|default(false) %}
+      <p class="mt-4 text-xs text-slate-500">
+        Tip: use <span class="text-slate-400">index.html</span> at the root so your home page loads at <span class="font-mono text-emerald-400/90">/</span>
+      </p>
+    {% endif %}
+  </div>
+</div>
+<style>
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+</style>

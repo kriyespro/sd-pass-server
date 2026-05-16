@@ -51,6 +51,10 @@
           Email &amp; password (dev / admin)
         </summary>
         <div class="border-t border-slate-800 px-4 py-4">
+          <p class="mb-3 text-xs text-slate-500">
+            After {{ axes_failure_limit|default(5) }} failed attempts, login is locked for
+            {{ axes_cooloff_minutes|default(30) }} minutes (per email and IP).
+          </p>
           {% if _is_register %}
             <form method="post" action="{{ url('accounts:manual_register') }}" class="space-y-3">
               {{ csrf_input }}

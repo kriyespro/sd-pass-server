@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.shortcuts import redirect
@@ -57,4 +58,36 @@ class LoginView(DjangoLoginView):
     def dispatch(self, request, *args, **kwargs):
         if not getattr(settings, 'SHOW_MANUAL_AUTH', False):
             return redirect('accounts:login')
+        locked_msg = _axes_lockout_message(request)
+        if locked_msg and request.method == 'POST':
+            messages.error(request, locked_msg)
+            return redirect('accounts:login')
         return super().dispatch(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        response = super().form_invalid(form)
+        locked_msg = _axes_lockout_message(self.request)
+        if locked_msg:
+            messages.error(self.request, locked_msg)
+        return response
+
+
+def _axes_lockout_message(request) -> str:
+    try:
+        from axes.helpers import get_cool_off, is_already_locked
+
+        credentials = {
+            'username': request.POST.get('username', ''),
+            'password': request.POST.get('password', ''),
+        }
+        if is_already_locked(request, credentials=credentials):
+            cooloff = get_cool_off()
+            if cooloff:
+                minutes = max(1, int(cooloff.total_seconds() // 60))
+                return (
+                    f'Too many failed login attempts. Try again in about {minutes} minutes.'
+                )
+            return 'Too many failed login attempts. Please try again later.'
+    except Exception:
+        pass
+    return ''

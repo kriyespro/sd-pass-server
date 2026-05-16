@@ -137,15 +137,7 @@
         </tbody>
       </table>
     {% else %}
-      <div class="px-6 py-14 text-center">
-        <p class="text-2xl">🌐</p>
-        <p class="mt-2 font-semibold text-slate-200">No projects yet</p>
-        <p class="mt-1 text-sm text-slate-400">Create your first static website to get started.</p>
-        <a href="{{ url('projects:create') }}"
-           class="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
-          + Create First Project
-        </a>
-      </div>
+      {% include "partials/projects/_empty_state.jinja" %}
     {% endif %}
   </div>
 

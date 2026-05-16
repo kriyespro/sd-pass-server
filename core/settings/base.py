@@ -104,6 +104,9 @@ SOCIALACCOUNT_PROVIDERS = {
 SOCIALACCOUNT_AUTO_SIGNUP = True
 # Skip allauth "You are about to sign in… Continue" — go straight to Google account picker.
 SOCIALACCOUNT_LOGIN_ON_GET = True
+# Log in / connect Google when the email already exists (manual sign-up users).
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 SOCIALACCOUNT_ADAPTER = 'apps.accounts.adapters.SocialAccountAdapter'
 ACCOUNT_ADAPTER = 'apps.accounts.adapters.AccountAdapter'
 ACCOUNT_EMAIL_VERIFICATION = 'none'

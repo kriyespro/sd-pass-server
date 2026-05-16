@@ -1,6 +1,5 @@
 from django.utils import timezone
 
-from apps.deployments.models import Deployment, DeploymentStatus
 from apps.projects.models import Project
 
 from .models import UserOnboarding
@@ -13,22 +12,11 @@ def get_or_create_onboarding(user) -> UserOnboarding:
     return ob
 
 
-def _has_successful_deployment(user) -> bool:
-    return Deployment.objects.filter(
-        project__owner=user,
-        project__is_deleted=False,
-        status=DeploymentStatus.SUCCEEDED,
-    ).exists()
-
-
 def sync_onboarding_progress(user) -> UserOnboarding:
-    """Align wizard step with profile/projects; finish if deploy already succeeded."""
+    """Align wizard step with profile/projects (do not auto-finish from old deploys)."""
     ob = get_or_create_onboarding(user)
     if ob.skipped or ob.completed_at:
         return ob
-
-    if _has_successful_deployment(user):
-        return complete_onboarding(user)
 
     step = ob.step_completed
     if (user.first_name or '').strip() and (user.last_name or '').strip():
@@ -43,7 +31,7 @@ def sync_onboarding_progress(user) -> UserOnboarding:
 
 
 def should_show_onboarding(user) -> bool:
-    if not user.is_authenticated or user.is_staff or user.is_superuser:
+    if not user.is_authenticated:
         return False
     ob = sync_onboarding_progress(user)
     return not ob.skipped and ob.completed_at is None

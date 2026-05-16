@@ -25,6 +25,8 @@ else:
 
 USE_X_FORWARDED_HOST = env.bool('USE_X_FORWARDED_HOST', default=False)  # noqa: F405
 
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'  # noqa: F405
+
 # ── HSTS (enable after confirming all traffic is HTTPS) ───────────────────────
 # 6 months in seconds — safe starting value. Raise to 31536000 (1 yr) once stable.
 SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=15768000)  # noqa: F405

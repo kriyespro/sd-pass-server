@@ -52,6 +52,7 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         from apps.onboarding.services import current_wizard_step as onboarding_current_step
 
         ctx['onboarding_active'] = should_show_onboarding(self.request.user)
+        ctx['onboarding_deploying'] = False
         if ctx['onboarding_active']:
             ob = sync_onboarding_progress(self.request.user)
             ctx['onboarding'] = ob

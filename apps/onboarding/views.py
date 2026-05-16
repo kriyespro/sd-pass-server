@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.views import View
 
 from apps.domains.services import write_project_router_file
@@ -23,13 +23,33 @@ from .services import (
 def _wizard_context_fixed(request, ob, **kwargs):
     from django.conf import settings
 
+    project = kwargs.pop('onboarding_project', None)
+    if project is None:
+        project = (
+            Project.objects.filter(owner=request.user, is_deleted=False)
+            .order_by('-created_at')
+            .first()
+        )
     ctx = {
         'onboarding': ob,
         'onboarding_step': current_wizard_step(ob),
+        'onboarding_deploying': kwargs.pop(
+            'onboarding_deploying',
+            ob.step_completed >= 3 and ob.completed_at is None,
+        ),
+        'onboarding_project': project,
         'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
     }
     ctx.update(kwargs)
     return ctx
+
+
+def _render_wizard(request, ob, **kwargs):
+    return render(
+        request,
+        'partials/onboarding/_wizard_modal.jinja',
+        _wizard_context_fixed(request, ob, **kwargs),
+    )
 
 
 class OnboardingWizardPartialView(LoginRequiredMixin, View):
@@ -44,11 +64,7 @@ class OnboardingWizardPartialView(LoginRequiredMixin, View):
             .order_by('-created_at')
             .first()
         )
-        return render(
-            request,
-            'partials/onboarding/_wizard_modal.jinja',
-            _wizard_context_fixed(request, ob, onboarding_project=project),
-        )
+        return _render_wizard(request, ob, onboarding_project=project)
 
 
 class OnboardingStepView(LoginRequiredMixin, View):
@@ -72,31 +88,27 @@ class OnboardingStepView(LoginRequiredMixin, View):
     def _step_name(self, request, ob):
         form = OnboardingNameForm(request.POST, instance=request.user)
         if not form.is_valid():
-            return render(
-                request,
-                'partials/onboarding/_wizard_modal.jinja',
-                _wizard_context_fixed(request, ob, onboarding_form=form, onboarding_step=1),
-                status=422,
+            resp = _render_wizard(
+                request, ob, onboarding_form=form, onboarding_step=1
             )
+            resp.status_code = 422
+            return resp
         form.save()
         advance_step(ob, 1)
         ob.refresh_from_db()
-        project = Project.objects.filter(owner=request.user, is_deleted=False).first()
-        return render(
-            request,
-            'partials/onboarding/_wizard_modal.jinja',
-            _wizard_context_fixed(request, ob, onboarding_project=project),
-        )
+        messages.success(request, 'Profile saved.')
+        if not getattr(request, 'htmx', False):
+            return redirect('projects:dashboard')
+        return _render_wizard(request, ob)
 
     def _step_project(self, request, ob):
         form = OnboardingProjectForm(request.POST, user=request.user)
         if not form.is_valid():
-            return render(
-                request,
-                'partials/onboarding/_wizard_modal.jinja',
-                _wizard_context_fixed(request, ob, onboarding_form=form, onboarding_step=2),
-                status=422,
+            resp = _render_wizard(
+                request, ob, onboarding_form=form, onboarding_step=2
             )
+            resp.status_code = 422
+            return resp
         project = form.save(commit=False)
         project.owner = request.user
         project.save()
@@ -108,11 +120,9 @@ class OnboardingStepView(LoginRequiredMixin, View):
         advance_step(ob, 2)
         ob.refresh_from_db()
         messages.success(request, f'Project “{project.name}” created — upload your site files next.')
-        return render(
-            request,
-            'partials/onboarding/_wizard_modal.jinja',
-            _wizard_context_fixed(request, ob, onboarding_project=project),
-        )
+        if not getattr(request, 'htmx', False):
+            return redirect('projects:dashboard')
+        return _render_wizard(request, ob, onboarding_project=project)
 
     def _step_upload(self, request, ob):
         project = (
@@ -122,34 +132,34 @@ class OnboardingStepView(LoginRequiredMixin, View):
         )
         if not project:
             messages.warning(request, 'Create a project first.')
-            return render(
-                request,
-                'partials/onboarding/_wizard_modal.jinja',
-                _wizard_context_fixed(request, ob, onboarding_step=2),
-            )
+            if not getattr(request, 'htmx', False):
+                return redirect('projects:dashboard')
+            return _render_wizard(request, ob, onboarding_step=2)
 
         form = OnboardingZipForm(request.POST, request.FILES)
         if not form.is_valid():
-            return render(
+            resp = _render_wizard(
                 request,
-                'partials/onboarding/_wizard_modal.jinja',
-                _wizard_context_fixed(
-                    request, ob, onboarding_form=form, onboarding_project=project, onboarding_step=3
-                ),
-                status=422,
+                ob,
+                onboarding_form=form,
+                onboarding_project=project,
+                onboarding_step=3,
             )
+            resp.status_code = 422
+            return resp
 
         uploaded = request.FILES.get('file')
         if not uploaded:
             form.add_error('file', 'Choose a ZIP file to upload.')
-            return render(
+            resp = _render_wizard(
                 request,
-                'partials/onboarding/_wizard_modal.jinja',
-                _wizard_context_fixed(
-                    request, ob, onboarding_form=form, onboarding_project=project, onboarding_step=3
-                ),
-                status=422,
+                ob,
+                onboarding_form=form,
+                onboarding_project=project,
+                onboarding_step=3,
             )
+            resp.status_code = 422
+            return resp
 
         upload = ProjectUpload(
             project=project,
@@ -166,10 +176,10 @@ class OnboardingStepView(LoginRequiredMixin, View):
             request,
             'ZIP uploaded. Security scan and deploy are running — you will get an alert when your site is live.',
         )
-        return render(
-            request,
-            'partials/onboarding/_wizard_modal.jinja',
-            _wizard_context_fixed(request, ob, onboarding_project=project, onboarding_deploying=True),
+        if not getattr(request, 'htmx', False):
+            return redirect('projects:dashboard')
+        return _render_wizard(
+            request, ob, onboarding_project=project, onboarding_deploying=True
         )
 
 
@@ -178,4 +188,6 @@ class OnboardingSkipView(LoginRequiredMixin, View):
 
     def post(self, request):
         skip_onboarding(request.user)
-        return HttpResponse('')
+        if getattr(request, 'htmx', False):
+            return HttpResponse('')
+        return redirect('projects:dashboard')

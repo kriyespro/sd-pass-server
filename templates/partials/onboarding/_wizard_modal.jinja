@@ -27,7 +27,7 @@
       <div class="mt-5 flex items-center gap-2">
         {% for label, num in [('Profile', 1), ('Project', 2), ('Upload', 3)] %}
           {% set done = onboarding.step_completed >= num %}
-          {% set active = onboarding_step == num and not onboarding_deploying %}
+          {% set active = onboarding_step == num and not (onboarding_deploying|default(false)) %}
           <div class="flex flex-1 flex-col items-center gap-1">
             <div class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ring-2 {{ 'bg-emerald-500 text-slate-950 ring-emerald-400' if done else ('bg-slate-800 text-emerald-300 ring-emerald-500/50' if active else 'bg-slate-800 text-slate-500 ring-slate-700') }}">
               {% if done %}✓{% else %}{{ num }}{% endif %}
@@ -42,7 +42,7 @@
     </div>
 
     <div class="px-6 py-5">
-      {% if onboarding_deploying %}
+      {% if onboarding_deploying|default(false) %}
         <div class="py-4 text-center">
           <p class="text-4xl">🚀</p>
           <p class="mt-3 text-lg font-semibold text-white">Deploying your site</p>

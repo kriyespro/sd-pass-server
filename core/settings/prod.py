@@ -22,3 +22,7 @@ else:
     SECURE_PROXY_SSL_HEADER = None
 
 USE_X_FORWARDED_HOST = env.bool('USE_X_FORWARDED_HOST', default=False)  # noqa: F405
+
+# Reload .jinja files from disk when templates are bind-mounted (docker-compose ./templates)
+if env.bool('TEMPLATE_AUTO_RELOAD', default=True):  # noqa: F405
+    TEMPLATES[0]['OPTIONS']['auto_reload'] = True  # noqa: F405

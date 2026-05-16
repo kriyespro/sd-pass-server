@@ -40,6 +40,8 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
             owner=self.request.user, is_deleted=False
         ).count()
         ctx['plan_limit'] = user_project_limit(self.request.user)
+        from core.server_stats import get_server_stats
+        ctx['server'] = get_server_stats()
         base = (settings.STUDENT_APPS_BASE_DOMAIN or '').strip()
         ctx['apps_base_domain'] = base
         ctx['student_apps_base_is_ipv4'] = bool(_STUDENT_APPS_IPV4.match(base))

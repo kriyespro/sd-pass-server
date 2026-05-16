@@ -1,90 +1,136 @@
 {% extends "base.jinja" %}
-{% block title %}Admin monitor — StudentCloud{% endblock %}
+{% block title %}Mission Control — StudentCloud{% endblock %}
 {% block content %}
-<section class="space-y-8">
-  <div class="flex flex-col gap-4 border-b border-slate-800 pb-6 lg:flex-row lg:items-start lg:justify-between">
+<section class="space-y-6">
+
+  {# ══ Header ══ #}
+  <div class="flex flex-col gap-3 border-b border-slate-800 pb-5 sm:flex-row sm:items-center sm:justify-between">
     <div>
-      <p class="text-xs font-semibold uppercase tracking-widest text-violet-400">Staff monitor</p>
-      <h1 class="mt-1 text-2xl font-semibold text-white">Platform monitor</h1>
-      <p class="mt-2 max-w-2xl text-sm text-slate-400">
-        Live counts, uploads, deploys, security scans, and project logs. Use
-        <a href="{{ django_admin_path }}" class="font-medium text-violet-300 underline hover:text-violet-200">Django admin (/sd/)</a>
-        to edit rows, permissions, and raw data.
-      </p>
+      <p class="text-xs font-semibold uppercase tracking-widest text-violet-400">Staff only</p>
+      <h1 class="mt-1 text-2xl font-bold text-white">Mission Control</h1>
+      <p class="mt-1 text-sm text-slate-400">Live platform health — server, users, projects, billing.</p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <a href="{{ django_admin_path }}" class="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500">Open /sd/ admin</a>
-      <a href="{{ url('admin_monitor:dashboard') }}" class="rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800">Refresh</a>
+      <a href="{{ url('admin_monitor:dashboard') }}"
+         class="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800">
+        ↻ Refresh
+      </a>
+      <a href="{{ django_admin_path }}"
+         class="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500">
+        ⚙ Django Admin /sd/
+      </a>
     </div>
   </div>
 
-  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <p class="text-xs font-semibold uppercase text-slate-500">Users</p>
-      <p class="mt-1 text-2xl font-bold text-white">{{ user_active }}</p>
-      <p class="mt-1 text-xs text-slate-500">{{ user_total }} accounts · {{ user_staff }} staff · +{{ users_joined_week }} joined (7d)</p>
+  {# ══ Server Health ══ #}
+  {% set sv = server %}
+  {% macro bar(pct, status) %}
+    <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+      <div class="h-2 rounded-full transition-all duration-500
+        {{ 'bg-rose-500' if status == 'critical' else ('bg-amber-400' if status == 'warning' else 'bg-emerald-400') }}"
+        style="width:{{ [pct,100]|min }}%"></div>
     </div>
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <p class="text-xs font-semibold uppercase text-slate-500">Projects</p>
-      <p class="mt-1 text-2xl font-bold text-white">{{ project_active }}</p>
-      <p class="mt-1 text-xs text-slate-500">{{ project_deleted }} deleted · {{ projects_custom_domain }} custom domains</p>
-    </div>
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <p class="text-xs font-semibold uppercase text-slate-500">Project health</p>
-      <p class="mt-1 text-2xl font-bold text-emerald-300">{{ projects_running }}</p>
-      <p class="mt-1 text-xs text-rose-400">{{ projects_failed }} failed</p>
-    </div>
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <p class="text-xs font-semibold uppercase text-slate-500">Uploads</p>
-      <p class="mt-1 text-2xl font-bold text-white">{{ upload_total }}</p>
-      <p class="mt-1 text-xs text-slate-500">{{ uploads_pending }} pending/scan · {% if upload_week_bytes %}{{ (upload_week_bytes / 1048576)|round(1) }}{% else %}0{% endif %} MB (7d)</p>
-    </div>
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <p class="text-xs font-semibold uppercase text-slate-500">Logs</p>
-      <p class="mt-1 text-2xl font-bold text-sky-300">{{ logs_day }}</p>
-      <p class="mt-1 text-xs text-slate-500">{{ logs_week }} entries (7d)</p>
-    </div>
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <p class="text-xs font-semibold uppercase text-slate-500">Alerts &amp; jobs</p>
-      <p class="mt-1 text-2xl font-bold text-amber-300">{{ notifications_unread }}</p>
-      <p class="mt-1 text-xs text-slate-500">{{ deployments_failed_week }} deploy fail (7d) · {{ backups_running }} backups running</p>
-    </div>
-  </div>
+  {% endmacro %}
 
-  {% if projects_by_type %}
-    <div class="flex flex-wrap gap-2">
-      {% for row in projects_by_type %}
-        <span class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-300">
-          <span class="font-mono text-emerald-300/90">{{ row.label }}</span>
-          <span class="text-slate-500">·</span>{{ row.c }}
-        </span>
-      {% endfor %}
-    </div>
-  {% endif %}
+  <div>
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">🖥 Server Health</h2>
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 
-  {% if upload_status_rows %}
-    <div class="flex flex-wrap gap-2 text-xs">
-      {% for row in upload_status_rows %}
-        <span class="rounded border border-slate-800 bg-slate-950 px-2 py-1 font-mono text-slate-400">{{ row.label }}: <span class="text-white">{{ row.c }}</span></span>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  <div class="grid gap-6 xl:grid-cols-2">
-    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/50 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-200">Recent uploads</h2>
-        <a href="{{ url('admin:uploads_projectupload_changelist') }}" class="text-xs font-medium text-violet-400 hover:text-violet-300">All in /sd/</a>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase text-slate-500">CPU</p>
+          <span class="text-sm font-bold {{ 'text-rose-400' if sv.cpu_status=='critical' else ('text-amber-400' if sv.cpu_status=='warning' else 'text-emerald-300') }}">{{ sv.cpu_pct }}%</span>
+        </div>
+        {{ bar(sv.cpu_pct, sv.cpu_status) }}
+        <p class="mt-2 text-xs text-slate-500">Load: {{ sv.load1 }} / {{ sv.load5 }} / {{ sv.load15 }} · {{ sv.cpu_count }} cores</p>
       </div>
-      <div class="max-h-[28rem] overflow-auto">
+
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase text-slate-500">RAM</p>
+          <span class="text-sm font-bold {{ 'text-rose-400' if sv.ram_status=='critical' else ('text-amber-400' if sv.ram_status=='warning' else 'text-emerald-300') }}">{{ sv.ram_pct }}%</span>
+        </div>
+        {{ bar(sv.ram_pct, sv.ram_status) }}
+        <p class="mt-2 text-xs text-slate-500">{{ sv.ram_used_gb }} / {{ sv.ram_total_gb }} GB</p>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase text-slate-500">Disk</p>
+          <span class="text-sm font-bold {{ 'text-rose-400' if sv.disk_status=='critical' else ('text-amber-400' if sv.disk_status=='warning' else 'text-emerald-300') }}">{{ sv.disk_pct }}%</span>
+        </div>
+        {{ bar(sv.disk_pct, sv.disk_status) }}
+        <p class="mt-2 text-xs text-slate-500">{{ sv.disk_used_gb }} / {{ sv.disk_total_gb }} GB</p>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <p class="text-xs font-semibold uppercase text-slate-500">Network / Uptime</p>
+        <p class="mt-2 text-lg font-bold text-sky-300">↑ {{ sv.net_sent_mb }} MB</p>
+        <p class="text-xs text-slate-500">↓ {{ sv.net_recv_mb }} MB recv · up {{ sv.uptime_hours }}h</p>
+      </div>
+    </div>
+  </div>
+
+  {# ══ Platform KPIs ══ #}
+  <div>
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">📊 Platform Stats</h2>
+    <div class="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      {% macro kpi(label, value, sub, colour='text-white') %}
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <p class="text-xs font-semibold uppercase text-slate-500">{{ label }}</p>
+          <p class="mt-1 text-2xl font-bold {{ colour }}">{{ value }}</p>
+          {% if sub %}<p class="mt-1 text-xs text-slate-500">{{ sub }}</p>{% endif %}
+        </div>
+      {% endmacro %}
+      {{ kpi('Users', user_active, user_total ~ ' total · +' ~ users_joined_week ~ ' (7d)') }}
+      {{ kpi('Projects', project_active, project_deleted ~ ' deleted · ' ~ projects_custom_domain ~ ' domains') }}
+      {{ kpi('Running', projects_running, projects_failed ~ ' failed', 'text-emerald-300') }}
+      {{ kpi('Uploads', upload_total, uploads_pending ~ ' pending · ' ~ ((upload_week_bytes/1048576)|round(1) if upload_week_bytes else 0) ~ ' MB (7d)') }}
+      {{ kpi('Alerts', notifications_unread, deployments_failed_week ~ ' deploy fail (7d)', 'text-amber-300') }}
+      {{ kpi('Coupons', coupons_available, coupons_used ~ ' used', 'text-violet-300') }}
+    </div>
+  </div>
+
+  {# ══ Billing / Plans ══ #}
+  <div>
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">💳 Subscriptions</h2>
+    <div class="flex flex-wrap gap-3">
+      {% set plan_colours = {'free':'bg-slate-700','starter':'bg-sky-600','pro':'bg-emerald-600','business':'bg-violet-600'} %}
+      {% for row in sub_by_plan %}
+        <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+          <span class="rounded-full {{ plan_colours.get(row.plan_slug, 'bg-slate-700') }} px-2 py-0.5 text-xs font-bold text-white">{{ row.plan_slug | capitalize }}</span>
+          <span class="text-sm font-semibold text-white">{{ row.c }}</span>
+          <span class="text-xs text-slate-500">user{{ 's' if row.c != 1 }} · {{ row.limit }} site{{ 's' if row.limit != 1 }}/plan</span>
+        </div>
+      {% else %}
+        <p class="text-xs text-slate-500">No subscriptions yet.</p>
+      {% endfor %}
+      <a href="{{ url('admin:billing_subscription_changelist') }}"
+         class="flex items-center rounded-xl border border-violet-700/40 bg-violet-600/10 px-4 py-3 text-xs font-semibold text-violet-300 hover:bg-violet-600/20">
+        Manage plans →
+      </a>
+      <a href="{{ url('admin:billing_couponcode_changelist') }}"
+         class="flex items-center rounded-xl border border-emerald-700/40 bg-emerald-600/10 px-4 py-3 text-xs font-semibold text-emerald-300 hover:bg-emerald-600/20">
+        Coupon codes →
+      </a>
+    </div>
+  </div>
+
+  {# ══ Tables grid ══ #}
+  <div class="grid gap-5 xl:grid-cols-2">
+
+    {# Recent uploads #}
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-200">📦 Recent Uploads</h2>
+        <a href="{{ url('admin:uploads_projectupload_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">All →</a>
+      </div>
+      <div class="max-h-72 overflow-auto">
         <table class="min-w-full text-left text-xs">
           <thead class="sticky top-0 bg-slate-950/95 text-slate-500">
             <tr>
-              <th class="px-3 py-2">When</th>
-              <th class="px-3 py-2">Project</th>
-              <th class="px-3 py-2">Owner</th>
-              <th class="px-3 py-2">File</th>
-              <th class="px-3 py-2">Status</th>
+              <th class="px-3 py-2">Time</th><th class="px-3 py-2">Project</th>
+              <th class="px-3 py-2">Owner</th><th class="px-3 py-2">Status</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800 text-slate-300">
@@ -93,23 +139,23 @@
                 <td class="whitespace-nowrap px-3 py-2 font-mono text-slate-500">{{ u.created_at.strftime("%m-%d %H:%M") }}</td>
                 <td class="px-3 py-2"><a href="{{ url('admin:projects_project_change', u.project.pk) }}" class="text-emerald-400 hover:underline">{{ u.project.name }}</a></td>
                 <td class="max-w-[8rem] truncate px-3 py-2 text-slate-500">{{ u.owner.email }}</td>
-                <td class="max-w-[10rem] truncate px-3 py-2 font-mono text-slate-400" title="{{ u.original_name }}">{{ u.original_name }}</td>
-                <td class="px-3 py-2"><span class="rounded bg-slate-800 px-1.5 py-0.5">{{ u.get_status_display() }}</span></td>
+                <td class="px-3 py-2"><span class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px]">{{ u.get_status_display() }}</span></td>
               </tr>
             {% else %}
-              <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No uploads.</td></tr>
+              <tr><td colspan="4" class="py-8 text-center text-slate-500">No uploads.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
 
+    {# Recent logs #}
     <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/50 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-200">Recent project logs</h2>
-        <a href="{{ url('admin:logs_logentry_changelist') }}" class="text-xs font-medium text-violet-400 hover:text-violet-300">All in /sd/</a>
+      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-200">📋 Project Logs</h2>
+        <a href="{{ url('admin:logs_logentry_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">All →</a>
       </div>
-      <ul class="max-h-[28rem] divide-y divide-slate-800 overflow-y-auto text-xs">
+      <ul class="max-h-72 divide-y divide-slate-800 overflow-y-auto text-xs">
         {% for e in recent_logs %}
           <li class="px-4 py-2.5 hover:bg-slate-900/60">
             <div class="flex flex-wrap items-baseline gap-2">
@@ -117,111 +163,103 @@
               <span class="rounded bg-slate-800 px-1.5 text-[10px] font-semibold uppercase text-slate-400">{{ e.get_kind_display() }}</span>
               <a href="{{ url('admin:projects_project_change', e.project.pk) }}" class="text-emerald-400 hover:underline">{{ e.project.name }}</a>
             </div>
-            <p class="mt-1 line-clamp-2 text-slate-400">{{ e.message }}</p>
+            <p class="mt-1 line-clamp-1 text-slate-500">{{ e.message }}</p>
           </li>
         {% else %}
-          <li class="px-4 py-8 text-center text-slate-500">No log entries.</li>
+          <li class="py-8 text-center text-slate-500">No log entries.</li>
         {% endfor %}
       </ul>
     </div>
+
   </div>
 
-  <div class="grid gap-6 lg:grid-cols-3">
-    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/50 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-200">Security scans</h2>
-        <a href="{{ url('admin:security_scanreport_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">/sd/</a>
-      </div>
-      <ul class="max-h-80 divide-y divide-slate-800 overflow-y-auto text-xs">
-        {% for s in recent_scans %}
-          <li class="px-4 py-2.5">
-            <span class="font-mono text-slate-500">{{ s.created_at.strftime("%m-%d %H:%M") }}</span>
-            <span class="ml-2 font-semibold text-slate-200">{{ s.get_status_display() }}</span>
-            {% if s.upload and s.upload.project %}
-              <p class="mt-0.5 truncate text-slate-500">{{ s.upload.project.name }} · {{ s.upload.project.owner.email }}</p>
-            {% endif %}
-            {% if s.summary %}<p class="mt-1 line-clamp-2 text-slate-600">{{ s.summary }}</p>{% endif %}
-          </li>
-        {% else %}
-          <li class="px-4 py-6 text-center text-slate-500">No scans.</li>
-        {% endfor %}
-      </ul>
-    </div>
+  <div class="grid gap-5 lg:grid-cols-3">
 
+    {# New users #}
     <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/50 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-200">New users</h2>
-        <a href="{{ url('admin:accounts_user_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">/sd/</a>
+      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-200">👤 New Users</h2>
+        <a href="{{ url('admin:accounts_user_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">All →</a>
       </div>
-      <ul class="max-h-80 divide-y divide-slate-800 overflow-y-auto text-xs">
+      <ul class="max-h-72 divide-y divide-slate-800 overflow-y-auto text-xs">
         {% for u in recent_users %}
-          <li class="flex items-center justify-between gap-2 px-4 py-2">
+          <li class="flex items-center justify-between gap-2 px-4 py-2.5">
             <a href="{{ url('admin:accounts_user_change', u.pk) }}" class="truncate font-medium text-sky-300 hover:underline">{{ u.email }}</a>
             <span class="shrink-0 font-mono text-slate-500">{{ u.date_joined.strftime("%m-%d") }}</span>
           </li>
         {% else %}
-          <li class="px-4 py-6 text-center text-slate-500">No users.</li>
+          <li class="py-8 text-center text-slate-500">No users.</li>
         {% endfor %}
       </ul>
     </div>
 
+    {# New projects #}
     <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/50 px-4 py-3">
-        <h2 class="text-sm font-semibold text-slate-200">New projects</h2>
-        <a href="{{ url('admin:projects_project_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">/sd/</a>
+      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-200">🌐 New Projects</h2>
+        <a href="{{ url('admin:projects_project_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">All →</a>
       </div>
-      <ul class="max-h-80 divide-y divide-slate-800 overflow-y-auto text-xs">
+      <ul class="max-h-72 divide-y divide-slate-800 overflow-y-auto text-xs">
         {% for p in recent_projects %}
-          <li class="px-4 py-2">
+          <li class="px-4 py-2.5">
             <a href="{{ url('admin:projects_project_change', p.pk) }}" class="font-medium text-emerald-300 hover:underline">{{ p.name }}</a>
-            <p class="mt-0.5 truncate text-slate-500">{{ p.owner.email }} · {{ p.get_project_type_display() }} · {{ p.get_status_display() }}</p>
+            <p class="mt-0.5 truncate text-slate-500">{{ p.owner.email }} · {{ p.get_status_display() }}</p>
           </li>
         {% else %}
-          <li class="px-4 py-6 text-center text-slate-500">No projects.</li>
+          <li class="py-8 text-center text-slate-500">No projects.</li>
         {% endfor %}
       </ul>
     </div>
+
+    {# Security scans #}
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+      <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-200">🔒 Security Scans</h2>
+        <a href="{{ url('admin:security_scanreport_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">All →</a>
+      </div>
+      <ul class="max-h-72 divide-y divide-slate-800 overflow-y-auto text-xs">
+        {% for s in recent_scans %}
+          <li class="px-4 py-2.5">
+            <div class="flex items-baseline gap-2">
+              <span class="font-mono text-slate-500">{{ s.created_at.strftime("%m-%d %H:%M") }}</span>
+              <span class="font-semibold text-slate-200">{{ s.get_status_display() }}</span>
+            </div>
+            {% if s.upload and s.upload.project %}
+              <p class="mt-0.5 truncate text-slate-500">{{ s.upload.project.name }}</p>
+            {% endif %}
+          </li>
+        {% else %}
+          <li class="py-8 text-center text-slate-500">No scans.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
   </div>
 
-  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/50 px-4 py-3">
-      <h2 class="text-sm font-semibold text-slate-200">Recent deployments</h2>
-      <a href="{{ url('admin:deployments_deployment_changelist') }}" class="text-xs text-violet-400 hover:text-violet-300">/sd/</a>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="min-w-full text-left text-xs">
-        <thead class="text-slate-500">
-          <tr>
-            <th class="px-3 py-2">When</th>
-            <th class="px-3 py-2">Project</th>
-            <th class="px-3 py-2">Status</th>
-            <th class="px-3 py-2">Log</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800 text-slate-300">
-          {% for d in recent_deployments %}
-            <tr>
-              <td class="whitespace-nowrap px-3 py-2 font-mono text-slate-500">{{ d.created_at.strftime("%m-%d %H:%M") }}</td>
-              <td class="px-3 py-2"><a href="{{ url('admin:projects_project_change', d.project.pk) }}" class="text-emerald-400 hover:underline">{{ d.project.name }}</a></td>
-              <td class="px-3 py-2">{{ d.get_status_display() }}</td>
-              <td class="max-w-md truncate px-3 py-2 text-slate-500" title="{{ d.log }}">{{ d.log or "—" }}</td>
-            </tr>
-          {% else %}
-            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">No deployments.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  {# ══ Quick links ══ #}
+  <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">⚡ Quick Links</p>
+    <div class="flex flex-wrap gap-2 text-xs">
+      {% set links = [
+        ('Billing', url('admin:billing_subscription_changelist')),
+        ('Coupons', url('admin:billing_couponcode_changelist')),
+        ('Batches', url('admin:students_batch_changelist')),
+        ('Quotas', url('admin:students_quotaconfig_changelist')),
+        ('Deployments', url('admin:deployments_deployment_changelist')),
+        ('Backups', url('admin:backups_backupjob_changelist')),
+        ('Databases', url('admin:databases_databaseinstance_changelist')),
+        ('Notifications', url('admin:notifications_notification_changelist')),
+        ('Users', url('admin:accounts_user_changelist')),
+        ('Projects', url('admin:projects_project_changelist')),
+      ] %}
+      {% for label, href in links %}
+        <a href="{{ href }}"
+           class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 font-medium text-slate-300 hover:border-violet-500/50 hover:bg-slate-800 hover:text-violet-300 transition-colors">
+          {{ label }}
+        </a>
+      {% endfor %}
     </div>
   </div>
 
-  <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-xs text-slate-500">
-    <span class="font-semibold text-slate-400">Shortcuts:</span>
-    <a class="ml-2 text-violet-400 hover:underline" href="{{ url('admin:students_batch_changelist') }}">Batches</a>
-    · <a class="text-violet-400 hover:underline" href="{{ url('admin:students_quotaconfig_changelist') }}">Quotas</a>
-    · <a class="text-violet-400 hover:underline" href="{{ url('admin:backups_backupjob_changelist') }}">Backups</a>
-    · <a class="text-violet-400 hover:underline" href="{{ url('admin:databases_databaseinstance_changelist') }}">Databases</a>
-    · <a class="text-violet-400 hover:underline" href="{{ url('admin:notifications_notification_changelist') }}">Notifications</a>
-    · <a class="text-violet-400 hover:underline" href="{{ url('admin:billing_subscription_changelist') }}">Billing</a>
-  </div>
 </section>
 {% endblock %}

@@ -170,6 +170,26 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
             Deployment.objects.select_related('project', 'upload')
             .order_by('-created_at')[:12]
         )
+
+        # Server health
+        from core.server_stats import get_server_stats
+        ctx['server'] = get_server_stats()
+
+        # Billing / subscription stats
+        from apps.billing.models import PLAN_LIMITS, CouponCode, Subscription
+        ctx['sub_total'] = Subscription.objects.count()
+        ctx['sub_by_plan'] = list(
+            Subscription.objects.values('plan_slug')
+            .annotate(c=Count('id'))
+            .order_by('-c')
+        )
+        for row in ctx['sub_by_plan']:
+            row['limit'] = PLAN_LIMITS.get(row['plan_slug'], 1)
+        ctx['coupons_available'] = CouponCode.objects.filter(
+            is_active=True, used_by__isnull=True
+        ).count()
+        ctx['coupons_used'] = CouponCode.objects.filter(used_by__isnull=False).count()
+
         return ctx
 
 

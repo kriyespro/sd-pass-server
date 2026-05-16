@@ -40,6 +40,39 @@
     </div>
   </div>
 
+  {# ── Server status bar ── #}
+  {% set s = server %}
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    {% macro stat_bar(label, pct, used, total, unit, status) %}
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ label }}</p>
+          <span class="text-xs font-bold
+            {{ 'text-rose-400' if status == 'critical' else ('text-amber-400' if status == 'warning' else 'text-emerald-400') }}">
+            {{ pct }}%
+          </span>
+        </div>
+        <div class="mt-2 h-1.5 w-full rounded-full bg-slate-800">
+          <div class="h-1.5 rounded-full transition-all
+            {{ 'bg-rose-500' if status == 'critical' else ('bg-amber-400' if status == 'warning' else 'bg-emerald-400') }}"
+            style="width: {{ [pct, 100]|min }}%"></div>
+        </div>
+        <p class="mt-1.5 text-[10px] text-slate-500">{{ used }} / {{ total }} {{ unit }}</p>
+      </div>
+    {% endmacro %}
+    {{ stat_bar('CPU', s.cpu_pct, s.cpu_pct, 100, '%', s.cpu_status) }}
+    {{ stat_bar('RAM', s.ram_pct, s.ram_used_gb, s.ram_total_gb, 'GB', s.ram_status) }}
+    {{ stat_bar('Disk', s.disk_pct, s.disk_used_gb, s.disk_total_gb, 'GB', s.disk_status) }}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Server Load</p>
+      <p class="mt-1 text-lg font-bold
+        {{ 'text-rose-400' if s.load_status == 'critical' else ('text-amber-400' if s.load_status == 'warning' else 'text-emerald-300') }}">
+        {{ s.load1 }}
+      </p>
+      <p class="mt-1 text-[10px] text-slate-500">1m avg · {{ s.load5 }} 5m · up {{ s.uptime_hours }}h</p>
+    </div>
+  </div>
+
   {# ── Projects table ── #}
   <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
     {% if projects %}

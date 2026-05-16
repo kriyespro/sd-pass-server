@@ -1,0 +1,66 @@
+{# Guided first-time setup — swapped via HTMX from /onboarding/step/<n>/ #}
+<div id="onboarding-wizard-root"
+     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="onboarding-wizard-title">
+  <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+
+  <div class="relative z-10 w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl shadow-emerald-950/20">
+    <div class="border-b border-slate-800 px-6 py-5">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-emerald-400">Welcome</p>
+          <h2 id="onboarding-wizard-title" class="mt-1 text-xl font-semibold text-white">Get your first site live</h2>
+          <p class="mt-1 text-sm text-slate-400">Three quick steps — about two minutes.</p>
+        </div>
+        <form method="post"
+              action="{{ url('onboarding:skip') }}"
+              hx-post="{{ url('onboarding:skip') }}"
+              hx-target="#onboarding-wizard-root"
+              hx-swap="outerHTML">
+          {{ csrf_input }}
+          <button type="submit" class="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-300">Skip</button>
+        </form>
+      </div>
+
+      <div class="mt-5 flex items-center gap-2">
+        {% for label, num in [('Profile', 1), ('Project', 2), ('Upload', 3)] %}
+          {% set done = onboarding.step_completed >= num %}
+          {% set active = onboarding_step == num and not onboarding_deploying %}
+          <div class="flex flex-1 flex-col items-center gap-1">
+            <div class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ring-2 {{ 'bg-emerald-500 text-slate-950 ring-emerald-400' if done else ('bg-slate-800 text-emerald-300 ring-emerald-500/50' if active else 'bg-slate-800 text-slate-500 ring-slate-700') }}">
+              {% if done %}✓{% else %}{{ num }}{% endif %}
+            </div>
+            <span class="text-[10px] font-medium uppercase tracking-wide {{ 'text-emerald-300' if active or done else 'text-slate-500' }}">{{ label }}</span>
+          </div>
+          {% if not loop.last %}
+            <div class="mb-4 h-0.5 flex-1 rounded {{ 'bg-emerald-500/60' if onboarding.step_completed >= num else 'bg-slate-800' }}"></div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="px-6 py-5">
+      {% if onboarding_deploying %}
+        <div class="py-4 text-center">
+          <p class="text-4xl">🚀</p>
+          <p class="mt-3 text-lg font-semibold text-white">Deploying your site</p>
+          <p class="mt-2 text-sm text-slate-400">
+            Your ZIP is being scanned and published. Check <strong class="text-slate-200">Alerts</strong> for the live link,
+            or refresh this page in a minute.
+          </p>
+          {% if onboarding_project %}
+            <p class="mt-4 font-mono text-xs text-emerald-300/90">{{ onboarding_project.name }}</p>
+          {% endif %}
+        </div>
+      {% elif onboarding_step == 1 %}
+        {% include "partials/onboarding/_step_name.jinja" %}
+      {% elif onboarding_step == 2 %}
+        {% include "partials/onboarding/_step_project.jinja" %}
+      {% else %}
+        {% include "partials/onboarding/_step_upload.jinja" %}
+      {% endif %}
+    </div>
+  </div>
+</div>

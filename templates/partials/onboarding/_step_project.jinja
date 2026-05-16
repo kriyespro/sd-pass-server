@@ -1,0 +1,37 @@
+<form method="post"
+      action="{{ url('onboarding:step', step=2) }}"
+      class="space-y-4"
+      hx-post="{{ url('onboarding:step', step=2) }}"
+      hx-target="#onboarding-wizard-root"
+      hx-swap="outerHTML">
+  {{ csrf_input }}
+  <p class="text-sm text-slate-300">Name your first website project. We will assign a subdomain automatically.</p>
+
+  {% set form = onboarding_form %}
+  {% if form %}
+    {% if form.non_field_errors() %}
+      <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+        {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
+      </div>
+    {% endif %}
+    <div>
+      <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-slate-200">{{ form.name.label }}</label>
+      {{ form.name }}
+      {% if form.name.errors %}
+        {% for err in form.name.errors %}<p class="mt-1 text-sm text-rose-300">{{ err }}</p>{% endfor %}
+      {% endif %}
+    </div>
+  {% else %}
+    <div>
+      <label class="block text-sm font-medium text-slate-200" for="id_name">Project name</label>
+      <input type="text" name="name" id="id_name" required maxlength="200"
+             placeholder="My Portfolio Site"
+             class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2">
+    </div>
+  {% endif %}
+
+  <button type="submit"
+          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+    Create project
+  </button>
+</form>

@@ -73,6 +73,10 @@ class Project(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['owner', 'is_deleted'], name='project_owner_active_idx'),
+            models.Index(fields=['is_deleted', 'status'], name='project_status_active_idx'),
+        ]
 
     def __str__(self):
         return self.name

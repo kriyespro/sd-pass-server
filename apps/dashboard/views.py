@@ -28,8 +28,19 @@ from apps.deployments.services import build_project_site_zip, project_site_has_f
 from apps.uploads.models import ProjectUpload, UploadStatus
 
 
-def _student_website_rows():
-    """One row per active project for Mission Control table."""
+_WEBSITE_ROWS_CACHE_KEY = 'sdpaas:admin:website_rows'
+_WEBSITE_ROWS_CACHE_TTL = 60  # seconds
+
+
+def _student_website_rows(bust_cache: bool = False):
+    """One row per active project for Mission Control table. Cached for performance."""
+    from django.core.cache import cache
+
+    if not bust_cache:
+        cached = cache.get(_WEBSITE_ROWS_CACHE_KEY)
+        if cached is not None:
+            return cached
+
     from apps.billing.models import PLAN_LABELS, Subscription
 
     base = settings.STUDENT_APPS_BASE_DOMAIN.strip().strip('.')
@@ -75,6 +86,13 @@ def _student_website_rows():
             'site_count': site_counts.get(owner.pk, 0),
             'status': p.get_status_display(),
         })
+
+    try:
+        from django.core.cache import cache
+        cache.set(_WEBSITE_ROWS_CACHE_KEY, rows, _WEBSITE_ROWS_CACHE_TTL)
+    except Exception:
+        pass
+
     return rows
 
 

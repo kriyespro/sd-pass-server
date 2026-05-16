@@ -123,6 +123,11 @@ def deploy_after_scan(scan_result: dict) -> dict:
         link_url=link_url,
     )
 
+    from apps.onboarding.services import complete_onboarding_on_deploy
+
+    if proj.project_type != ProjectType.STATIC or extract_ok:
+        complete_onboarding_on_deploy(proj.owner)
+
     # Queue AI image compression for static sites
     if proj.project_type == ProjectType.STATIC and extract_ok:
         create_notification(

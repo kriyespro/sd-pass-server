@@ -1,0 +1,39 @@
+<form method="post"
+      enctype="multipart/form-data"
+      action="{{ url('onboarding:step', step=3) }}"
+      class="space-y-4"
+      hx-post="{{ url('onboarding:step', step=3) }}"
+      hx-target="#onboarding-wizard-root"
+      hx-swap="outerHTML"
+      hx-encoding="multipart/form-data">
+  {{ csrf_input }}
+  <p class="text-sm text-slate-300">
+    Upload a <code class="text-emerald-300">.zip</code> with your site (HTML/CSS/JS at the root).
+    Max {{ upload_max_mb }} MB.
+  </p>
+  {% if onboarding_project %}
+    <p class="text-xs text-slate-500">Project: <span class="font-medium text-slate-300">{{ onboarding_project.name }}</span></p>
+  {% endif %}
+
+  {% set form = onboarding_form %}
+  {% if form %}
+    {% if form.file.errors %}
+      {% for err in form.file.errors %}<p class="text-sm text-rose-300">{{ err }}</p>{% endfor %}
+    {% endif %}
+    <div>
+      <label class="block text-sm font-medium text-slate-200" for="{{ form.file.id_for_label }}">ZIP file</label>
+      {{ form.file }}
+    </div>
+  {% else %}
+    <div>
+      <label class="block text-sm font-medium text-slate-200" for="id_file">ZIP file</label>
+      <input type="file" name="file" id="id_file" accept=".zip" required
+             class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1 file:text-slate-950">
+    </div>
+  {% endif %}
+
+  <button type="submit"
+          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+    Upload &amp; deploy
+  </button>
+</form>

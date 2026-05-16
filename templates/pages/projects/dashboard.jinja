@@ -1,6 +1,9 @@
 {% extends "base.jinja" %}
 {% block title %}Projects — StudentCloud Deploy{% endblock %}
 {% block content %}
+{% if onboarding_active %}
+  {% include "partials/onboarding/_wizard_modal.jinja" %}
+{% endif %}
 <section class="space-y-6">
   {% if student_apps_base_is_ipv4 and apps_base_domain %}
     <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">

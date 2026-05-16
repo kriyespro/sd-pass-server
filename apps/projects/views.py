@@ -36,9 +36,7 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['project_count'] = Project.objects.filter(
-            owner=self.request.user, is_deleted=False
-        ).count()
+        ctx['project_count'] = len(ctx['projects'])
         ctx['plan_limit'] = user_project_limit(self.request.user)
         from core.server_stats import get_server_stats
         ctx['server'] = get_server_stats()
@@ -50,6 +48,22 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         ctx['student_site_scheme'] = getattr(
             settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http'
         )
+        from apps.onboarding.services import should_show_onboarding, sync_onboarding_progress
+        from apps.onboarding.services import current_wizard_step as onboarding_current_step
+
+        ctx['onboarding_active'] = should_show_onboarding(self.request.user)
+        if ctx['onboarding_active']:
+            ob = sync_onboarding_progress(self.request.user)
+            ctx['onboarding'] = ob
+            ctx['onboarding_step'] = onboarding_current_step(ob)
+            ctx['onboarding_project'] = (
+                Project.objects.filter(owner=self.request.user, is_deleted=False)
+                .order_by('-created_at')
+                .first()
+            )
+            ctx['onboarding_deploying'] = ob.step_completed >= 3 and ob.completed_at is None
+            from django.conf import settings as dj_settings
+            ctx['upload_max_mb'] = dj_settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
         return ctx
 
 

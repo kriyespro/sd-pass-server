@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_htmx',
     'apps.accounts',
+    'apps.onboarding',
     'apps.students',
     'apps.projects',
     'apps.uploads',
@@ -192,11 +193,67 @@ LOG_RETENTION_DAYS = env.int('LOG_RETENTION_DAYS', default=7)
 
 NOTIFICATION_RETENTION_DAYS = env.int('NOTIFICATION_RETENTION_DAYS', default=90)
 
+# Error notification recipients (email, display_name) — set in .env via ADMINS
+# Example: ADMINS=Admin:admin@example.com,Ops:ops@example.com
+_admins_raw = env('ADMINS', default='')
+ADMINS = [
+    (name.strip(), email.strip())
+    for pair in _admins_raw.split(',')
+    if ':' in pair
+    for name, email in [pair.split(':', 1)]
+    if name.strip() and email.strip()
+]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': env('LOG_LEVEL', default='WARNING'),
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': env('DJANGO_LOG_LEVEL', default='ERROR'),
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': env('APP_LOG_LEVEL', default='INFO'),
+            'propagate': False,
+        },
+    },
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = 'projects:dashboard'
 LOGOUT_REDIRECT_URL = 'home'
 LOGIN_URL = 'accounts:login'
+
+# ── Baseline security (apply in all environments) ─────────────────────────────
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14    # 2 weeks
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -211,6 +268,14 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '200/minute',
+    },
 }
 
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')

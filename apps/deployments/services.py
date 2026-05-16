@@ -215,7 +215,7 @@ def project_site_has_files(project: Project) -> bool:
     root = project_site_dir(project)
     if not root.is_dir():
         return False
-    return any(p.is_file() for p in root.rglob('*'))
+    return any(p.is_file() for p in root.iterdir())
 
 
 def build_project_site_zip(project: Project) -> io.BytesIO | None:

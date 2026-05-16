@@ -1,8 +1,19 @@
 """Lightweight server health metrics via psutil. Falls back to safe defaults."""
 from __future__ import annotations
 
+_CACHE_KEY = 'sdpaas:server_stats'
+_CACHE_TTL = 10  # seconds — fresh enough for dashboards, avoids per-request psutil calls
+
 
 def get_server_stats() -> dict:
+    try:
+        from django.core.cache import cache
+        cached = cache.get(_CACHE_KEY)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
     try:
         import psutil
 
@@ -43,7 +54,7 @@ def get_server_stats() -> dict:
             return 'warning'
         return 'ok'
 
-    return {
+    result = {
         'cpu_pct': round(cpu_pct, 1),
         'cpu_status': _status(cpu_pct),
         'ram_pct': round(ram_pct, 1),
@@ -63,3 +74,11 @@ def get_server_stats() -> dict:
         'net_recv_mb': net_recv_mb,
         'uptime_hours': uptime_hours,
     }
+
+    try:
+        from django.core.cache import cache
+        cache.set(_CACHE_KEY, result, _CACHE_TTL)
+    except Exception:
+        pass
+
+    return result

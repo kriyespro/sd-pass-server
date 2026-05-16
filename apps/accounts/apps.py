@@ -7,6 +7,7 @@ class AccountsConfig(AppConfig):
     label = 'accounts'
 
     def ready(self):
+        _patch_create_permissions_safe()
         from django.db.models.signals import post_migrate
 
         def sync_site(sender, **kwargs):
@@ -23,3 +24,28 @@ class AccountsConfig(AppConfig):
             )
 
         post_migrate.connect(sync_site, dispatch_uid='accounts_sync_site')
+
+
+def _patch_create_permissions_safe():
+    """
+    Avoid migrate exit code 1 when auth permissions already exist (e.g. django-axes
+    re-added after a partial deploy). Real migrations still apply; only duplicate
+    permission inserts are skipped.
+    """
+    import django.contrib.auth.management as auth_mgmt
+    from django.db import IntegrityError
+
+    if getattr(auth_mgmt.create_permissions, '_sdpaas_safe', False):
+        return
+
+    _original = auth_mgmt.create_permissions
+
+    def create_permissions_safe(*args, **kwargs):
+        try:
+            return _original(*args, **kwargs)
+        except IntegrityError as exc:
+            if 'auth_permission' not in str(exc) and 'permission' not in str(exc).lower():
+                raise
+
+    create_permissions_safe._sdpaas_safe = True
+    auth_mgmt.create_permissions = create_permissions_safe

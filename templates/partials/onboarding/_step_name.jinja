@@ -2,8 +2,8 @@
       action="{{ url('onboarding:step', step=1) }}"
       class="space-y-4"
       hx-post="{{ url('onboarding:step', step=1) }}"
-      hx-target="#onboarding-wizard-root"
-      hx-swap="outerHTML">
+      hx-target="body"
+      hx-swap="none">
   {{ csrf_input }}
   <p class="text-sm text-slate-300">What should we call you on StudentCloud?</p>
 
@@ -38,8 +38,9 @@
     </div>
   {% endif %}
 
+  <div id="onboarding-step-indicator" class="htmx-indicator mb-2 text-center text-sm font-medium text-emerald-300">Saving…</div>
   <button type="submit"
-          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
     Continue
   </button>
 </form>

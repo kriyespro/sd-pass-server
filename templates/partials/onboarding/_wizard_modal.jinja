@@ -17,8 +17,8 @@
         <form method="post"
               action="{{ url('onboarding:skip') }}"
               hx-post="{{ url('onboarding:skip') }}"
-              hx-target="#onboarding-wizard-root"
-              hx-swap="outerHTML">
+              hx-target="body"
+              hx-swap="none">
           {{ csrf_input }}
           <button type="submit" class="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-300">Skip</button>
         </form>

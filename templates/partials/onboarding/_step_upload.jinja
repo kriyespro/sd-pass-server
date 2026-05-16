@@ -1,11 +1,7 @@
 <form method="post"
       enctype="multipart/form-data"
       action="{{ url('onboarding:step', step=3) }}"
-      class="space-y-4"
-      hx-post="{{ url('onboarding:step', step=3) }}"
-      hx-target="#onboarding-wizard-root"
-      hx-swap="outerHTML"
-      hx-encoding="multipart/form-data">
+      class="space-y-4">
   {{ csrf_input }}
   <p class="text-sm text-slate-300">
     Upload a <code class="text-emerald-300">.zip</code> with your site (HTML/CSS/JS at the root).

@@ -60,4 +60,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
             user.save(update_fields=['username'])
         if was_new:
             get_or_create_subscription(user)
+            from apps.onboarding.services import get_or_create_onboarding
+
+            get_or_create_onboarding(user)
         return user

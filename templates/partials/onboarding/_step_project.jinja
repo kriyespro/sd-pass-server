@@ -2,8 +2,8 @@
       action="{{ url('onboarding:step', step=2) }}"
       class="space-y-4"
       hx-post="{{ url('onboarding:step', step=2) }}"
-      hx-target="#onboarding-wizard-root"
-      hx-swap="outerHTML">
+      hx-target="body"
+      hx-swap="none">
   {{ csrf_input }}
   <p class="text-sm text-slate-300">Name your first website project. We will assign a subdomain automatically.</p>
 
@@ -30,8 +30,9 @@
     </div>
   {% endif %}
 
+  <div class="htmx-indicator mb-2 text-center text-sm font-medium text-emerald-300">Creating…</div>
   <button type="submit"
-          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
     Create project
   </button>
 </form>

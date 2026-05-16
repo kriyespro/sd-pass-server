@@ -1,8 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views import View
+from django_htmx.http import HttpResponseClientRedirect
 
 from apps.domains.services import write_project_router_file
 from apps.projects.models import Project
@@ -20,6 +22,17 @@ from .services import (
 )
 
 
+def _is_htmx(request) -> bool:
+    return getattr(request, 'htmx', False)
+
+
+def _finish(request):
+    """After a wizard step: full-page refresh shows the next step + messages."""
+    if _is_htmx(request):
+        return HttpResponseClientRedirect(reverse('projects:dashboard'))
+    return redirect('projects:dashboard')
+
+
 def _wizard_context_fixed(request, ob, **kwargs):
     from django.conf import settings
 
@@ -32,7 +45,7 @@ def _wizard_context_fixed(request, ob, **kwargs):
         )
     ctx = {
         'onboarding': ob,
-        'onboarding_step': current_wizard_step(ob),
+        'onboarding_step': kwargs.pop('onboarding_step', None) or current_wizard_step(ob),
         'onboarding_deploying': kwargs.pop(
             'onboarding_deploying',
             ob.step_completed >= 3 and ob.completed_at is None,
@@ -72,7 +85,7 @@ class OnboardingStepView(LoginRequiredMixin, View):
 
     def post(self, request, step: int):
         if not should_show_onboarding(request.user):
-            return HttpResponse('')
+            return _finish(request)
 
         ob = sync_onboarding_progress(request.user)
         step = int(step)
@@ -88,27 +101,20 @@ class OnboardingStepView(LoginRequiredMixin, View):
     def _step_name(self, request, ob):
         form = OnboardingNameForm(request.POST, instance=request.user)
         if not form.is_valid():
-            resp = _render_wizard(
+            return _render_wizard(
                 request, ob, onboarding_form=form, onboarding_step=1
             )
-            resp.status_code = 422
-            return resp
         form.save()
         advance_step(ob, 1)
-        ob.refresh_from_db()
         messages.success(request, 'Profile saved.')
-        if not getattr(request, 'htmx', False):
-            return redirect('projects:dashboard')
-        return _render_wizard(request, ob)
+        return _finish(request)
 
     def _step_project(self, request, ob):
         form = OnboardingProjectForm(request.POST, user=request.user)
         if not form.is_valid():
-            resp = _render_wizard(
+            return _render_wizard(
                 request, ob, onboarding_form=form, onboarding_step=2
             )
-            resp.status_code = 422
-            return resp
         project = form.save(commit=False)
         project.owner = request.user
         project.save()
@@ -118,11 +124,11 @@ class OnboardingStepView(LoginRequiredMixin, View):
         except OSError:
             pass
         advance_step(ob, 2)
-        ob.refresh_from_db()
-        messages.success(request, f'Project “{project.name}” created — upload your site files next.')
-        if not getattr(request, 'htmx', False):
-            return redirect('projects:dashboard')
-        return _render_wizard(request, ob, onboarding_project=project)
+        messages.success(
+            request,
+            f'Project “{project.name}” created — upload your site files next.',
+        )
+        return _finish(request)
 
     def _step_upload(self, request, ob):
         project = (
@@ -132,34 +138,28 @@ class OnboardingStepView(LoginRequiredMixin, View):
         )
         if not project:
             messages.warning(request, 'Create a project first.')
-            if not getattr(request, 'htmx', False):
-                return redirect('projects:dashboard')
-            return _render_wizard(request, ob, onboarding_step=2)
+            return _finish(request)
 
         form = OnboardingZipForm(request.POST, request.FILES)
         if not form.is_valid():
-            resp = _render_wizard(
+            return _render_wizard(
                 request,
                 ob,
                 onboarding_form=form,
                 onboarding_project=project,
                 onboarding_step=3,
             )
-            resp.status_code = 422
-            return resp
 
         uploaded = request.FILES.get('file')
         if not uploaded:
             form.add_error('file', 'Choose a ZIP file to upload.')
-            resp = _render_wizard(
+            return _render_wizard(
                 request,
                 ob,
                 onboarding_form=form,
                 onboarding_project=project,
                 onboarding_step=3,
             )
-            resp.status_code = 422
-            return resp
 
         upload = ProjectUpload(
             project=project,
@@ -171,16 +171,11 @@ class OnboardingStepView(LoginRequiredMixin, View):
         upload.save()
         enqueue_upload_pipeline.delay(upload.pk)
         advance_step(ob, 3)
-        ob.refresh_from_db()
         messages.success(
             request,
             'ZIP uploaded. Security scan and deploy are running — you will get an alert when your site is live.',
         )
-        if not getattr(request, 'htmx', False):
-            return redirect('projects:dashboard')
-        return _render_wizard(
-            request, ob, onboarding_project=project, onboarding_deploying=True
-        )
+        return _finish(request)
 
 
 class OnboardingSkipView(LoginRequiredMixin, View):
@@ -188,6 +183,5 @@ class OnboardingSkipView(LoginRequiredMixin, View):
 
     def post(self, request):
         skip_onboarding(request.user)
-        if getattr(request, 'htmx', False):
-            return HttpResponse('')
-        return redirect('projects:dashboard')
+        messages.info(request, 'Setup skipped. You can create a project anytime from the dashboard.')
+        return _finish(request)

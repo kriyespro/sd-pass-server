@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .models import PLAN_LABELS, PLAN_LIMITS, CouponCode, Subscription, _generate_coupon_code
 
@@ -63,17 +64,20 @@ class SubscriptionAdmin(admin.ModelAdmin):
         colour = colours.get(obj.plan_slug, '#64748b')
         limit = PLAN_LIMITS.get(obj.plan_slug, 1)
         label = obj.plan_slug.capitalize()
+        sites = f'{limit} site{"s" if limit != 1 else ""}'
         expired = ''
         if obj.current_period_end and obj.current_period_end < timezone.now():
             expired = ' ⚠ expired'
             colour = '#ef4444'
-        return (
-            f'<span style="background:{colour};color:#fff;padding:2px 8px;'
-            f'border-radius:99px;font-size:12px;font-weight:600;">'
-            f'{label} ({limit} sites){expired}</span>'
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 8px;'
+            'border-radius:99px;font-size:12px;font-weight:600;">'
+            '{} ({}){}</span>',
+            colour,
+            label,
+            sites,
+            expired,
         )
-
-    plan_badge.allow_tags = True  # Django < 4.0 compat
 
     @admin.display(description='Max sites')
     def max_projects_display(self, obj):

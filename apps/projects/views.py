@@ -52,7 +52,6 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         from apps.onboarding.services import current_wizard_step as onboarding_current_step
 
         ctx['onboarding_active'] = should_show_onboarding(self.request.user)
-        ctx['onboarding_deploying'] = False
         if ctx['onboarding_active']:
             ob = sync_onboarding_progress(self.request.user)
             ctx['onboarding'] = ob
@@ -62,7 +61,6 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
                 .order_by('-created_at')
                 .first()
             )
-            ctx['onboarding_deploying'] = ob.step_completed >= 3 and ob.completed_at is None
             from django.conf import settings as dj_settings
             ctx['upload_max_mb'] = dj_settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
         return ctx

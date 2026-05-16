@@ -1,14 +1,13 @@
 <form method="post"
       enctype="multipart/form-data"
       action="{{ url('onboarding:step', step=3) }}"
-      class="space-y-4"
-      x-data="{ mode: '{{ upload_mode|default('zip') }}' }">
+      class="space-y-4">
   {{ csrf_input }}
-  <input type="hidden" name="upload_mode" x-model="mode">
 
   <p class="text-sm text-slate-300">
-    Publish your site to <span class="font-medium text-slate-200">{{ onboarding_project.name if onboarding_project else 'your project' }}</span>.
-    Choose a ZIP <em>or</em> pick individual files and images (optional if you use ZIP).
+    Upload your site files to
+    <span class="font-medium text-slate-200">{{ onboarding_project.name if onboarding_project else 'your project' }}</span>.
+    HTML, CSS, JS, and images (PNG, JPG, WebP, SVG) are all supported.
   </p>
 
   {% if upload_error %}
@@ -17,66 +16,30 @@
     </div>
   {% endif %}
 
-  {# ── Mode tabs ── #}
-  <div class="flex gap-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1">
-    <button type="button"
-            @click="mode = 'zip'"
-            :class="mode === 'zip' ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'"
-            class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors">
-      📦 ZIP archive
-    </button>
-    <button type="button"
-            @click="mode = 'files'"
-            :class="mode === 'files' ? 'bg-sky-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'"
-            class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors">
-      🖼 Files &amp; images
-    </button>
+  <p class="text-xs text-slate-500">
+    Max {{ upload_max_mb }} MB total, up to {{ upload_max_files }} files per upload.
+    Include <code class="text-slate-400">index.html</code> at the root for your home page.
+    Need a full ZIP later? Use <strong class="text-slate-400">ZIP</strong> on the project dashboard.
+  </p>
+
+  <div>
+    <label class="block text-sm font-medium text-slate-200" for="onboard-files">Select files &amp; images</label>
+    <input type="file" name="files" id="onboard-files" multiple
+           accept=".html,.htm,.css,.js,.mjs,.json,.svg,.map,.woff,.woff2,.ttf,.eot,.otf,.ico,.png,.jpg,.jpeg,.gif,.webp,.webmanifest,image/*"
+           class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1 file:text-slate-950">
   </div>
 
-  {# ── ZIP panel ── #}
-  <div x-show="mode === 'zip'" x-cloak class="space-y-3">
-    <p class="text-xs text-slate-500">
-      One <code class="text-emerald-300">.zip</code> with your site at the root (index.html, css/, images/). Max {{ upload_max_mb }} MB.
+  <div>
+    <label class="block text-sm font-medium text-slate-200" for="onboard-folder">Or choose your project folder</label>
+    <input type="file" name="files" id="onboard-folder" webkitdirectory multiple
+           class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-violet-500 file:px-3 file:py-1 file:text-slate-950">
+    <p class="mt-1 text-xs text-slate-500">
+      Pick the folder that contains <code class="text-slate-400">index.html</code> and folders like <code class="text-slate-400">images/</code>.
     </p>
-    {% set form = onboarding_form %}
-    {% if form and form.file.errors %}
-      {% for err in form.file.errors %}<p class="text-sm text-rose-300">{{ err }}</p>{% endfor %}
-    {% endif %}
-    <div>
-      <label class="block text-sm font-medium text-slate-200" for="id_zip_file">ZIP file</label>
-      <input type="file" name="file" id="id_zip_file" accept=".zip,application/zip"
-             :required="mode === 'zip'"
-             :disabled="mode !== 'zip'"
-             class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1 file:text-slate-950 disabled:opacity-40">
-    </div>
-  </div>
-
-  {# ── Files & images panel ── #}
-  <div x-show="mode === 'files'" x-cloak class="space-y-3">
-    <p class="text-xs text-slate-500">
-      HTML, CSS, JS, PNG, JPG, WebP, SVG, fonts, etc. Max {{ upload_max_mb }} MB total, up to {{ upload_max_files }} files.
-      Include <code class="text-slate-400">index.html</code> at the root for your home page.
-    </p>
-
-    <div>
-      <label class="block text-sm font-medium text-slate-200" for="onboard-files">Select files (optional images)</label>
-      <input type="file" name="files" id="onboard-files" multiple
-             accept=".html,.htm,.css,.js,.mjs,.json,.svg,.map,.woff,.woff2,.ttf,.eot,.otf,.ico,.png,.jpg,.jpeg,.gif,.webp,.webmanifest,image/*"
-             :disabled="mode !== 'files'"
-             class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-sky-500 file:px-3 file:py-1 file:text-slate-950 disabled:opacity-40">
-    </div>
-
-    <div>
-      <label class="block text-sm font-medium text-slate-200" for="onboard-folder">Or choose a project folder</label>
-      <input type="file" name="files" id="onboard-folder" webkitdirectory multiple
-             :disabled="mode !== 'files'"
-             class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-violet-500 file:px-3 file:py-1 file:text-slate-950 disabled:opacity-40">
-      <p class="mt-1 text-xs text-slate-500">Pick the folder that contains <code class="text-slate-400">index.html</code> and your <code class="text-slate-400">images/</code> subfolder.</p>
-    </div>
   </div>
 
   <button type="submit"
           class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
-    <span x-text="mode === 'zip' ? 'Upload ZIP & deploy' : 'Upload files to site'"></span>
+    Upload &amp; publish site
   </button>
 </form>

@@ -2,8 +2,6 @@ from django import forms
 
 from apps.accounts.models import User
 from apps.projects.forms import ProjectForm
-from apps.uploads.forms import ZipUploadForm
-
 _FIELD_CLASS = (
     'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 '
     'text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2'
@@ -33,6 +31,3 @@ class OnboardingProjectForm(ProjectForm):
         super().__init__(*args, **kwargs)
         self.fields['name'].widget.attrs.setdefault('placeholder', 'My Portfolio Site')
 
-
-class OnboardingZipForm(ZipUploadForm):
-    pass

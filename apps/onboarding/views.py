@@ -12,11 +12,9 @@ from apps.logs.models import LogKind
 from apps.logs.services import append_project_log
 from apps.projects.models import Project
 from apps.projects.tasks import on_project_created
-from apps.uploads.models import ProjectUpload
-from apps.uploads.tasks import enqueue_upload_pipeline
 from apps.uploads.views import _friendly_static_upload_error
 
-from .forms import OnboardingNameForm, OnboardingProjectForm, OnboardingZipForm
+from .forms import OnboardingNameForm, OnboardingProjectForm
 from .services import (
     advance_step,
     complete_onboarding,
@@ -51,10 +49,6 @@ def _wizard_context_fixed(request, ob, **kwargs):
     ctx = {
         'onboarding': ob,
         'onboarding_step': kwargs.pop('onboarding_step', None) or current_wizard_step(ob),
-        'onboarding_deploying': kwargs.pop(
-            'onboarding_deploying',
-            ob.step_completed >= 3 and ob.completed_at is None,
-        ),
         'onboarding_project': project,
         'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
         'upload_max_files': MAX_STATIC_FILES_PER_POST,
@@ -146,52 +140,6 @@ class OnboardingStepView(LoginRequiredMixin, View):
             messages.warning(request, 'Create a project first.')
             return _finish(request)
 
-        upload_mode = (request.POST.get('upload_mode') or 'zip').strip().lower()
-        if upload_mode == 'files':
-            return self._step_upload_files(request, ob, project)
-        return self._step_upload_zip(request, ob, project)
-
-    def _step_upload_zip(self, request, ob, project):
-        form = OnboardingZipForm(request.POST, request.FILES)
-        if not form.is_valid():
-            return _render_wizard(
-                request,
-                ob,
-                onboarding_form=form,
-                onboarding_project=project,
-                onboarding_step=3,
-                upload_mode='zip',
-            )
-
-        uploaded = request.FILES.get('file')
-        if not uploaded:
-            form.add_error('file', 'Choose a ZIP file to upload.')
-            return _render_wizard(
-                request,
-                ob,
-                onboarding_form=form,
-                onboarding_project=project,
-                onboarding_step=3,
-                upload_mode='zip',
-            )
-
-        record = ProjectUpload(
-            project=project,
-            owner=request.user,
-            original_name=uploaded.name,
-            size_bytes=uploaded.size,
-        )
-        record.file = uploaded
-        record.save()
-        enqueue_upload_pipeline.delay(record.pk)
-        advance_step(ob, 3)
-        messages.success(
-            request,
-            'ZIP uploaded. Security scan and deploy are running — you will get an alert when your site is live.',
-        )
-        return _finish(request)
-
-    def _step_upload_files(self, request, ob, project):
         files = request.FILES.getlist('files')
         if not files:
             return _render_wizard(
@@ -199,8 +147,7 @@ class OnboardingStepView(LoginRequiredMixin, View):
                 ob,
                 onboarding_project=project,
                 onboarding_step=3,
-                upload_mode='files',
-                upload_error='Select at least one file or image (or switch to ZIP upload).',
+                upload_error='Select at least one file or image, or choose a project folder.',
             )
 
         ok, msg = save_static_files(project, files)
@@ -210,20 +157,19 @@ class OnboardingStepView(LoginRequiredMixin, View):
                 ob,
                 onboarding_project=project,
                 onboarding_step=3,
-                upload_mode='files',
                 upload_error=_friendly_static_upload_error(msg),
             )
 
         append_project_log(
             project,
             LogKind.BUILD,
-            f'Onboarding multi-file upload: {msg}',
+            f'Onboarding file upload: {msg}',
         )
         advance_step(ob, 3)
         complete_onboarding(request.user)
         messages.success(
             request,
-            f'Uploaded {len(files)} file(s) to your site. Add index.html at the root if you have not yet — then open your live URL from the dashboard.',
+            f'Uploaded {len(files)} file(s). Open your live site from the dashboard when index.html is in place.',
         )
         return _finish(request)
 

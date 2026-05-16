@@ -3,9 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import IntegrityError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
 from django.views import View
-from django_htmx.http import HttpResponseClientRedirect
 
 from apps.deployments.services import MAX_STATIC_FILES_PER_POST, save_static_files
 from apps.domains.services import write_project_router_file
@@ -26,15 +24,25 @@ from .services import (
 )
 
 
-def _is_htmx(request) -> bool:
-    return getattr(request, 'htmx', False)
-
-
 def _finish(request):
     """After a wizard step: full-page refresh shows the next step + messages."""
-    if _is_htmx(request):
-        return HttpResponseClientRedirect(reverse('projects:dashboard'))
     return redirect('projects:dashboard')
+
+
+def _dashboard_wizard_response(request, ob, **kwargs):
+    """Render full projects dashboard with wizard (avoids HTMX partial / stuck step)."""
+    from apps.projects.views import ProjectDashboardView
+
+    view = ProjectDashboardView()
+    view.setup(request)
+    view.object_list = view.get_queryset()
+    ctx = view.get_context_data()
+    wizard_ctx = _wizard_context_fixed(request, ob, **kwargs)
+    ctx.update(wizard_ctx)
+    if wizard_ctx.get('onboarding_step') is not None:
+        ctx['onboarding_step'] = wizard_ctx['onboarding_step']
+    ctx['onboarding_active'] = True
+    return render(request, view.template_name, ctx)
 
 
 def _is_xhr_upload(request) -> bool:
@@ -127,7 +135,7 @@ class OnboardingStepView(LoginRequiredMixin, View):
     def _step_name(self, request, ob):
         form = OnboardingNameForm(request.POST, instance=request.user)
         if not form.is_valid():
-            return _render_wizard(
+            return _dashboard_wizard_response(
                 request, ob, onboarding_form=form, onboarding_step=1
             )
         form.save()
@@ -138,7 +146,7 @@ class OnboardingStepView(LoginRequiredMixin, View):
     def _step_project(self, request, ob):
         form = OnboardingProjectForm(request.POST, user=request.user)
         if not form.is_valid():
-            return _render_wizard(
+            return _dashboard_wizard_response(
                 request, ob, onboarding_form=form, onboarding_step=2
             )
         project = form.save(commit=False)

@@ -14,11 +14,7 @@
           <h2 id="onboarding-wizard-title" class="mt-1 text-xl font-semibold text-white">Get your first site live</h2>
           <p class="mt-1 text-sm text-slate-400">Three quick steps — about two minutes.</p>
         </div>
-        <form method="post"
-              action="{{ url('onboarding:skip') }}"
-              hx-post="{{ url('onboarding:skip') }}"
-              hx-target="body"
-              hx-swap="none">
+        <form method="post" action="{{ url('onboarding:skip') }}">
           {{ csrf_input }}
           <button type="submit" class="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-300">Skip</button>
         </form>

@@ -1,9 +1,8 @@
 <form method="post"
       action="{{ url('onboarding:step', step=2) }}"
       class="space-y-4"
-      hx-post="{{ url('onboarding:step', step=2) }}"
-      hx-target="body"
-      hx-swap="none">
+      data-onboarding-form
+      onsubmit="var b=this.querySelector('[type=submit]');if(b){b.disabled=true;b.textContent='Creating…';}">
   {{ csrf_input }}
   <p class="text-sm text-slate-300">
     Name your first website project. We assign a unique site address from your email
@@ -34,9 +33,8 @@
     </div>
   {% endif %}
 
-  <div class="htmx-indicator mb-2 text-center text-sm font-medium text-emerald-300">Creating…</div>
   <button type="submit"
-          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
+          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60">
     Create project
   </button>
 </form>

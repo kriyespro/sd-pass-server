@@ -76,15 +76,18 @@ class ProjectForm(forms.ModelForm):
         self.user = user
         self.subdomain_adjusted_from = ''
         super().__init__(*args, **kwargs)
-        self.fields['subdomain'].required = False
-        self.fields['description'].required = False
-        self.fields['subdomain'].help_text = (
-            'Optional — auto-generated from your project name or email if left blank. '
-            'If taken, we assign the next available name (e.g. you-2). Letters, numbers, hyphens only.'
-        )
-        self.fields['subdomain'].widget.attrs['placeholder'] = 'e.g. my-portfolio (no spaces)'
-        self.fields['name'].widget.attrs['placeholder'] = 'My Portfolio Site'
-        self.fields['description'].widget.attrs['placeholder'] = 'Short description (optional)'
+        if 'subdomain' in self.fields:
+            self.fields['subdomain'].required = False
+            self.fields['subdomain'].help_text = (
+                'Optional — auto-generated from your project name or email if left blank. '
+                'If taken, we assign the next available name (e.g. you-2). Letters, numbers, hyphens only.'
+            )
+            self.fields['subdomain'].widget.attrs['placeholder'] = 'e.g. my-portfolio (no spaces)'
+        if 'description' in self.fields:
+            self.fields['description'].required = False
+            self.fields['description'].widget.attrs['placeholder'] = 'Short description (optional)'
+        if 'name' in self.fields:
+            self.fields['name'].widget.attrs['placeholder'] = 'My Portfolio Site'
         for _name, field in self.fields.items():
             field.widget.attrs.setdefault('class', _FIELD_CLASS)
 

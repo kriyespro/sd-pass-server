@@ -3,8 +3,8 @@ import logging
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render
-from django.urls import reverse_lazy
+from django.http import HttpResponseRedirect
+from django.urls import reverse, reverse_lazy
 from django.views.generic import FormView
 
 logger = logging.getLogger(__name__)
@@ -81,8 +81,10 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
             label = PLAN_LABELS.get(result, result)
             messages.success(
                 self.request,
-                f'🎉 Coupon redeemed! You are now on the {label} plan. Enjoy your extra projects!',
+                f'🎉 Coupon redeemed! You are now on the {label} plan.',
             )
+            # Redirect so the plan badge refreshes and browser back-button won't re-submit
+            return HttpResponseRedirect(reverse('billing:redeem'))
         else:
             messages.error(self.request, result)
-        return self.render_to_response(self.get_context_data(form=form))
+            return self.render_to_response(self.get_context_data(form=form))

@@ -55,6 +55,14 @@
     <h2 class="text-base font-semibold text-white">Redeem Coupon Code</h2>
     <p class="mt-1 text-sm text-slate-400">Got a coupon? Enter it below to activate your plan instantly.</p>
 
+    {# Inline form errors (invalid/used coupons) #}
+    {% if form.errors or form.non_field_errors() %}
+      <div class="mt-4 rounded-lg border border-rose-700/60 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
+        {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
+        {% for field in form %}{% for err in field.errors %}{{ err }}{% endfor %}{% endfor %}
+      </div>
+    {% endif %}
+
     <form method="post" action="{{ url('billing:redeem') }}" class="mt-5 space-y-4">
       {{ csrf_input }}
       <div>

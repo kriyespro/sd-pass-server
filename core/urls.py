@@ -11,6 +11,8 @@ urlpatterns = [
     path('sd/', admin.site.urls),
     path('admin/', include('apps.dashboard.urls_admin')),
     path('accounts/', include('apps.accounts.urls')),
+    # Google OAuth (separate include so URL names are google_login / google_callback for allauth).
+    path('accounts/', include('allauth.socialaccount.providers.google.urls')),
     path('projects/', include('apps.projects.urls')),
     path('billing/', include('apps.billing.urls')),
     path('notifications/', include('apps.notifications.urls')),

@@ -8,7 +8,7 @@ def google_auth(request):
 
     google_login_url = ''
     try:
-        google_login_url = reverse('accounts:google_login')
+        google_login_url = reverse('google_login')
     except NoReverseMatch:
         pass
     return {

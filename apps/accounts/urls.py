@@ -11,5 +11,4 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('manual/login/', views.LoginView.as_view(), name='manual_login'),
     path('manual/register/', views.RegisterView.as_view(), name='manual_register'),
-    path('', include('allauth.socialaccount.providers.google.urls')),
 ]

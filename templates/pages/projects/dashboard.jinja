@@ -42,46 +42,27 @@
 
   {# ── Server Status ── #}
   {% set s = server %}
-  <div class="rounded-2xl border border-slate-800 bg-slate-900/50 px-5 py-4">
-    <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">🖥 Server Status</p>
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-
-      {% macro ring_stat(label, pct, status, icon) %}
-        {% set colour = 'text-rose-400' if status == 'critical' else ('text-amber-400' if status == 'warning' else 'text-emerald-400') %}
-        {% set bar_colour = 'bg-rose-500' if status == 'critical' else ('bg-amber-400' if status == 'warning' else 'bg-emerald-400') %}
-        {% set dot = '🔴' if status == 'critical' else ('🟡' if status == 'warning' else '🟢') %}
-        <div class="flex flex-col items-center gap-2 text-center">
-          <div class="relative flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80 ring-4
-            {{ 'ring-rose-500/50' if status == 'critical' else ('ring-amber-400/50' if status == 'warning' else 'ring-emerald-400/40') }}">
-            <span class="text-xl font-extrabold leading-none {{ colour }}">{{ pct }}</span>
-            <span class="absolute bottom-1 right-1 text-[10px]">{{ dot }}</span>
-          </div>
-          <div>
-            <p class="text-xs font-semibold text-slate-300">{{ icon }} {{ label }}</p>
-            <p class="text-[10px] text-slate-500">{{ pct }}% used</p>
-          </div>
+  {% macro sc(st) %}{{ 'text-rose-400' if st=='critical' else ('text-amber-400' if st=='warning' else 'text-emerald-400') }}{% endmacro %}
+  {% macro bc(st) %}{{ 'bg-rose-500' if st=='critical' else ('bg-amber-400' if st=='warning' else 'bg-emerald-400') }}{% endmacro %}
+  <div class="flex items-center gap-px overflow-hidden rounded-xl border border-slate-800 bg-slate-950 divide-x divide-slate-800">
+    {% for item in [
+      ('CPU',     s.cpu_pct,  s.cpu_status),
+      ('RAM',     s.ram_pct,  s.ram_status),
+      ('Storage', s.disk_pct, s.disk_status),
+    ] %}
+      <div class="flex flex-1 flex-col gap-1.5 px-4 py-3">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{{ item[0] }}</span>
+          <span class="text-xs font-bold {{ sc(item[2]) }}">{{ item[1] }}%</span>
         </div>
-      {% endmacro %}
-
-      {{ ring_stat('CPU', s.cpu_pct, s.cpu_status, '⚡') }}
-      {{ ring_stat('RAM', s.ram_pct, s.ram_status, '🧠') }}
-      {{ ring_stat('Storage', s.disk_pct, s.disk_status, '💾') }}
-
-      {# Load #}
-      {% set ls = s.load_status %}
-      <div class="flex flex-col items-center gap-2 text-center">
-        <div class="relative flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80 ring-4
-          {{ 'ring-rose-500/50' if ls=='critical' else ('ring-amber-400/50' if ls=='warning' else 'ring-sky-400/40') }}">
-          <span class="text-lg font-extrabold leading-none {{ 'text-rose-400' if ls=='critical' else ('text-amber-400' if ls=='warning' else 'text-sky-300') }}">
-            {{ s.load1 }}
-          </span>
-        </div>
-        <div>
-          <p class="text-xs font-semibold text-slate-300">📶 Load</p>
-          <p class="text-[10px] text-slate-500">1 min avg</p>
+        <div class="h-1 w-full overflow-hidden rounded-full bg-slate-800">
+          <div class="h-1 rounded-full {{ bc(item[2]) }}" style="width:{{ [item[1],100]|min }}%"></div>
         </div>
       </div>
-
+    {% endfor %}
+    <div class="flex flex-col gap-0.5 px-4 py-3">
+      <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Load</span>
+      <span class="text-xs font-bold {{ sc(s.load_status) }}">{{ s.load1 }}</span>
     </div>
   </div>
 

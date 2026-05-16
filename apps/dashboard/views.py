@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -20,6 +21,54 @@ from apps.dashboard.trainer_access import is_trainer, trainee_users_queryset
 from apps.envmanager.models import EnvVar
 from apps.students.models import Batch
 from apps.uploads.models import ProjectUpload, UploadStatus
+
+
+def _student_website_rows():
+    """One row per active project for Mission Control table."""
+    from apps.billing.models import PLAN_LABELS, Subscription
+
+    base = settings.STUDENT_APPS_BASE_DOMAIN.strip().strip('.')
+    scheme = getattr(settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'https') or 'https'
+    if scheme not in ('http', 'https'):
+        scheme = 'https'
+    port = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
+    port_seg = f':{port}' if port else ''
+
+    site_counts = dict(
+        Project.objects.filter(is_deleted=False)
+        .values('owner_id')
+        .annotate(c=Count('id'))
+        .values_list('owner_id', 'c')
+    )
+    subs = {s.user_id: s for s in Subscription.objects.all()}
+
+    rows = []
+    for p in (
+        Project.objects.filter(is_deleted=False)
+        .select_related('owner')
+        .order_by('-created_at')
+    ):
+        owner = p.owner
+        plan_slug = subs[owner.pk].plan_slug if owner.pk in subs else 'free'
+        name = (owner.get_full_name() or '').strip() or owner.username or '—'
+        fqdn = f'{p.subdomain}.{base}' if base else ''
+        site_url = f'{scheme}://{fqdn}{port_seg}/' if fqdn else ''
+        custom = (p.custom_hostname or '').strip()
+        custom_url = f'{scheme}://{custom}/' if custom and p.custom_hostname_verified else ''
+
+        rows.append({
+            'project_name': p.name,
+            'site_url': site_url,
+            'custom_url': custom_url,
+            'email': owner.email,
+            'name': name,
+            'mobile': owner.mobile or '—',
+            'plan_slug': plan_slug,
+            'plan_label': PLAN_LABELS.get(plan_slug, plan_slug.capitalize()),
+            'site_count': site_counts.get(owner.pk, 0),
+            'status': p.get_status_display(),
+        })
+    return rows
 
 
 class StaffPlatformOverviewView(UserPassesTestMixin, TemplateView):
@@ -82,7 +131,7 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
         day_ago = now - timedelta(days=1)
         week_ago = now - timedelta(days=7)
 
-        ctx['django_admin_path'] = '/sd/'
+        ctx['student_websites'] = _student_website_rows()
 
         ctx['user_total'] = User.objects.count()
         ctx['user_active'] = User.objects.filter(is_active=True).count()

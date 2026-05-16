@@ -1,45 +1,54 @@
-<form method="post"
-      enctype="multipart/form-data"
-      action="{{ url('onboarding:step', step=3) }}"
-      class="space-y-4">
-  {{ csrf_input }}
+<div x-data="uploadForm({
+  wizardRootId: 'onboarding-wizard-root',
+  redirectFallback: '{{ url('projects:dashboard') }}'
+})">
+  {% include "partials/uploads/_upload_progress_overlay.jinja" %}
 
-  <p class="text-sm text-slate-300">
-    Upload your site files to
-    <span class="font-medium text-slate-200">{{ onboarding_project.name if onboarding_project else 'your project' }}</span>.
-    HTML, CSS, JS, and images (PNG, JPG, WebP, SVG) are all supported.
-  </p>
+  <form method="post"
+        enctype="multipart/form-data"
+        action="{{ url('onboarding:step', step=3) }}"
+        class="space-y-4"
+        @submit.prevent="start($event)">
+    {{ csrf_input }}
 
-  {% if upload_error %}
-    <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
-      {{ upload_error }}
-    </div>
-  {% endif %}
-
-  <p class="text-xs text-slate-500">
-    Max {{ upload_max_mb }} MB total, up to {{ upload_max_files }} files per upload.
-    Include <code class="text-slate-400">index.html</code> at the root for your home page.
-    Need a full ZIP later? Use <strong class="text-slate-400">ZIP</strong> on the project dashboard.
-  </p>
-
-  <div>
-    <label class="block text-sm font-medium text-slate-200" for="onboard-files">Select files &amp; images</label>
-    <input type="file" name="files" id="onboard-files" multiple
-           accept=".html,.htm,.css,.js,.mjs,.json,.svg,.map,.woff,.woff2,.ttf,.eot,.otf,.ico,.png,.jpg,.jpeg,.gif,.webp,.webmanifest,image/*"
-           class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1 file:text-slate-950">
-  </div>
-
-  <div>
-    <label class="block text-sm font-medium text-slate-200" for="onboard-folder">Or choose your project folder</label>
-    <input type="file" name="files" id="onboard-folder" webkitdirectory multiple
-           class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-violet-500 file:px-3 file:py-1 file:text-slate-950">
-    <p class="mt-1 text-xs text-slate-500">
-      Pick the folder that contains <code class="text-slate-400">index.html</code> and folders like <code class="text-slate-400">images/</code>.
+    <p class="text-sm text-slate-300">
+      Upload your site files to
+      <span class="font-medium text-slate-200">{{ onboarding_project.name if onboarding_project else 'your project' }}</span>.
+      HTML, CSS, JS, and images (PNG, JPG, WebP, SVG) are all supported.
     </p>
-  </div>
 
-  <button type="submit"
-          class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
-    Upload &amp; publish site
-  </button>
-</form>
+    {% if upload_error %}
+      <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+        {{ upload_error }}
+      </div>
+    {% endif %}
+
+    <p class="text-xs text-slate-500">
+      Max {{ upload_max_mb }} MB total, up to {{ upload_max_files }} files per upload.
+      Include <code class="text-slate-400">index.html</code> at the root for your home page.
+      Need a full ZIP later? Use <strong class="text-slate-400">ZIP</strong> on the project dashboard.
+    </p>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-200" for="onboard-files">Select files &amp; images</label>
+      <input type="file" name="files" id="onboard-files" multiple
+             accept=".html,.htm,.css,.js,.mjs,.json,.svg,.map,.woff,.woff2,.ttf,.eot,.otf,.ico,.png,.jpg,.jpeg,.gif,.webp,.webmanifest,image/*"
+             class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1 file:text-slate-950">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-200" for="onboard-folder">Or choose your project folder</label>
+      <input type="file" name="files" id="onboard-folder" webkitdirectory multiple
+             class="mt-1 block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-violet-500 file:px-3 file:py-1 file:text-slate-950">
+      <p class="mt-1 text-xs text-slate-500">
+        Pick the folder that contains <code class="text-slate-400">index.html</code> and folders like <code class="text-slate-400">images/</code>.
+      </p>
+    </div>
+
+    <button type="submit"
+            :disabled="uploading"
+            class="w-full rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60">
+      Upload &amp; publish site
+    </button>
+  </form>
+</div>

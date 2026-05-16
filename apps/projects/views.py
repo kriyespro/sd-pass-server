@@ -62,7 +62,11 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
                 .first()
             )
             from django.conf import settings as dj_settings
+            from apps.deployments.services import MAX_STATIC_FILES_PER_POST
+
             ctx['upload_max_mb'] = dj_settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
+            ctx['upload_max_files'] = MAX_STATIC_FILES_PER_POST
+            ctx['upload_error'] = self.request.session.pop('onboarding_upload_error', None)
         return ctx
 
 

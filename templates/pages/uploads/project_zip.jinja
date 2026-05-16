@@ -17,7 +17,7 @@
         <a href="{{ url('projects:upload_static_files', slug=project.slug) }}" class="font-semibold text-sky-300 underline hover:text-sky-200">multi-file upload</a>
       </p>
     {% endif %}
-    <div x-data="uploadForm()">
+    <div x-data="uploadForm({ redirectFallback: '{{ url('projects:dashboard') }}' })">
     {% include "partials/uploads/_upload_progress_overlay.jinja" %}
     <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" @submit.prevent="start($event)">
       {{ csrf_input }}

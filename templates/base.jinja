@@ -15,6 +15,95 @@
         event.detail.headers['X-CSRFToken'] = token.content;
       }
     });
+
+    /** Multipart upload with circular progress (static files + onboarding). */
+    function uploadForm(opts) {
+      opts = opts || {};
+      var redirectFallback = opts.redirectFallback || '/projects/';
+      var wizardRootId = opts.wizardRootId || '';
+      return {
+        uploading: false,
+        uploadPct: 0,
+        label: 'Uploading…',
+        start: function (event) {
+          var form = event.target;
+          var self = this;
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+          }
+          form.querySelectorAll('input[type="file"]').forEach(function (inp) {
+            if (!inp.files || inp.files.length === 0) {
+              inp.disabled = true;
+            }
+          });
+          function reenableFileInputs() {
+            form.querySelectorAll('input[type="file"]:disabled').forEach(function (inp) {
+              inp.disabled = false;
+            });
+          }
+          this.uploading = true;
+          this.uploadPct = 0;
+          this.label = 'Uploading…';
+          var fd = new FormData(form);
+          var xhr = new XMLHttpRequest();
+          xhr.open(form.method || 'POST', form.action);
+          xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+          xhr.upload.addEventListener('progress', function (e) {
+            if (e.lengthComputable && e.total > 0) {
+              self.uploadPct = Math.min(99, Math.round((e.loaded / e.total) * 100));
+            } else {
+              self.uploadPct = Math.min(self.uploadPct + 8, 90);
+            }
+          });
+          xhr.addEventListener('load', function () {
+            if (xhr.status === 422 && wizardRootId) {
+              var doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
+              var updated = doc.getElementById(wizardRootId);
+              var root = document.getElementById(wizardRootId);
+              if (updated && root) {
+                root.replaceWith(document.importNode(updated, true));
+                if (window.Alpine) {
+                  var fresh = document.getElementById(wizardRootId);
+                  if (fresh) Alpine.initTree(fresh);
+                }
+                reenableFileInputs();
+                self.uploading = false;
+                return;
+              }
+            }
+            var samePage = !xhr.responseURL
+              || xhr.responseURL.split('?')[0] === window.location.href.split('?')[0];
+            if (xhr.status >= 200 && xhr.status < 400 && samePage) {
+              reenableFileInputs();
+              self.uploading = false;
+              document.open();
+              document.write(xhr.responseText);
+              document.close();
+              return;
+            }
+            if (xhr.status >= 200 && xhr.status < 400) {
+              self.uploadPct = 100;
+              self.label = 'Done! Redirecting…';
+              var target = xhr.responseURL || redirectFallback;
+              setTimeout(function () { window.location.href = target; }, 400);
+              return;
+            }
+            reenableFileInputs();
+            self.uploading = false;
+            var msg = 'Upload failed. Please try again.';
+            if (xhr.status === 413) msg = 'Upload too large. Try fewer files or use ZIP upload from the project page.';
+            alert(msg);
+          });
+          xhr.addEventListener('error', function () {
+            reenableFileInputs();
+            self.uploading = false;
+            alert('Upload failed. Check your connection and try again.');
+          });
+          xhr.send(fd);
+        },
+      };
+    }
   </script>
   <style>
     .htmx-indicator { opacity: 0; transition: opacity 150ms ease; }

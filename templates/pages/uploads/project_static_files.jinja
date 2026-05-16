@@ -13,7 +13,7 @@
       For <span class="font-semibold text-slate-200">Static</span> projects only. You can pick several loose files <em>or</em> a whole project folder so paths like <code class="text-emerald-300">images/hero.jpg</code> match your HTML (Chrome, Edge, Firefox).
       Allowed: HTML, CSS, JS, images, fonts, SVG, JSON, webmanifest. Max {{ upload_max_mb }} MB total per request, up to {{ max_files }} files (same relative paths overwrite). Use <code class="text-emerald-300">index.html</code> at the site root for <code class="text-emerald-300">/</code>. For very large sites, use <a href="{{ url('projects:upload_zip', slug=project.slug) }}" class="text-sky-400 hover:text-sky-300">ZIP upload</a>.
     </p>
-    <div x-data="uploadForm()">
+    <div x-data="uploadForm({ redirectFallback: '{{ url('projects:dashboard') }}' })">
     {% include "partials/uploads/_upload_progress_overlay.jinja" %}
     <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" @submit.prevent="start($event)">
       {{ csrf_input }}

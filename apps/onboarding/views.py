@@ -36,6 +36,30 @@ def _finish(request):
     return redirect('projects:dashboard')
 
 
+def _is_xhr_upload(request) -> bool:
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _upload_error_response(request, ob, project, upload_error: str):
+    """XHR: return wizard HTML (422). Browser POST: redirect to dashboard with error."""
+    ctx = _wizard_context_fixed(
+        request,
+        ob,
+        onboarding_project=project,
+        onboarding_step=3,
+        upload_error=upload_error,
+    )
+    if _is_xhr_upload(request):
+        return render(
+            request,
+            'partials/onboarding/_wizard_modal.jinja',
+            ctx,
+            status=422,
+        )
+    request.session['onboarding_upload_error'] = upload_error
+    return redirect('projects:dashboard')
+
+
 def _wizard_context_fixed(request, ob, **kwargs):
     from django.conf import settings
 
@@ -142,22 +166,20 @@ class OnboardingStepView(LoginRequiredMixin, View):
 
         files = request.FILES.getlist('files')
         if not files:
-            return _render_wizard(
+            return _upload_error_response(
                 request,
                 ob,
-                onboarding_project=project,
-                onboarding_step=3,
-                upload_error='Select at least one file or image, or choose a project folder.',
+                project,
+                'Select at least one file or image, or choose a project folder.',
             )
 
         ok, msg = save_static_files(project, files)
         if not ok:
-            return _render_wizard(
+            return _upload_error_response(
                 request,
                 ob,
-                onboarding_project=project,
-                onboarding_step=3,
-                upload_error=_friendly_static_upload_error(msg),
+                project,
+                _friendly_static_upload_error(msg),
             )
 
         append_project_log(

@@ -116,6 +116,7 @@
             <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Website</th>
             <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Email</th>
             <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Name</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">City</th>
             <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Mobile</th>
             <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Plan</th>
             <th class="px-3 py-2.5 text-center font-semibold uppercase tracking-wide">Sites</th>
@@ -139,6 +140,7 @@
               </td>
               <td class="px-3 py-2.5"><a href="mailto:{{ row.email }}" class="text-sky-300 hover:underline">{{ row.email }}</a></td>
               <td class="px-3 py-2.5 text-slate-200">{{ row.name }}</td>
+              <td class="px-3 py-2.5 text-slate-400">{{ row.city }}</td>
               <td class="px-3 py-2.5 font-mono text-slate-400">{{ row.mobile }}</td>
               <td class="px-3 py-2.5">
                 {% set pc = {'free':'bg-slate-600','starter':'bg-sky-600','pro':'bg-emerald-600','business':'bg-violet-600'} %}

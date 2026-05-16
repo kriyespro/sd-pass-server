@@ -1,5 +1,6 @@
 from django.utils import timezone
 
+from apps.accounts.services import profile_is_complete
 from apps.projects.models import Project
 
 from .models import UserOnboarding
@@ -19,8 +20,10 @@ def sync_onboarding_progress(user) -> UserOnboarding:
         return ob
 
     step = ob.step_completed
-    if (user.first_name or '').strip() and (user.last_name or '').strip():
+    if profile_is_complete(user):
         step = max(step, 1)
+    elif step >= 1:
+        step = 0
     if Project.objects.filter(owner=user, is_deleted=False).exists():
         step = max(step, 2)
 
@@ -34,6 +37,8 @@ def should_show_onboarding(user) -> bool:
     if not user.is_authenticated:
         return False
     ob = sync_onboarding_progress(user)
+    if not profile_is_complete(user):
+        return True
     return not ob.skipped and ob.completed_at is None
 
 
@@ -52,6 +57,8 @@ def advance_step(ob: UserOnboarding, step: int) -> None:
 
 def skip_onboarding(user) -> UserOnboarding:
     ob = get_or_create_onboarding(user)
+    if not profile_is_complete(user):
+        return ob
     ob.skipped = True
     if not ob.completed_at:
         ob.completed_at = timezone.now()

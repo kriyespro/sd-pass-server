@@ -2,11 +2,35 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from django.contrib.sessions.models import Session
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+
+def profile_is_complete(user) -> bool:
+    """Name, city, and mobile required before onboarding can advance past step 1."""
+    if user is None:
+        return False
+    return bool(
+        (user.first_name or '').strip()
+        and (user.last_name or '').strip()
+        and (user.mobile or '').strip()
+        and (user.city or '').strip()
+    )
+
+
+def normalize_mobile(value: str) -> str:
+    """Store digits with optional leading + for international numbers."""
+    raw = (value or '').strip()
+    digits = re.sub(r'\D', '', raw)
+    if not digits:
+        return ''
+    if raw.startswith('+'):
+        return f'+{digits}'
+    return digits
 
 
 def clear_user_sessions(user) -> int:

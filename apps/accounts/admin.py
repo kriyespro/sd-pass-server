@@ -8,14 +8,14 @@ from .services import deactivate_user_account
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
     ordering = ('email',)
-    list_display = ('email', 'first_name', 'last_name', 'mobile', 'is_staff', 'is_active')
-    search_fields = ('email', 'first_name', 'last_name', 'mobile')
+    list_display = ('email', 'first_name', 'last_name', 'city', 'mobile', 'is_staff', 'is_active')
+    search_fields = ('email', 'first_name', 'last_name', 'city', 'mobile')
     list_filter = ('is_staff', 'is_superuser', 'is_active')
     actions = ('deactivate_accounts', 'reactivate_accounts')
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal', {'fields': ('first_name', 'last_name', 'mobile')}),
+        ('Personal', {'fields': ('first_name', 'last_name', 'city', 'mobile')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
@@ -24,7 +24,7 @@ class UserAdmin(DjangoUserAdmin):
             None,
             {
                 'classes': ('wide',),
-                'fields': ('email', 'first_name', 'last_name', 'mobile', 'password1', 'password2'),
+                'fields': ('email', 'first_name', 'last_name', 'city', 'mobile', 'password1', 'password2'),
             },
         ),
     )

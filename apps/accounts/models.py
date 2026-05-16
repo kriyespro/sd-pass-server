@@ -29,6 +29,7 @@ class User(AbstractUser):
     username = models.CharField(max_length=150, blank=True, unique=False)
     email = models.EmailField(unique=True)
     mobile = models.CharField(max_length=32, blank=True)
+    city = models.CharField(max_length=120, blank=True)
 
     objects = UserManager()
 

@@ -80,6 +80,7 @@ def _student_website_rows(bust_cache: bool = False):
             'has_site_files': project_site_has_files(p),
             'email': owner.email,
             'name': name,
+            'city': owner.city or '—',
             'mobile': owner.mobile or '—',
             'plan_slug': plan_slug,
             'plan_label': PLAN_LABELS.get(plan_slug, plan_slug.capitalize()),
@@ -130,7 +131,7 @@ class StudentWebsitesCsvView(LoginRequiredMixin, UserPassesTestMixin, View):
         buf = StringIO()
         writer = csv.writer(buf)
         writer.writerow([
-            'Website', 'Site URL', 'Custom URL', 'Email', 'Name', 'Mobile',
+            'Website', 'Site URL', 'Custom URL', 'Email', 'Name', 'City', 'Mobile',
             'Plan', 'Sites', 'Status',
         ])
         for row in _student_website_rows():
@@ -140,6 +141,7 @@ class StudentWebsitesCsvView(LoginRequiredMixin, UserPassesTestMixin, View):
                 row['custom_url'],
                 row['email'],
                 row['name'],
+                row['city'],
                 row['mobile'],
                 row['plan_slug'],
                 row['site_count'],

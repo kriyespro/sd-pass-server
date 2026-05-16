@@ -20,11 +20,12 @@ class EmailAuthenticationForm(AuthenticationForm):
 class UserRegistrationForm(UserCreationForm):
     first_name = forms.CharField(required=True, max_length=150)
     last_name = forms.CharField(required=True, max_length=150)
-    mobile = forms.CharField(required=False, max_length=32)
+    city = forms.CharField(required=True, max_length=120)
+    mobile = forms.CharField(required=True, max_length=32)
 
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'mobile', 'password1', 'password2')
+        fields = ('email', 'first_name', 'last_name', 'city', 'mobile', 'password1', 'password2')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -13,7 +13,7 @@ from apps.projects.models import Project
 from apps.projects.tasks import on_project_created
 from apps.uploads.views import _friendly_static_upload_error
 
-from .forms import OnboardingNameForm, OnboardingProjectForm
+from .forms import OnboardingProfileForm, OnboardingProjectForm
 from .services import (
     advance_step,
     complete_onboarding,
@@ -79,6 +79,8 @@ def _wizard_context_fixed(request, ob, **kwargs):
             .order_by('-created_at')
             .first()
         )
+    from apps.accounts.services import profile_is_complete
+
     ctx = {
         'onboarding': ob,
         'onboarding_step': kwargs.pop('onboarding_step', None) or current_wizard_step(ob),
@@ -86,6 +88,7 @@ def _wizard_context_fixed(request, ob, **kwargs):
         'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
         'upload_max_files': MAX_STATIC_FILES_PER_POST,
         'apps_base_domain': (getattr(settings, 'STUDENT_APPS_BASE_DOMAIN', None) or '').strip(),
+        'profile_complete': profile_is_complete(request.user),
     }
     ctx.update(kwargs)
     return ctx
@@ -125,22 +128,22 @@ class OnboardingStepView(LoginRequiredMixin, View):
         step = int(step)
 
         if step == 1:
-            return self._step_name(request, ob)
+            return self._step_profile(request, ob)
         if step == 2:
             return self._step_project(request, ob)
         if step == 3:
             return self._step_upload(request, ob)
         return HttpResponse('', status=404)
 
-    def _step_name(self, request, ob):
-        form = OnboardingNameForm(request.POST, instance=request.user)
+    def _step_profile(self, request, ob):
+        form = OnboardingProfileForm(request.POST, instance=request.user)
         if not form.is_valid():
             return _dashboard_wizard_response(
                 request, ob, onboarding_form=form, onboarding_step=1
             )
         form.save()
         advance_step(ob, 1)
-        messages.success(request, 'Profile saved.')
+        messages.success(request, 'Profile saved — thanks!')
         return _finish(request)
 
     def _step_project(self, request, ob):
@@ -222,6 +225,14 @@ class OnboardingSkipView(LoginRequiredMixin, View):
     http_method_names = ['post']
 
     def post(self, request):
+        from apps.accounts.services import profile_is_complete
+
+        if not profile_is_complete(request.user):
+            messages.warning(
+                request,
+                'Please enter your city and mobile number before continuing.',
+            )
+            return redirect('projects:dashboard')
         skip_onboarding(request.user)
         messages.info(request, 'Setup skipped. You can create a project anytime from the dashboard.')
         return _finish(request)

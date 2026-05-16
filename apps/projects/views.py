@@ -49,9 +49,11 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         ctx['student_site_scheme'] = getattr(
             settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http'
         )
+        from apps.accounts.services import profile_is_complete
         from apps.onboarding.services import should_show_onboarding, sync_onboarding_progress
         from apps.onboarding.services import current_wizard_step as onboarding_current_step
 
+        ctx['profile_complete'] = profile_is_complete(self.request.user)
         ctx['onboarding_active'] = should_show_onboarding(self.request.user)
         if ctx['onboarding_active']:
             ob = sync_onboarding_progress(self.request.user)

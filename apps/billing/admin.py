@@ -1,17 +1,81 @@
 from django.contrib import admin, messages
+from django.utils import timezone
 
-from .models import PLAN_LABELS, CouponCode, Subscription, _generate_coupon_code
+from .models import PLAN_LABELS, PLAN_LIMITS, CouponCode, Subscription, _generate_coupon_code
+
+
+def _make_set_plan_action(plan_slug, years=1):
+    label = PLAN_LABELS.get(plan_slug, plan_slug)
+
+    def action(modeladmin, request, queryset):
+        expiry = timezone.now() + timezone.timedelta(days=365 * years)
+        updated = queryset.update(
+            plan_slug=plan_slug,
+            status=Subscription.Status.ACTIVE,
+            current_period_end=expiry,
+        )
+        messages.success(
+            request,
+            f'Set {updated} subscription(s) to {label} (expires {expiry.strftime("%d %b %Y")}).',
+        )
+
+    action.short_description = f'Set plan → {label}'
+    action.__name__ = f'set_plan_{plan_slug}'
+    return action
 
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'plan_slug', 'status', 'max_projects_display', 'current_period_end', 'updated_at')
+    list_display = (
+        'user_email', 'plan_badge', 'status', 'max_projects_display',
+        'current_period_end', 'updated_at',
+    )
     list_filter = ('plan_slug', 'status')
     search_fields = ('user__email', 'external_customer_id')
     raw_id_fields = ('user',)
     readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 50
 
-    @admin.display(description='Max projects')
+    fields = (
+        'user', 'plan_slug', 'status', 'current_period_end',
+        'external_customer_id', 'notes', 'created_at', 'updated_at',
+    )
+
+    actions = [
+        _make_set_plan_action('starter'),
+        _make_set_plan_action('pro'),
+        _make_set_plan_action('business'),
+        _make_set_plan_action('free'),
+    ]
+
+    @admin.display(description='Email', ordering='user__email')
+    def user_email(self, obj):
+        return obj.user.email
+
+    @admin.display(description='Plan')
+    def plan_badge(self, obj):
+        colours = {
+            'free':     '#64748b',
+            'starter':  '#0ea5e9',
+            'pro':      '#10b981',
+            'business': '#8b5cf6',
+        }
+        colour = colours.get(obj.plan_slug, '#64748b')
+        limit = PLAN_LIMITS.get(obj.plan_slug, 1)
+        label = obj.plan_slug.capitalize()
+        expired = ''
+        if obj.current_period_end and obj.current_period_end < timezone.now():
+            expired = ' ⚠ expired'
+            colour = '#ef4444'
+        return (
+            f'<span style="background:{colour};color:#fff;padding:2px 8px;'
+            f'border-radius:99px;font-size:12px;font-weight:600;">'
+            f'{label} ({limit} sites){expired}</span>'
+        )
+
+    plan_badge.allow_tags = True  # Django < 4.0 compat
+
+    @admin.display(description='Max sites')
     def max_projects_display(self, obj):
         return obj.max_projects
 

@@ -1,5 +1,8 @@
 from allauth.account.adapter import DefaultAccountAdapter
+from allauth.core.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from django.contrib import messages
+from django.shortcuts import redirect
 
 from apps.accounts.models import User
 from apps.billing.services import get_or_create_subscription
@@ -17,12 +20,28 @@ class AccountAdapter(DefaultAccountAdapter):
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
     def is_open_for_signup(self, request, sociallogin):
         """Google sign-up / first-time Google login must stay open."""
+        user = sociallogin.user
+        if user and user.pk and not user.is_active:
+            return False
         return True
+
+    def _reject_deactivated(self, request):
+        messages.error(
+            request,
+            'This account has been deactivated. Contact your administrator — '
+            'you cannot sign in or create a new account with the same email until it is restored.',
+        )
+        raise ImmediateHttpResponse(redirect('accounts:login'))
 
     def pre_social_login(self, request, sociallogin):
         """
         Link Google to an existing manual (email/password) account when emails match.
+        Block login for admin-deactivated accounts.
         """
+        linked = sociallogin.user
+        if linked and linked.pk and not linked.is_active:
+            self._reject_deactivated(request)
+
         if sociallogin.is_existing:
             return
 
@@ -38,6 +57,8 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
             return
 
         user = User.objects.filter(email__iexact=email.strip()).first()
+        if user and not user.is_active:
+            self._reject_deactivated(request)
         if user:
             sociallogin.connect(request, user)
 
@@ -53,6 +74,9 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         return user
 
     def save_user(self, request, sociallogin, form=None):
+        email = (getattr(sociallogin.user, 'email', None) or '').strip().lower()
+        if email and User.objects.filter(email__iexact=email, is_active=False).exists():
+            self._reject_deactivated(request)
         was_new = not sociallogin.user.pk
         user = super().save_user(request, sociallogin, form=form)
         if not user.username:

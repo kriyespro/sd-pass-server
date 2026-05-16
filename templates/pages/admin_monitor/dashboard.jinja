@@ -113,9 +113,16 @@
   </div>
 
   <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-    <div class="border-b border-slate-800 bg-slate-950/60 px-4 py-3">
-      <h2 class="text-sm font-semibold text-slate-200">All student websites</h2>
-      <p class="mt-0.5 text-xs text-slate-500">{{ student_websites|length }} project{{ 's' if student_websites|length != 1 }} — links, contact &amp; plan</p>
+    <div class="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-200">All student websites</h2>
+        <p class="mt-0.5 text-xs text-slate-500">{{ student_websites|length }} project{{ 's' if student_websites|length != 1 }} — contact &amp; plan</p>
+      </div>
+      <a
+        href="{{ url('admin_monitor:export_websites_csv') }}"
+        title="Download CSV"
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold text-emerald-300 hover:border-emerald-500/50 hover:bg-slate-700 hover:text-emerald-200"
+      >D</a>
     </div>
     <div class="max-h-[32rem] overflow-auto">
       <table class="min-w-full text-left text-xs">
@@ -128,19 +135,21 @@
             <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Plan</th>
             <th class="px-3 py-2.5 text-center font-semibold uppercase tracking-wide">Sites</th>
             <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Status</th>
+            <th class="w-8 px-1 py-2.5 text-center font-semibold uppercase tracking-wide" title="Download site files">D</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800 text-slate-300">
           {% for row in student_websites %}
             <tr class="hover:bg-slate-900/80">
               <td class="px-3 py-2.5">
-                <p class="font-medium text-white">{{ row.project_name }}</p>
+                <span class="font-medium text-white">{{ row.project_name }}</span>
                 {% if row.site_url %}
-                  <a href="{{ row.site_url }}" target="_blank" rel="noopener noreferrer" class="mt-0.5 inline-block text-[11px] font-medium text-sky-400 hover:text-sky-300">Visit site ↗</a>
-                  <p class="mt-0.5 max-w-[220px] truncate font-mono text-[10px] text-slate-600" title="{{ row.site_url }}">{{ row.site_url }}</p>
+                  <span class="text-slate-600"> · </span>
+                  <a href="{{ row.site_url }}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-medium text-sky-400 hover:text-sky-300">Visit website ↗</a>
                 {% endif %}
                 {% if row.custom_url %}
-                  <a href="{{ row.custom_url }}" target="_blank" rel="noopener noreferrer" class="mt-1 block truncate font-mono text-[10px] text-amber-400 hover:text-amber-300">{{ row.custom_url }}</a>
+                  <span class="text-slate-600"> · </span>
+                  <a href="{{ row.custom_url }}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-medium text-amber-400 hover:text-amber-300">Custom domain ↗</a>
                 {% endif %}
               </td>
               <td class="px-3 py-2.5"><a href="mailto:{{ row.email }}" class="text-sky-300 hover:underline">{{ row.email }}</a></td>
@@ -152,9 +161,20 @@
               </td>
               <td class="px-3 py-2.5 text-center font-semibold text-white">{{ row.site_count }}</td>
               <td class="px-3 py-2.5"><span class="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-emerald-300">{{ row.status }}</span></td>
+              <td class="px-1 py-2.5 text-center">
+                {% if row.has_site_files %}
+                  <a
+                    href="{{ url('admin_monitor:download_project_files', project_id=row.project_id) }}"
+                    title="Download site files (ZIP)"
+                    class="inline-flex h-6 w-6 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[10px] font-bold text-emerald-300 hover:border-emerald-500/50 hover:bg-slate-700 hover:text-emerald-200"
+                  >D</a>
+                {% else %}
+                  <span class="inline-flex h-6 w-6 items-center justify-center rounded border border-slate-800 text-[10px] text-slate-600" title="No files uploaded yet">—</span>
+                {% endif %}
+              </td>
             </tr>
           {% else %}
-            <tr><td colspan="7" class="py-10 text-center text-slate-500">No projects yet.</td></tr>
+            <tr><td colspan="8" class="py-10 text-center text-slate-500">No projects yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

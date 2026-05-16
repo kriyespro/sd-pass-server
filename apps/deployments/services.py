@@ -1,6 +1,7 @@
 """Student static sites: ZIP extract (Celery) and multi-file save (web)."""
 from __future__ import annotations
 
+import io
 import json
 import shutil
 import zipfile
@@ -208,3 +209,27 @@ def write_runtime_env_snapshot(project: Project, env_plain: dict[str, str]) -> N
 
 def delete_runtime_env_snapshot(project: Project) -> None:
     runtime_env_json_path(project).unlink(missing_ok=True)
+
+
+def project_site_has_files(project: Project) -> bool:
+    root = project_site_dir(project)
+    if not root.is_dir():
+        return False
+    return any(p.is_file() for p in root.rglob('*'))
+
+
+def build_project_site_zip(project: Project) -> io.BytesIO | None:
+    """Zip published site files under STUDENT_SITE_ROOT/<project_id>/."""
+    root = project_site_dir(project)
+    if not root.is_dir():
+        return None
+    files = [p for p in root.rglob('*') if p.is_file()]
+    if not files:
+        return None
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for path in files:
+            arcname = path.relative_to(root).as_posix()
+            zf.write(path, arcname)
+    buf.seek(0)
+    return buf

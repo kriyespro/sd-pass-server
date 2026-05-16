@@ -1,0 +1,86 @@
+{# Include on upload forms: x-data="uploadForm()" @submit.prevent="start($event)" #}
+<div
+  x-show="uploading"
+  x-cloak
+  class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-sm"
+  aria-live="polite"
+  aria-busy="true"
+>
+  <div class="flex flex-col items-center gap-4 rounded-2xl border border-emerald-500/30 bg-slate-900 px-10 py-8 shadow-2xl shadow-emerald-500/10">
+    <div class="relative h-[4.5rem] w-[4.5rem]">
+      <svg class="h-[4.5rem] w-[4.5rem] -rotate-90 animate-[spin_3s_linear_infinite] opacity-30" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="6" class="text-emerald-500/40"/>
+      </svg>
+      <svg class="absolute inset-0 h-[4.5rem] w-[4.5rem] -rotate-90" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" fill="none" stroke-width="6" class="stroke-slate-800"/>
+        <circle
+          cx="50" cy="50" r="42" fill="none" stroke-width="6" stroke-linecap="round"
+          class="stroke-emerald-400 transition-all duration-200 ease-out"
+          stroke-dasharray="264"
+          :stroke-dashoffset="264 - (264 * Math.min(uploadPct, 100) / 100)"
+        />
+      </svg>
+      <span class="absolute inset-0 flex items-center justify-center text-sm font-bold tabular-nums text-white" x-text="uploadPct + '%'"></span>
+    </div>
+    <div class="text-center">
+      <p class="text-sm font-semibold text-white" x-text="label"></p>
+      <p class="mt-1 text-xs text-slate-400">Please wait — do not close this tab</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function uploadForm() {
+  return {
+    uploading: false,
+    uploadPct: 0,
+    label: 'Uploading…',
+    start(event) {
+      const form = event.target;
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      this.uploading = true;
+      this.uploadPct = 0;
+      this.label = 'Uploading…';
+      const fd = new FormData(form);
+      const xhr = new XMLHttpRequest();
+      xhr.open(form.method || 'POST', form.action);
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && e.total > 0) {
+          this.uploadPct = Math.min(99, Math.round((e.loaded / e.total) * 100));
+        } else {
+          this.uploadPct = Math.min(this.uploadPct + 8, 90);
+        }
+      });
+      xhr.addEventListener('load', () => {
+        const samePage = !xhr.responseURL
+          || xhr.responseURL.split('?')[0] === window.location.href.split('?')[0];
+        if (xhr.status >= 200 && xhr.status < 400 && samePage) {
+          this.uploading = false;
+          document.open();
+          document.write(xhr.responseText);
+          document.close();
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 400) {
+          this.uploadPct = 100;
+          this.label = 'Done! Redirecting…';
+          const target = xhr.responseURL || '{{ url("projects:dashboard") }}';
+          setTimeout(() => { window.location.href = target; }, 400);
+          return;
+        }
+        this.uploading = false;
+        alert('Upload failed. Please try again.');
+      });
+      xhr.addEventListener('error', () => {
+        this.uploading = false;
+        alert('Upload failed. Check your connection and try again.');
+      });
+      xhr.send(fd);
+    },
+  };
+}
+</script>

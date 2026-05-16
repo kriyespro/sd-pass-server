@@ -5,7 +5,11 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Count, Sum
-from django.http import HttpResponseRedirect
+import csv
+
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
+from django.utils.text import slugify
+from django.views import View
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -20,6 +24,7 @@ from apps.security.models import ScanReport
 from apps.dashboard.trainer_access import is_trainer, trainee_users_queryset
 from apps.envmanager.models import EnvVar
 from apps.students.models import Batch
+from apps.deployments.services import build_project_site_zip, project_site_has_files
 from apps.uploads.models import ProjectUpload, UploadStatus
 
 
@@ -57,9 +62,11 @@ def _student_website_rows():
         custom_url = f'{scheme}://{custom}/' if custom and p.custom_hostname_verified else ''
 
         rows.append({
+            'project_id': p.pk,
             'project_name': p.name,
             'site_url': site_url,
             'custom_url': custom_url,
+            'has_site_files': project_site_has_files(p),
             'email': owner.email,
             'name': name,
             'mobile': owner.mobile or '—',
@@ -69,6 +76,60 @@ def _student_website_rows():
             'status': p.get_status_display(),
         })
     return rows
+
+
+class StudentProjectSiteZipView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Staff: download a student's published site files as ZIP."""
+
+    raise_exception = False
+
+    def test_func(self) -> bool:
+        u = self.request.user
+        return u.is_authenticated and u.is_staff
+
+    def get(self, request, project_id: int):
+        project = get_object_or_404(Project, pk=project_id, is_deleted=False)
+        buf = build_project_site_zip(project)
+        if buf is None:
+            raise Http404('No site files for this project yet.')
+        safe = slugify(project.slug) or f'project-{project.pk}'
+        filename = f'{safe}-site-files.zip'
+        return FileResponse(buf, as_attachment=True, filename=filename)
+
+
+class StudentWebsitesCsvView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Download Mission Control student websites table as CSV."""
+
+    raise_exception = False
+
+    def test_func(self) -> bool:
+        u = self.request.user
+        return u.is_authenticated and u.is_staff
+
+    def get(self, request):
+        from io import StringIO
+
+        buf = StringIO()
+        writer = csv.writer(buf)
+        writer.writerow([
+            'Website', 'Site URL', 'Custom URL', 'Email', 'Name', 'Mobile',
+            'Plan', 'Sites', 'Status',
+        ])
+        for row in _student_website_rows():
+            writer.writerow([
+                row['project_name'],
+                row['site_url'],
+                row['custom_url'],
+                row['email'],
+                row['name'],
+                row['mobile'],
+                row['plan_slug'],
+                row['site_count'],
+                row['status'],
+            ])
+        response = HttpResponse(buf.getvalue(), content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="student-websites.csv"'
+        return response
 
 
 class StaffPlatformOverviewView(UserPassesTestMixin, TemplateView):

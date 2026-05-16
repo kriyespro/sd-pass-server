@@ -13,7 +13,9 @@
       For <span class="font-semibold text-slate-200">Static</span> projects only. You can pick several loose files <em>or</em> a whole project folder so paths like <code class="text-emerald-300">images/hero.jpg</code> match your HTML (Chrome, Edge, Firefox).
       Allowed: HTML, CSS, JS, images, fonts, SVG, JSON, webmanifest. Max {{ upload_max_mb }} MB total per request, up to {{ max_files }} files (same relative paths overwrite). Use <code class="text-emerald-300">index.html</code> at the site root for <code class="text-emerald-300">/</code>. For very large sites, use <a href="{{ url('projects:upload_zip', slug=project.slug) }}" class="text-sky-400 hover:text-sky-300">ZIP upload</a>.
     </p>
-    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4">
+    <div x-data="uploadForm()">
+    {% include "partials/uploads/_upload_progress_overlay.jinja" %}
+    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" @submit.prevent="start($event)">
       {{ csrf_input }}
       {% if form.non_field_errors() %}
         <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
@@ -45,8 +47,9 @@
           <p class="mt-1 text-xs text-slate-500">Choose the <strong>project root</strong> (the folder that contains <code class="text-slate-400">index.html</code> and your <code class="text-slate-400">images</code> folder) so links like <code class="text-slate-400">images/photo.jpg</code> work. If you only pick the <code class="text-slate-400">images</code> folder, files land at the site root without an <code class="text-slate-400">images/</code> prefix.</p>
         </div>
       </div>
-      <button type="submit" class="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400">Save files to site</button>
+      <button type="submit" class="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50" :disabled="uploading">Save files to site</button>
     </form>
+    </div>
   </div>
 </section>
 {% endblock %}

@@ -17,7 +17,9 @@
         <a href="{{ url('projects:upload_static_files', slug=project.slug) }}" class="font-semibold text-sky-300 underline hover:text-sky-200">multi-file upload</a>
       </p>
     {% endif %}
-    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4">
+    <div x-data="uploadForm()">
+    {% include "partials/uploads/_upload_progress_overlay.jinja" %}
+    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" @submit.prevent="start($event)">
       {{ csrf_input }}
       {% if form.non_field_errors() %}
         <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
@@ -31,8 +33,9 @@
           {% for err in form.file.errors %}<p class="mt-1 text-sm text-rose-300">{{ err }}</p>{% endfor %}
         {% endif %}
       </div>
-      <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Upload &amp; queue scan</button>
+      <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50" :disabled="uploading">Upload &amp; queue scan</button>
     </form>
+    </div>
   </div>
 
   {% if recent_uploads %}

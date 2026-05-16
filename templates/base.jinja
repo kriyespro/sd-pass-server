@@ -95,21 +95,13 @@
                 return;
               }
             }
-            var samePage = !xhr.responseURL
-              || xhr.responseURL.split('?')[0] === window.location.href.split('?')[0];
-            if (xhr.status >= 200 && xhr.status < 400 && samePage) {
-              reenableFileInputs();
-              self.uploading = false;
-              document.open();
-              document.write(xhr.responseText);
-              document.close();
-              return;
-            }
             if (xhr.status >= 200 && xhr.status < 400) {
               self.uploadPct = 100;
               self.label = 'Done! Redirecting…';
-              var target = xhr.responseURL || redirectFallback;
-              setTimeout(function () { window.location.href = target; }, 400);
+              var target = (xhr.responseURL || redirectFallback).split('#')[0];
+              reenableFileInputs();
+              self.uploading = false;
+              window.location.assign(target);
               return;
             }
             reenableFileInputs();

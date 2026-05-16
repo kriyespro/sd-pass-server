@@ -13,10 +13,32 @@ def get_or_create_onboarding(user) -> UserOnboarding:
     return ob
 
 
+def user_has_active_projects(user) -> bool:
+    return Project.objects.filter(owner=user, is_deleted=False).exists()
+
+
+def auto_complete_legacy_onboarding(user, ob: UserOnboarding) -> bool:
+    """
+    Students who already had projects before the guided wizard should not see it again.
+    City/mobile can be collected later from profile — do not block the dashboard.
+    """
+    if ob.completed_at or ob.skipped:
+        return False
+    if not user_has_active_projects(user):
+        return False
+    ob.completed_at = timezone.now()
+    ob.step_completed = max(ob.step_completed, MAX_STEP)
+    ob.save(update_fields=['completed_at', 'step_completed'])
+    return True
+
+
 def sync_onboarding_progress(user) -> UserOnboarding:
     """Align wizard step with profile/projects (do not auto-finish from old deploys)."""
     ob = get_or_create_onboarding(user)
     if ob.skipped or ob.completed_at:
+        return ob
+
+    if auto_complete_legacy_onboarding(user, ob):
         return ob
 
     step = ob.step_completed
@@ -24,7 +46,7 @@ def sync_onboarding_progress(user) -> UserOnboarding:
         step = max(step, 1)
     elif step >= 1:
         step = 0
-    if Project.objects.filter(owner=user, is_deleted=False).exists():
+    if user_has_active_projects(user):
         step = max(step, 2)
 
     if step != ob.step_completed:
@@ -37,9 +59,11 @@ def should_show_onboarding(user) -> bool:
     if not user.is_authenticated:
         return False
     ob = sync_onboarding_progress(user)
-    if not profile_is_complete(user):
-        return True
-    return not ob.skipped and ob.completed_at is None
+    if ob.completed_at or ob.skipped:
+        return False
+    if user_has_active_projects(user):
+        return False
+    return True
 
 
 def current_wizard_step(ob: UserOnboarding) -> int:

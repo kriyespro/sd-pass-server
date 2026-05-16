@@ -1,115 +1,100 @@
 {% extends "base.jinja" %}
 {% block title %}Mission Control — StudentCloud{% endblock %}
 {% block content %}
-<section class="space-y-6">
+<section class="space-y-4">
 
-  {# ══ Header ══ #}
-  <div class="flex flex-col gap-3 border-b border-slate-800 pb-5 sm:flex-row sm:items-center sm:justify-between">
+  {# ══ Header (compact) ══ #}
+  <div class="flex flex-wrap items-center justify-between gap-2">
     <div>
-      <p class="text-xs font-semibold uppercase tracking-widest text-violet-400">Staff only</p>
-      <h1 class="mt-1 text-2xl font-bold text-white">Mission Control</h1>
-      <p class="mt-1 text-sm text-slate-400">Live platform health — server, users, projects, billing.</p>
+      <h1 class="text-lg font-bold text-white">Mission Control</h1>
+      <p class="text-[11px] text-slate-500">Staff · live health &amp; billing</p>
     </div>
-    <div class="flex flex-wrap gap-2">
-      <a href="{{ url('admin_monitor:dashboard') }}"
-         class="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800">
-        ↻ Refresh
-      </a>
-    </div>
+    <a href="{{ url('admin_monitor:dashboard') }}"
+       class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800">
+      ↻ Refresh
+    </a>
   </div>
 
-  {# ══ Server Health ══ #}
+  {# ══ Overview (server + platform) ══ #}
   {% set sv = server %}
   {% macro bar(pct, status) %}
-    <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-      <div class="h-2 rounded-full transition-all duration-500
+    <div class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-slate-800">
+      <div class="h-1 rounded-full
         {{ 'bg-rose-500' if status == 'critical' else ('bg-amber-400' if status == 'warning' else 'bg-emerald-400') }}"
         style="width:{{ [pct,100]|min }}%"></div>
     </div>
   {% endmacro %}
+  {% macro stat_colour(status) %}
+    {{ 'text-rose-400' if status == 'critical' else ('text-amber-400' if status == 'warning' else 'text-emerald-300') }}
+  {% endmacro %}
 
-  <div>
-    <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">🖥 Server Health</h2>
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-
-      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-        <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase text-slate-500">CPU</p>
-          <span class="text-sm font-bold {{ 'text-rose-400' if sv.cpu_status=='critical' else ('text-amber-400' if sv.cpu_status=='warning' else 'text-emerald-300') }}">{{ sv.cpu_pct }}%</span>
+  <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5 sm:p-3">
+    <div class="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="min-w-0 rounded-lg border border-slate-800/80 bg-slate-950/40 px-2 py-1.5">
+        <div class="flex items-center justify-between gap-1">
+          <span class="text-[10px] font-semibold uppercase text-slate-500">CPU</span>
+          <span class="text-xs font-bold {{ stat_colour(sv.cpu_status) }}">{{ sv.cpu_pct }}%</span>
         </div>
         {{ bar(sv.cpu_pct, sv.cpu_status) }}
-        <p class="mt-2 text-xs text-slate-500">Load: {{ sv.load1 }} / {{ sv.load5 }} / {{ sv.load15 }} · {{ sv.cpu_count }} cores</p>
+        <p class="mt-0.5 truncate text-[10px] leading-tight text-slate-600">{{ sv.load1 }}/{{ sv.load5 }}/{{ sv.load15 }} · {{ sv.cpu_count }}c</p>
       </div>
-
-      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-        <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase text-slate-500">RAM</p>
-          <span class="text-sm font-bold {{ 'text-rose-400' if sv.ram_status=='critical' else ('text-amber-400' if sv.ram_status=='warning' else 'text-emerald-300') }}">{{ sv.ram_pct }}%</span>
+      <div class="min-w-0 rounded-lg border border-slate-800/80 bg-slate-950/40 px-2 py-1.5">
+        <div class="flex items-center justify-between gap-1">
+          <span class="text-[10px] font-semibold uppercase text-slate-500">RAM</span>
+          <span class="text-xs font-bold {{ stat_colour(sv.ram_status) }}">{{ sv.ram_pct }}%</span>
         </div>
         {{ bar(sv.ram_pct, sv.ram_status) }}
-        <p class="mt-2 text-xs text-slate-500">{{ sv.ram_used_gb }} / {{ sv.ram_total_gb }} GB</p>
+        <p class="mt-0.5 text-[10px] leading-tight text-slate-600">{{ sv.ram_used_gb }}/{{ sv.ram_total_gb }} GB</p>
       </div>
-
-      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-        <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase text-slate-500">Disk</p>
-          <span class="text-sm font-bold {{ 'text-rose-400' if sv.disk_status=='critical' else ('text-amber-400' if sv.disk_status=='warning' else 'text-emerald-300') }}">{{ sv.disk_pct }}%</span>
+      <div class="min-w-0 rounded-lg border border-slate-800/80 bg-slate-950/40 px-2 py-1.5">
+        <div class="flex items-center justify-between gap-1">
+          <span class="text-[10px] font-semibold uppercase text-slate-500">Disk</span>
+          <span class="text-xs font-bold {{ stat_colour(sv.disk_status) }}">{{ sv.disk_pct }}%</span>
         </div>
         {{ bar(sv.disk_pct, sv.disk_status) }}
-        <p class="mt-2 text-xs text-slate-500">{{ sv.disk_used_gb }} / {{ sv.disk_total_gb }} GB</p>
+        <p class="mt-0.5 text-[10px] leading-tight text-slate-600">{{ sv.disk_used_gb }}/{{ sv.disk_total_gb }} GB</p>
       </div>
-
-      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-        <p class="text-xs font-semibold uppercase text-slate-500">Network / Uptime</p>
-        <p class="mt-2 text-lg font-bold text-sky-300">↑ {{ sv.net_sent_mb }} MB</p>
-        <p class="text-xs text-slate-500">↓ {{ sv.net_recv_mb }} MB recv · up {{ sv.uptime_hours }}h</p>
+      <div class="min-w-0 rounded-lg border border-slate-800/80 bg-slate-950/40 px-2 py-1.5">
+        <div class="flex items-center justify-between gap-1">
+          <span class="text-[10px] font-semibold uppercase text-slate-500">Net</span>
+          <span class="text-xs font-bold text-sky-300">↑{{ sv.net_sent_mb }}M</span>
+        </div>
+        <p class="mt-1 text-[10px] leading-tight text-slate-600">↓{{ sv.net_recv_mb }}M · {{ sv.uptime_hours }}h up</p>
       </div>
     </div>
-  </div>
 
-  {# ══ Platform KPIs ══ #}
-  <div>
-    <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">📊 Platform Stats</h2>
-    <div class="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+    <div class="mt-2 grid grid-cols-3 gap-1.5 sm:grid-cols-6">
       {% macro kpi(label, value, sub, colour='text-white') %}
-        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <p class="text-xs font-semibold uppercase text-slate-500">{{ label }}</p>
-          <p class="mt-1 text-2xl font-bold {{ colour }}">{{ value }}</p>
-          {% if sub %}<p class="mt-1 text-xs text-slate-500">{{ sub }}</p>{% endif %}
+        <div class="min-w-0 rounded-lg border border-slate-800/80 bg-slate-950/40 px-2 py-1.5">
+          <p class="text-[10px] font-semibold uppercase text-slate-500">{{ label }}</p>
+          <p class="text-base font-bold leading-tight {{ colour }}">{{ value }}</p>
+          {% if sub %}<p class="mt-0.5 truncate text-[10px] leading-tight text-slate-600" title="{{ sub }}">{{ sub }}</p>{% endif %}
         </div>
       {% endmacro %}
-      {{ kpi('Users', user_active, user_total ~ ' total · +' ~ users_joined_week ~ ' (7d)') }}
-      {{ kpi('Projects', project_active, project_deleted ~ ' deleted · ' ~ projects_custom_domain ~ ' domains') }}
-      {{ kpi('Running', projects_running, projects_failed ~ ' failed', 'text-emerald-300') }}
-      {{ kpi('Uploads', upload_total, uploads_pending ~ ' pending · ' ~ ((upload_week_bytes/1048576)|round(1) if upload_week_bytes else 0) ~ ' MB (7d)') }}
-      {{ kpi('Alerts', notifications_unread, deployments_failed_week ~ ' deploy fail (7d)', 'text-amber-300') }}
+      {{ kpi('Users', user_active, user_total ~ ' · +' ~ users_joined_week ~ ' 7d') }}
+      {{ kpi('Projects', project_active, project_deleted ~ ' del · ' ~ projects_custom_domain ~ ' dom') }}
+      {{ kpi('Running', projects_running, projects_failed ~ ' fail', 'text-emerald-300') }}
+      {{ kpi('Uploads', upload_total, uploads_pending ~ ' pend · ' ~ ((upload_week_bytes/1048576)|round(1) if upload_week_bytes else 0) ~ 'MB 7d') }}
+      {{ kpi('Alerts', notifications_unread, deployments_failed_week ~ ' fail 7d', 'text-amber-300') }}
       {{ kpi('Coupons', coupons_available, coupons_used ~ ' used', 'text-violet-300') }}
     </div>
   </div>
 
-  {# ══ Billing / Plans ══ #}
-  <div>
-    <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">💳 Subscriptions</h2>
-    <div class="flex flex-wrap gap-3">
-      {% set plan_colours = {'free':'bg-slate-700','starter':'bg-sky-600','pro':'bg-emerald-600','business':'bg-violet-600'} %}
-      {% for row in sub_by_plan %}
-        <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-          <span class="rounded-full {{ plan_colours.get(row.plan_slug, 'bg-slate-700') }} px-2 py-0.5 text-xs font-bold text-white">{{ row.plan_slug | capitalize }}</span>
-          <span class="text-sm font-semibold text-white">{{ row.c }}</span>
-          <span class="text-xs text-slate-500">user{{ 's' if row.c != 1 }} · {{ row.limit }} site{{ 's' if row.limit != 1 }}/plan</span>
-        </div>
-      {% else %}
-        <p class="text-xs text-slate-500">No subscriptions yet.</p>
-      {% endfor %}
-      <a href="{{ url('admin:billing_subscription_changelist') }}"
-         class="flex items-center rounded-xl border border-violet-700/40 bg-violet-600/10 px-4 py-3 text-xs font-semibold text-violet-300 hover:bg-violet-600/20">
-        Manage plans →
-      </a>
-      <a href="{{ url('admin:billing_couponcode_changelist') }}"
-         class="flex items-center rounded-xl border border-emerald-700/40 bg-emerald-600/10 px-4 py-3 text-xs font-semibold text-emerald-300 hover:bg-emerald-600/20">
-        Coupon codes →
-      </a>
-    </div>
+  {# ══ Billing / Plans (compact) ══ #}
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="text-[10px] font-semibold uppercase text-slate-500">Plans</span>
+    {% set plan_colours = {'free':'bg-slate-700','starter':'bg-sky-600','pro':'bg-emerald-600','business':'bg-violet-600'} %}
+    {% for row in sub_by_plan %}
+      <div class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1">
+        <span class="rounded-full {{ plan_colours.get(row.plan_slug, 'bg-slate-700') }} px-1.5 py-0.5 text-[10px] font-bold text-white">{{ row.plan_slug | capitalize }}</span>
+        <span class="text-xs font-semibold text-white">{{ row.c }}</span>
+        <span class="text-[10px] text-slate-500">{{ row.limit }}/plan</span>
+      </div>
+    {% else %}
+      <p class="text-[10px] text-slate-500">No subscriptions yet.</p>
+    {% endfor %}
+    <a href="{{ url('admin:billing_subscription_changelist') }}" class="rounded-lg border border-violet-700/40 bg-violet-600/10 px-2 py-1 text-[10px] font-semibold text-violet-300 hover:bg-violet-600/20">Plans →</a>
+    <a href="{{ url('admin:billing_couponcode_changelist') }}" class="rounded-lg border border-emerald-700/40 bg-emerald-600/10 px-2 py-1 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-600/20">Coupons →</a>
   </div>
 
   <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">

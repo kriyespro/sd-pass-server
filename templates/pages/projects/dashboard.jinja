@@ -40,36 +40,48 @@
     </div>
   </div>
 
-  {# ── Server status bar ── #}
+  {# ── Server Status ── #}
   {% set s = server %}
-  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    {% macro stat_bar(label, pct, used, total, unit, status) %}
-      <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-        <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ label }}</p>
-          <span class="text-xs font-bold
-            {{ 'text-rose-400' if status == 'critical' else ('text-amber-400' if status == 'warning' else 'text-emerald-400') }}">
-            {{ pct }}%
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/50 px-5 py-4">
+    <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">🖥 Server Status</p>
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+
+      {% macro ring_stat(label, pct, status, icon) %}
+        {% set colour = 'text-rose-400' if status == 'critical' else ('text-amber-400' if status == 'warning' else 'text-emerald-400') %}
+        {% set bar_colour = 'bg-rose-500' if status == 'critical' else ('bg-amber-400' if status == 'warning' else 'bg-emerald-400') %}
+        {% set dot = '🔴' if status == 'critical' else ('🟡' if status == 'warning' else '🟢') %}
+        <div class="flex flex-col items-center gap-2 text-center">
+          <div class="relative flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80 ring-4
+            {{ 'ring-rose-500/50' if status == 'critical' else ('ring-amber-400/50' if status == 'warning' else 'ring-emerald-400/40') }}">
+            <span class="text-xl font-extrabold leading-none {{ colour }}">{{ pct }}</span>
+            <span class="absolute bottom-1 right-1 text-[10px]">{{ dot }}</span>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-300">{{ icon }} {{ label }}</p>
+            <p class="text-[10px] text-slate-500">{{ pct }}% used</p>
+          </div>
+        </div>
+      {% endmacro %}
+
+      {{ ring_stat('CPU', s.cpu_pct, s.cpu_status, '⚡') }}
+      {{ ring_stat('RAM', s.ram_pct, s.ram_status, '🧠') }}
+      {{ ring_stat('Storage', s.disk_pct, s.disk_status, '💾') }}
+
+      {# Load #}
+      {% set ls = s.load_status %}
+      <div class="flex flex-col items-center gap-2 text-center">
+        <div class="relative flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80 ring-4
+          {{ 'ring-rose-500/50' if ls=='critical' else ('ring-amber-400/50' if ls=='warning' else 'ring-sky-400/40') }}">
+          <span class="text-lg font-extrabold leading-none {{ 'text-rose-400' if ls=='critical' else ('text-amber-400' if ls=='warning' else 'text-sky-300') }}">
+            {{ s.load1 }}
           </span>
         </div>
-        <div class="mt-2 h-1.5 w-full rounded-full bg-slate-800">
-          <div class="h-1.5 rounded-full transition-all
-            {{ 'bg-rose-500' if status == 'critical' else ('bg-amber-400' if status == 'warning' else 'bg-emerald-400') }}"
-            style="width: {{ [pct, 100]|min }}%"></div>
+        <div>
+          <p class="text-xs font-semibold text-slate-300">📶 Load</p>
+          <p class="text-[10px] text-slate-500">1 min avg</p>
         </div>
-        <p class="mt-1.5 text-[10px] text-slate-500">{{ used }} / {{ total }} {{ unit }}</p>
       </div>
-    {% endmacro %}
-    {{ stat_bar('CPU', s.cpu_pct, s.cpu_pct, 100, '%', s.cpu_status) }}
-    {{ stat_bar('RAM', s.ram_pct, s.ram_used_gb, s.ram_total_gb, 'GB', s.ram_status) }}
-    {{ stat_bar('Disk', s.disk_pct, s.disk_used_gb, s.disk_total_gb, 'GB', s.disk_status) }}
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Server Load</p>
-      <p class="mt-1 text-lg font-bold
-        {{ 'text-rose-400' if s.load_status == 'critical' else ('text-amber-400' if s.load_status == 'warning' else 'text-emerald-300') }}">
-        {{ s.load1 }}
-      </p>
-      <p class="mt-1 text-[10px] text-slate-500">1m avg · {{ s.load5 }} 5m · up {{ s.uptime_hours }}h</p>
+
     </div>
   </div>
 

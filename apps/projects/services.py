@@ -1,10 +1,13 @@
 """Project lifecycle helpers (delete, etc.)."""
 from __future__ import annotations
 
+import logging
 import shutil
 import uuid
 
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 from apps.backups.models import BackupJob
 from apps.databases.models import DatabaseInstance
@@ -18,6 +21,23 @@ from apps.logs.models import LogEntry
 from apps.projects.host_allowlist import invalidate_custom_host_cache
 from apps.projects.models import Project, ProjectStatus
 from apps.uploads.models import ProjectUpload
+
+
+def enqueue_on_project_created(project_id: int) -> None:
+    """Queue Celery task; run synchronously if broker is down (avoids 500 on project create)."""
+    from apps.projects.tasks import on_project_created
+
+    try:
+        on_project_created.delay(project_id)
+    except Exception:
+        logger.exception(
+            'Celery broker unavailable for project %s; running task synchronously',
+            project_id,
+        )
+        try:
+            on_project_created(project_id)
+        except Exception:
+            logger.exception('on_project_created failed for project %s', project_id)
 
 
 def _tombstone_field(value: str, suffix: str, max_len: int) -> str:

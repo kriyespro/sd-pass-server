@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import IntegrityError
@@ -10,10 +12,12 @@ from apps.domains.services import write_project_router_file
 from apps.logs.models import LogKind
 from apps.logs.services import append_project_log
 from apps.projects.models import Project
-from apps.projects.tasks import on_project_created
+from apps.projects.services import enqueue_on_project_created
 from apps.uploads.views import _friendly_static_upload_error
 
 from .forms import OnboardingProfileForm, OnboardingProjectForm
+
+logger = logging.getLogger(__name__)
 from .services import (
     advance_step,
     complete_onboarding,
@@ -31,18 +35,23 @@ def _finish(request):
 
 def _dashboard_wizard_response(request, ob, **kwargs):
     """Render full projects dashboard with wizard (avoids HTMX partial / stuck step)."""
+    from django.conf import settings
+
+    from apps.deployments.services import MAX_STATIC_FILES_PER_POST
     from apps.projects.views import ProjectDashboardView
 
     view = ProjectDashboardView()
     view.setup(request)
-    view.object_list = view.get_queryset()
-    ctx = view.get_context_data()
+    queryset = view.get_queryset()
+    ctx = view.get_context_data(object_list=queryset)
     wizard_ctx = _wizard_context_fixed(request, ob, **kwargs)
     ctx.update(wizard_ctx)
     if wizard_ctx.get('onboarding_step') is not None:
         ctx['onboarding_step'] = wizard_ctx['onboarding_step']
     ctx['onboarding_active'] = True
-    return render(request, view.template_name, ctx)
+    ctx.setdefault('upload_max_mb', settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024))
+    ctx.setdefault('upload_max_files', MAX_STATIC_FILES_PER_POST)
+    return render(request, ProjectDashboardView.template_name, ctx)
 
 
 def _is_xhr_upload(request) -> bool:
@@ -118,7 +127,12 @@ class OnboardingWizardPartialView(LoginRequiredMixin, View):
 
 
 class OnboardingStepView(LoginRequiredMixin, View):
-    http_method_names = ['post']
+    http_method_names = ['get', 'post']
+
+    def get(self, request, step: int):
+        """Bookmarked step URLs — send users back to the dashboard wizard."""
+        messages.info(request, 'Continue setup from your projects dashboard.')
+        return redirect('projects:dashboard')
 
     def post(self, request, step: int):
         if not should_show_onboarding(request.user):
@@ -152,20 +166,30 @@ class OnboardingStepView(LoginRequiredMixin, View):
             return _dashboard_wizard_response(
                 request, ob, onboarding_form=form, onboarding_step=2
             )
-        project = form.save(commit=False)
-        project.owner = request.user
-        adjusted = getattr(form, 'subdomain_adjusted_from', '')
         try:
-            project.save()
-        except IntegrityError:
-            project.subdomain = ''
-            project.slug = ''
-            project.save()
-        on_project_created.delay(project.pk)
-        try:
-            write_project_router_file(project)
-        except OSError:
-            pass
+            project = form.save(commit=False)
+            project.owner = request.user
+            adjusted = getattr(form, 'subdomain_adjusted_from', '')
+            try:
+                project.save()
+            except IntegrityError:
+                project.subdomain = ''
+                project.slug = ''
+                project.save()
+            enqueue_on_project_created(project.pk)
+            try:
+                write_project_router_file(project)
+            except OSError:
+                pass
+        except Exception:
+            logger.exception('onboarding step 2 failed')
+            messages.error(
+                request,
+                'Could not create your project. Check your plan limit or try a different name.',
+            )
+            return _dashboard_wizard_response(
+                request, ob, onboarding_form=form, onboarding_step=2
+            )
         advance_step(ob, 2)
         msg = (
             f'Project “{project.name}” created — your site address is '
@@ -222,7 +246,10 @@ class OnboardingStepView(LoginRequiredMixin, View):
 
 
 class OnboardingSkipView(LoginRequiredMixin, View):
-    http_method_names = ['post']
+    http_method_names = ['get', 'post']
+
+    def get(self, request):
+        return redirect('projects:dashboard')
 
     def post(self, request):
         from apps.accounts.services import profile_is_complete

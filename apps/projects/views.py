@@ -18,7 +18,7 @@ from apps.domains.services import write_project_router_file
 from .forms import ProjectCustomHostnameForm, ProjectForm
 from .models import Project
 from .services import soft_delete_project
-from .tasks import on_project_created
+from .services import enqueue_on_project_created
 
 _STUDENT_APPS_IPV4 = re.compile(r'^(?:\d{1,3}\.){3}\d{1,3}$')
 
@@ -111,7 +111,7 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
             form.instance.subdomain = ''
             form.instance.slug = ''
             response = super().form_valid(form)
-        on_project_created.delay(self.object.pk)
+        enqueue_on_project_created(self.object.pk)
         try:
             write_project_router_file(self.object)
         except OSError as exc:

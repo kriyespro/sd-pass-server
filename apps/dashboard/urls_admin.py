@@ -12,4 +12,19 @@ urlpatterns = [
         views.StudentProjectSiteZipView.as_view(),
         name='download_project_files',
     ),
+    path(
+        'ops/optimize/',
+        views.RunAssetOptimizationView.as_view(),
+        name='run_asset_optimization',
+    ),
+    path(
+        'ops/backup/',
+        views.CreatePlatformBackupView.as_view(),
+        name='create_platform_backup',
+    ),
+    path(
+        'ops/backup/<int:backup_id>/download/',
+        views.DownloadPlatformBackupView.as_view(),
+        name='download_platform_backup',
+    ),
 ]

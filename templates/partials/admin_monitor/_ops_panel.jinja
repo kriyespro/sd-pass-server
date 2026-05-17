@@ -1,0 +1,134 @@
+{# Asset compression + platform backups — Mission Control #}
+<div class="grid gap-4 xl:grid-cols-2">
+  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-200">Asset compression</h2>
+        <p class="mt-0.5 text-xs text-slate-500">CSS, JS &amp; images on all live static sites</p>
+      </div>
+      <form method="post" action="{{ url('admin_monitor:run_asset_optimization') }}">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <button
+          type="submit"
+          {% if asset_running %}disabled{% endif %}
+          class="rounded-lg border border-emerald-700/50 bg-emerald-600/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-600/30 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {% if asset_running %}Running…{% else %}Run now{% endif %}
+        </button>
+      </form>
+    </div>
+    <div class="grid gap-3 p-4 sm:grid-cols-2">
+      <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
+        <p class="text-[10px] font-semibold uppercase text-slate-500">Last run</p>
+        <p class="mt-1 text-sm font-semibold text-white">
+          {% if asset_last_finished %}{{ asset_last_finished.strftime('%Y-%m-%d %H:%M') }}{% else %}Never{% endif %}
+        </p>
+        {% if asset_run and asset_run.status == 'failed' %}
+          <p class="mt-1 text-[10px] text-rose-400">Failed — check admin logs</p>
+        {% endif %}
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
+        <p class="text-[10px] font-semibold uppercase text-slate-500">Next scheduled</p>
+        <p class="mt-1 text-sm font-semibold text-white">
+          {% if asset_next_run_in_progress %}In progress…
+          {% elif asset_next_run %}{{ asset_next_run.strftime('%Y-%m-%d %H:%M') }}
+          {% else %}—{% endif %}
+        </p>
+        <p class="mt-0.5 text-[10px] text-slate-600">Every {{ asset_interval_hours }}h · cron: <code class="text-slate-400">optimize_site_assets</code></p>
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 sm:col-span-2">
+        <p class="text-[10px] font-semibold uppercase text-slate-500">Bytes saved (last run)</p>
+        <p class="mt-1 text-lg font-bold text-emerald-300">{{ bytes_saved_human }}</p>
+        {% if asset_run %}
+          <p class="mt-1 text-[10px] text-slate-500">
+            {{ asset_run.projects_processed }} site(s) ·
+            {{ asset_run.css_files }} CSS · {{ asset_run.js_files }} JS · {{ asset_run.image_files }} images ·
+            {{ asset_run.files_optimized }} file(s) shrunk
+          </p>
+        {% endif %}
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 sm:col-span-2">
+        <p class="text-[10px] font-semibold uppercase text-slate-500">Redis cache memory</p>
+        {% if cache_stats.available %}
+          <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-300">
+            <span>Used: <strong class="text-white">{{ cache_stats.used_memory_human }}</strong></span>
+            <span>Peak: <strong class="text-white">{{ cache_stats.used_memory_peak_human }}</strong></span>
+            <span>Max: <strong class="text-white">{{ cache_stats.maxmemory_human }}</strong></span>
+            <span>Keys: <strong class="text-white">{{ cache_stats.keys }}</strong></span>
+            {% if cache_stats.hit_rate_pct is not none %}
+              <span>Hit rate: <strong class="text-emerald-300">{{ cache_stats.hit_rate_pct }}%</strong></span>
+            {% endif %}
+          </div>
+        {% else %}
+          <p class="mt-1 text-xs text-slate-500">Redis unavailable</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+    <div class="border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+      <h2 class="text-sm font-semibold text-slate-200">Platform backups</h2>
+      <p class="mt-0.5 text-xs text-slate-500">Manual ZIP: database dump + student site files</p>
+    </div>
+    <div class="flex flex-wrap gap-2 border-b border-slate-800 px-4 py-3">
+      {% for btype, label in backup_type_choices %}
+        <form method="post" action="{{ url('admin_monitor:create_platform_backup') }}">
+          <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+          <input type="hidden" name="backup_type" value="{{ btype }}">
+          <button
+            type="submit"
+            class="rounded-lg border border-sky-700/50 bg-sky-600/15 px-2.5 py-1 text-[10px] font-semibold text-sky-300 hover:bg-sky-600/25"
+          >{{ label }}</button>
+        </form>
+      {% endfor %}
+    </div>
+    <div class="max-h-64 overflow-auto">
+      <table class="min-w-full text-left text-xs">
+        <thead class="sticky top-0 bg-slate-950/95 text-slate-500">
+          <tr>
+            <th class="px-3 py-2 font-semibold uppercase">When</th>
+            <th class="px-3 py-2 font-semibold uppercase">Type</th>
+            <th class="px-3 py-2 font-semibold uppercase">Contents</th>
+            <th class="px-3 py-2 font-semibold uppercase">Size</th>
+            <th class="px-3 py-2 font-semibold uppercase">Status</th>
+            <th class="px-3 py-2 text-center font-semibold uppercase">ZIP</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 text-slate-300">
+          {% for b in platform_backups %}
+            <tr class="hover:bg-slate-900/80">
+              <td class="px-3 py-2 font-mono text-[11px]">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td class="px-3 py-2">{{ b.get_backup_type_display() }}</td>
+              <td class="px-3 py-2 text-[11px] text-slate-400">
+                {% if b.includes_database %}DB{% endif %}
+                {% if b.includes_database and b.includes_sites %} + {% endif %}
+                {% if b.includes_sites %}Sites{% endif %}
+              </td>
+              <td class="px-3 py-2">{{ b.size_human }}</td>
+              <td class="px-3 py-2">
+                <span class="rounded-full px-2 py-0.5 text-[10px]
+                  {{ 'bg-emerald-900/50 text-emerald-300' if b.status == 'done' else ('bg-amber-900/50 text-amber-300' if b.status in ('pending','running') else 'bg-rose-900/50 text-rose-300') }}">
+                  {{ b.get_status_display() }}
+                </span>
+              </td>
+              <td class="px-3 py-2 text-center">
+                {% if b.status == 'done' and b.storage_path %}
+                  <a
+                    href="{{ url('admin_monitor:download_platform_backup', backup_id=b.pk) }}"
+                    class="inline-flex h-6 w-6 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[10px] font-bold text-emerald-300 hover:border-emerald-500/50"
+                    title="Download backup ZIP"
+                  >↓</a>
+                {% else %}
+                  <span class="text-slate-600">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="py-8 text-center text-slate-500">No backups yet. Use a button above.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

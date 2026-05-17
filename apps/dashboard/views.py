@@ -27,6 +27,11 @@ from apps.students.models import Batch
 from apps.deployments.services import build_project_site_zip, project_site_has_files
 from apps.uploads.models import ProjectUpload, UploadStatus
 
+from apps.platform_ops.models import PlatformBackup
+from apps.platform_ops.services import get_asset_optimization_dashboard
+from apps.platform_ops.utils import format_bytes
+from apps.platform_ops import views as platform_ops_views
+
 
 _WEBSITE_ROWS_CACHE_KEY = 'sdpaas:admin:website_rows'
 _WEBSITE_ROWS_CACHE_TTL = 60  # seconds
@@ -320,7 +325,23 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
         ).count()
         ctx['coupons_used'] = CouponCode.objects.filter(used_by__isnull=False).count()
 
+        ctx.update(get_asset_optimization_dashboard())
+        ctx['backup_type_choices'] = [
+            (PlatformBackup.BackupType.FULL, 'Full (DB + sites)'),
+            (PlatformBackup.BackupType.DATABASE, 'Database only'),
+            (PlatformBackup.BackupType.SITES, 'Sites only'),
+        ]
+        platform_backups = list(PlatformBackup.objects.all()[:25])
+        for backup in platform_backups:
+            backup.size_human = format_bytes(backup.size_bytes)
+        ctx['platform_backups'] = platform_backups
+
         return ctx
+
+
+RunAssetOptimizationView = platform_ops_views.RunAssetOptimizationView
+CreatePlatformBackupView = platform_ops_views.CreatePlatformBackupView
+DownloadPlatformBackupView = platform_ops_views.DownloadPlatformBackupView
 
 
 class TrainerOverviewView(UserPassesTestMixin, TemplateView):

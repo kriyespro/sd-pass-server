@@ -15,7 +15,7 @@ def compress_site_images(self, project_id: int) -> dict:
     from apps.notifications.services import create_notification
     from apps.projects.models import Project
 
-    from .image_optimizer import optimize_site_images
+    from apps.deployments.site_assets import optimize_site_assets
 
     proj = Project.objects.filter(pk=project_id, is_deleted=False).first()
     if not proj:
@@ -25,25 +25,25 @@ def compress_site_images(self, project_id: int) -> dict:
     if not site_dir.is_dir():
         return {'error': 'site_dir_missing'}
 
-    result = optimize_site_images(site_dir)
-    found = result['files_found']
-    optimized = result['files_optimized']
-    kb_saved = result['kb_saved']
+    result = optimize_site_assets(site_dir)
+    found = result.get('files_found', 0)
+    optimized = result.get('files_optimized', 0)
+    kb_saved = result.get('kb_saved', 0)
 
     if found == 0:
-        append_project_log(proj, LogKind.SYSTEM, 'AI Optimizer: no images found in site.')
+        append_project_log(proj, LogKind.SYSTEM, 'Asset optimizer: no CSS, JS, or images found.')
         return result
 
     if optimized == 0:
         append_project_log(
             proj,
             LogKind.SYSTEM,
-            f'AI Optimizer: {found} image(s) checked — already optimized, no changes needed.',
+            f'Asset optimizer: {found} file(s) checked — already optimized.',
         )
         create_notification(
             user_id=proj.owner_id,
-            title='✅ Images already optimized',
-            body=f'{found} image(s) checked — all are already in great shape!',
+            title='✅ Site assets already optimized',
+            body=f'{found} file(s) checked — CSS, JS, and images look good.',
             level=NotificationLevel.INFO,
         )
         return result
@@ -51,14 +51,14 @@ def compress_site_images(self, project_id: int) -> dict:
     append_project_log(
         proj,
         LogKind.BUILD,
-        f'AI Optimizer: compressed {optimized}/{found} image(s), saved {kb_saved} KB.',
+        f'Asset optimizer: compressed {optimized}/{found} file(s), saved {kb_saved} KB.',
     )
     create_notification(
         user_id=proj.owner_id,
-        title='🎨 Image optimization complete',
+        title='⚡ Site optimization complete',
         body=(
-            f'Our AI compressed {optimized} image(s) on your site "{proj.name}", '
-            f'saving {kb_saved} KB — your site now loads faster!'
+            f'We optimized {optimized} file(s) on "{proj.name}" '
+            f'(CSS, JS, images), saving {kb_saved} KB.'
         ),
         level=NotificationLevel.SUCCESS,
     )

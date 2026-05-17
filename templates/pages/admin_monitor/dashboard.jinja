@@ -80,6 +80,19 @@
     </div>
   </div>
 
+  {% if messages %}
+    <div class="space-y-1">
+      {% for message in messages %}
+        <p class="rounded-lg border px-3 py-2 text-xs
+          {{ 'border-emerald-800/50 bg-emerald-950/40 text-emerald-300' if message.tags == 'success' else ('border-amber-800/50 bg-amber-950/40 text-amber-300' if message.tags == 'warning' else 'border-sky-800/50 bg-sky-950/40 text-sky-300') }}">
+          {{ message }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% include "partials/admin_monitor/_ops_panel.jinja" %}
+
   {# ══ Billing / Plans (compact) ══ #}
   <div class="flex flex-wrap items-center gap-2">
     <span class="text-[10px] font-semibold uppercase text-slate-500">Plans</span>

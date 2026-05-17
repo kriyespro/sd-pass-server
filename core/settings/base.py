@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.quotas',
     'apps.databases',
     'apps.backups',
+    'apps.platform_ops',
     'apps.notifications',
     'apps.dashboard',
     'rest_framework',
@@ -194,6 +195,10 @@ STORAGES['student_uploads']['OPTIONS']['location'] = str(STUDENT_UPLOAD_ROOT)
 STUDENT_SITE_ROOT = Path(
     env('STUDENT_SITE_ROOT', default=str(BASE_DIR / 'data' / 'sites'))
 )
+PLATFORM_BACKUP_ROOT = Path(
+    env('PLATFORM_BACKUP_ROOT', default=str(BASE_DIR / 'data' / 'platform_backups'))
+)
+ASSET_OPTIMIZATION_INTERVAL_HOURS = env.int('ASSET_OPTIMIZATION_INTERVAL_HOURS', default=24)
 
 STUDENT_APPS_BASE_DOMAIN = env(
     'STUDENT_APPS_BASE_DOMAIN',

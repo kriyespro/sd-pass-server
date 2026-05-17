@@ -40,12 +40,17 @@
         <p class="text-[10px] font-semibold uppercase text-slate-500">Bytes saved (last run)</p>
         <p class="mt-1 text-lg font-bold text-emerald-300">{{ bytes_saved_human }}</p>
         {% if asset_run %}
+          {% set scanned = asset_run.sites_scanned or asset_sites_eligible %}
           <p class="mt-1 text-[10px] text-slate-500">
-            {{ asset_run.projects_processed }} of {{ asset_sites_eligible }} site(s) compressed ·
+            Scanned {{ scanned }} site(s) ·
+            <strong class="text-slate-300">{{ asset_run.projects_processed }}</strong> had CSS/JS/images ·
             {{ asset_run.css_files }} CSS · {{ asset_run.js_files }} JS · {{ asset_run.image_files }} images ·
             {{ asset_run.files_optimized }} file(s) shrunk
           </p>
-          <p class="mt-0.5 text-[10px] text-slate-600">Small savings after the first run usually means files were already optimized.</p>
+          {% if scanned > asset_run.projects_processed %}
+            <p class="mt-0.5 text-[10px] text-slate-600">{{ scanned - asset_run.projects_processed }} site(s) are HTML-only (no CSS/JS/images to compress).</p>
+          {% endif %}
+          <p class="mt-0.5 text-[10px] text-slate-600">Tiny savings on repeat runs usually means files were already optimized.</p>
         {% endif %}
       </div>
       <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 sm:col-span-2">
@@ -55,7 +60,7 @@
             <span>Used: <strong class="text-white">{{ cache_stats.used_memory_human }}</strong></span>
             <span>Peak: <strong class="text-white">{{ cache_stats.used_memory_peak_human }}</strong></span>
             <span>Max: <strong class="text-white">{{ cache_stats.maxmemory_human }}</strong></span>
-            <span>Keys: <strong class="text-white">{{ cache_stats.keys }}</strong></span>
+            <span>Keys: <strong class="text-white">{{ cache_stats.key_count }}</strong></span>
             {% if cache_stats.hit_rate_pct is not none %}
               <span>Hit rate: <strong class="text-emerald-300">{{ cache_stats.hit_rate_pct }}%</strong></span>
             {% endif %}

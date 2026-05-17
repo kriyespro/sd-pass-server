@@ -38,6 +38,22 @@ def count_eligible_static_sites() -> int:
     return len(eligible_static_projects())
 
 
+def expire_stale_optimization_runs(*, minutes: int = 90) -> int:
+    """Mark stuck pending/running jobs as failed so the UI can run again."""
+    cutoff = timezone.now() - timedelta(minutes=minutes)
+    return AssetOptimizationRun.objects.filter(
+        status__in=(
+            AssetOptimizationRun.Status.PENDING,
+            AssetOptimizationRun.Status.RUNNING,
+        ),
+        started_at__lt=cutoff,
+    ).update(
+        status=AssetOptimizationRun.Status.FAILED,
+        finished_at=timezone.now(),
+        error_message='Timed out (worker stopped or job hung).',
+    )
+
+
 def _aggregate_stats(total: dict, site: dict) -> None:
     for key in (
         'css_files',
@@ -52,7 +68,8 @@ def _aggregate_stats(total: dict, site: dict) -> None:
 
 
 def run_asset_optimization(*, run_id: int | None = None, user_id: int | None = None) -> AssetOptimizationRun:
-    """Minify CSS/JS and optimize images for every active static site."""
+    """Minify CSS/JS and optimize images for every static site with published files."""
+    expire_stale_optimization_runs()
     cache = get_redis_cache_stats()
     interval = optimization_interval()
     now = timezone.now()
@@ -80,7 +97,9 @@ def run_asset_optimization(*, run_id: int | None = None, user_id: int | None = N
     }
 
     try:
-        for project in eligible_static_projects():
+        projects = eligible_static_projects()
+        sites_scanned = len(projects)
+        for project in projects:
             site_dir: Path = project_site_dir(project)
             stats = optimize_site_assets(site_dir)
             if stats.get('files_found', 0) == 0:
@@ -91,6 +110,7 @@ def run_asset_optimization(*, run_id: int | None = None, user_id: int | None = N
         run.status = AssetOptimizationRun.Status.DONE
         run.finished_at = timezone.now()
         run.next_run_at = run.finished_at + interval
+        run.sites_scanned = sites_scanned
         run.projects_processed = totals['projects_processed']
         run.css_files = totals['css_files']
         run.js_files = totals['js_files']
@@ -101,7 +121,7 @@ def run_asset_optimization(*, run_id: int | None = None, user_id: int | None = N
         run.bytes_saved = totals['bytes_saved']
         run.cache_used_memory_human = cache.get('used_memory_human', '')
         run.cache_peak_memory_human = cache.get('used_memory_peak_human', '')
-        run.cache_keys = cache.get('keys', 0)
+        run.cache_keys = cache.get('key_count', 0)
         run.save()
         logger.info(
             'platform_ops: asset optimization done — %s projects, saved %s',
@@ -122,6 +142,7 @@ def run_asset_optimization(*, run_id: int | None = None, user_id: int | None = N
 
 def get_asset_optimization_dashboard() -> dict:
     """Context for Mission Control asset optimization panel."""
+    expire_stale_optimization_runs()
     latest = AssetOptimizationRun.objects.filter(
         status__in=(
             AssetOptimizationRun.Status.DONE,

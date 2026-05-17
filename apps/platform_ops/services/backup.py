@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import zipfile
+from shutil import which
 from pathlib import Path
 
 from django.conf import settings
@@ -21,6 +22,16 @@ def backup_root() -> Path:
     root = Path(getattr(settings, 'PLATFORM_BACKUP_ROOT', settings.BASE_DIR / 'data' / 'platform_backups'))
     root.mkdir(parents=True, exist_ok=True)
     return root
+
+
+def _pg_dump_executable() -> str:
+    for candidate in ('pg_dump-16', 'pg_dump'):
+        path = which(candidate)
+        if path:
+            return path
+    raise RuntimeError(
+        'pg_dump not found. Rebuild the Docker image (postgresql-client-16 required).'
+    )
 
 
 def _safe_name(backup: PlatformBackup) -> str:
@@ -41,7 +52,7 @@ def _dump_database(work_dir: Path) -> Path | None:
         if password:
             env['PGPASSWORD'] = password
         cmd = [
-            'pg_dump',
+            _pg_dump_executable(),
             '-h', db.get('HOST') or 'localhost',
             '-p', str(db.get('PORT') or 5432),
             '-U', db.get('USER') or 'postgres',

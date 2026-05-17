@@ -12,7 +12,7 @@ def get_redis_cache_stats() -> dict:
         'used_memory_human': '—',
         'used_memory_peak_human': '—',
         'maxmemory_human': '—',
-        'keys': 0,
+        'key_count': 0,
         'hit_rate_pct': None,
         'error': '',
     }
@@ -26,12 +26,15 @@ def get_redis_cache_stats() -> dict:
         misses = int(stats.get('keyspace_misses', 0))
         total = hits + misses
         hit_rate = round(hits / total * 100, 1) if total else None
+        max_mem = info.get('maxmemory_human') or 'no limit'
+        if max_mem in ('0B', '0', 0):
+            max_mem = 'no limit'
         return {
             'available': True,
             'used_memory_human': info.get('used_memory_human', '—'),
             'used_memory_peak_human': info.get('used_memory_peak_human', '—'),
-            'maxmemory_human': info.get('maxmemory_human', 'no limit'),
-            'keys': conn.dbsize(),
+            'maxmemory_human': max_mem,
+            'key_count': int(conn.dbsize()),
             'hit_rate_pct': hit_rate,
         }
     except Exception as exc:

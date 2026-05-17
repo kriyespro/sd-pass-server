@@ -19,7 +19,14 @@ class AssetOptimizationRun(models.Model):
     finished_at = models.DateTimeField(null=True, blank=True)
     next_run_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
-    projects_processed = models.PositiveIntegerField(default=0)
+    sites_scanned = models.PositiveIntegerField(
+        default=0,
+        help_text='Static sites with any files on disk',
+    )
+    projects_processed = models.PositiveIntegerField(
+        default=0,
+        help_text='Sites that contained CSS, JS, or images',
+    )
     css_files = models.PositiveIntegerField(default=0)
     js_files = models.PositiveIntegerField(default=0)
     image_files = models.PositiveIntegerField(default=0)

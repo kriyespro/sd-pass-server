@@ -351,7 +351,24 @@ CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
 # ── Cache ─────────────────────────────────────────────────────────────────────
 # Use Redis (DB 1) so all Gunicorn workers share one cache instead of each
 # keeping a separate in-process LocMemCache that resets on restart.
-_redis_base = env('REDIS_URL', default='redis://127.0.0.1:6379')
+def _redis_cache_base_url() -> str:
+    explicit = env('REDIS_URL', default='')
+    if explicit:
+        base = explicit.rstrip('/')
+        if base.endswith('/0') or base.endswith('/1'):
+            base = base.rsplit('/', 1)[0]
+        return base
+    # Docker prod often sets CELERY_BROKER_URL=redis://redis:6379/0 but not REDIS_URL.
+    from urllib.parse import urlparse
+
+    parsed = urlparse(CELERY_BROKER_URL)
+    host = parsed.hostname or '127.0.0.1'
+    port = parsed.port or 6379
+    scheme = parsed.scheme or 'redis'
+    return f'{scheme}://{host}:{port}'
+
+
+_redis_base = _redis_cache_base_url()
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',

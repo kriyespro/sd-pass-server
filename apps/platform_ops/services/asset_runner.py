@@ -7,12 +7,12 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
-from apps.deployments.services import project_site_dir
+from apps.deployments.services import project_site_dir, project_site_has_files
 from apps.deployments.site_assets import optimize_site_assets
 from apps.platform_ops.models import AssetOptimizationRun
 from apps.platform_ops.services.cache_stats import get_redis_cache_stats
 from apps.platform_ops.utils import format_bytes
-from apps.projects.models import Project, ProjectStatus, ProjectType
+from apps.projects.models import Project, ProjectType
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,22 @@ logger = logging.getLogger(__name__)
 def optimization_interval() -> timedelta:
     hours = int(getattr(settings, 'ASSET_OPTIMIZATION_INTERVAL_HOURS', 24) or 24)
     return timedelta(hours=max(hours, 1))
+
+
+def eligible_static_projects() -> list[Project]:
+    """All non-deleted static projects with published files on disk (any status)."""
+    return [
+        p
+        for p in Project.objects.filter(
+            is_deleted=False,
+            project_type=ProjectType.STATIC,
+        )
+        if project_site_has_files(p)
+    ]
+
+
+def count_eligible_static_sites() -> int:
+    return len(eligible_static_projects())
 
 
 def _aggregate_stats(total: dict, site: dict) -> None:
@@ -64,15 +80,8 @@ def run_asset_optimization(*, run_id: int | None = None, user_id: int | None = N
     }
 
     try:
-        projects = Project.objects.filter(
-            is_deleted=False,
-            project_type=ProjectType.STATIC,
-            status=ProjectStatus.RUNNING,
-        )
-        for project in projects:
+        for project in eligible_static_projects():
             site_dir: Path = project_site_dir(project)
-            if not site_dir.is_dir():
-                continue
             stats = optimize_site_assets(site_dir)
             if stats.get('files_found', 0) == 0:
                 continue
@@ -150,4 +159,5 @@ def get_asset_optimization_dashboard() -> dict:
         'asset_interval_hours': int(interval.total_seconds() // 3600),
         'cache_stats': cache,
         'bytes_saved_human': format_bytes(latest.bytes_saved if latest else 0),
+        'asset_sites_eligible': count_eligible_static_sites(),
     }

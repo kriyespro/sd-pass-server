@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def get_redis_cache_stats() -> dict:
     """Redis memory used by Django cache (django-redis)."""
@@ -10,6 +14,7 @@ def get_redis_cache_stats() -> dict:
         'maxmemory_human': '—',
         'keys': 0,
         'hit_rate_pct': None,
+        'error': '',
     }
     try:
         from django_redis import get_redis_connection
@@ -29,5 +34,7 @@ def get_redis_cache_stats() -> dict:
             'keys': conn.dbsize(),
             'hit_rate_pct': hit_rate,
         }
-    except Exception:
+    except Exception as exc:
+        logger.warning('Redis cache stats unavailable: %s', exc)
+        defaults['error'] = str(exc)[:200]
         return defaults

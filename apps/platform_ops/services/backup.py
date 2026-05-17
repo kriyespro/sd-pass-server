@@ -50,7 +50,12 @@ def _dump_database(work_dir: Path) -> Path | None:
             '--no-owner',
             '--no-acl',
         ]
-        subprocess.run(cmd, check=True, env=env, capture_output=True, text=True)
+        proc = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        if proc.returncode != 0:
+            err = (proc.stderr or proc.stdout or 'pg_dump failed').strip()
+            raise RuntimeError(err[:2000])
+        if not sql_path.is_file() or sql_path.stat().st_size == 0:
+            raise RuntimeError('pg_dump produced an empty file')
         return sql_path
 
     if 'sqlite' in engine:

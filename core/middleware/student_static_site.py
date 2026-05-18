@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from django.conf import settings
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, HttpResponsePermanentRedirect
 from django.views.static import serve
 
 from apps.deployments.services import project_site_dir
@@ -180,6 +180,15 @@ class StudentStaticSiteMiddleware:
         url_path = request.path.lstrip('/')
         if url_path and '..' in Path(url_path).parts:
             return HttpResponse('Invalid path.', status=400, content_type='text/plain; charset=utf-8')
+
+        # Redirect /folder → /folder/ so relative URLs in HTML resolve correctly.
+        # Without this, <link href="style.css"> at /folder resolves to /style.css (wrong).
+        if url_path and not request.path.endswith('/') and (root / Path(url_path)).is_dir():
+            redirect_to = request.path + '/'
+            qs = request.META.get('QUERY_STRING', '')
+            if qs:
+                redirect_to += '?' + qs
+            return HttpResponsePermanentRedirect(redirect_to)
 
         rel = _resolve_site_file_rel(root, url_path)
         if rel is None:

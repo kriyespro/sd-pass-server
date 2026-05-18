@@ -108,11 +108,14 @@ def deploy_after_scan(scan_result: dict) -> dict:
     site_url = (
         f'{scheme}://{fqdn}:{site_port}/' if site_port else f'{scheme}://{fqdn}/'
     )
+    subfolder = (upload.deploy_subfolder or '').strip('/')
+    if subfolder:
+        site_url = site_url + subfolder + '/'
     if proj.project_type == ProjectType.STATIC and extract_ok:
         link_url = site_url
         body = f'Your static files are published. Open {site_url}'
         if extract_msg == 'extracted_no_index_html':
-            body += ' (add index.html at the ZIP root for the / page).'
+            body += ' (add index.html at the ' + ('subfolder root' if subfolder else 'ZIP root') + ' for the page to load).'
     else:
         link_url = reverse('projects:logs', kwargs={'slug': proj.slug})
         body = 'Your upload passed the scan. See project logs for details.'

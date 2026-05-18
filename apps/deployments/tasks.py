@@ -58,6 +58,10 @@ def deploy_after_scan(scan_result: dict) -> dict:
             proj, Path(upload.file.path), subfolder=upload.deploy_subfolder or ''
         )
         if extract_ok:
+            _sub = (upload.deploy_subfolder or '').strip('/')
+            from apps.projects.models import Project as _Project, ProjectSubfolder
+            _Project.objects.filter(pk=proj.pk).update(site_subfolder=_sub)
+            ProjectSubfolder.objects.update_or_create(project=proj, path=_sub)
             append_project_log(
                 proj,
                 LogKind.BUILD,

@@ -68,6 +68,12 @@ class Project(models.Model):
         default='',
         help_text='Secret token the student publishes in a TXT record before routing goes live.',
     )
+    site_subfolder = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Most-recently deployed subfolder path (e.g. "myweb"). Empty = site root.',
+    )
 
     class Meta:
         ordering = ['-created_at']
@@ -78,6 +84,11 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+    def site_url(self, scheme: str, base_domain: str, port: int = 0) -> str:
+        """Subdomain root URL for this project (no subfolder)."""
+        port_seg = f':{port}' if port else ''
+        return f'{scheme}://{self.subdomain}.{base_domain}{port_seg}/'
 
     def save(self, *args, **kwargs):
         new_h = (self.custom_hostname or '').strip().lower().rstrip('.')
@@ -104,3 +115,26 @@ class Project(models.Model):
             exclude_pk=self.pk,
         )
         super().save(*args, **kwargs)
+
+
+class ProjectSubfolder(models.Model):
+    """
+    Tracks every subfolder path that has been deployed for a project.
+    One row per (project, path) pair; updated_at refreshes on each deploy.
+    path='' means the site root.
+    """
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='subfolders',
+        db_index=True,
+    )
+    path = models.CharField(max_length=64, blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('project', 'path')]
+        ordering = ['path']
+
+    def __str__(self):
+        return f'{self.project_id}/{self.path}' if self.path else str(self.project_id)

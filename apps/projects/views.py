@@ -32,34 +32,13 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         return (
             Project.objects.filter(owner=self.request.user, is_deleted=False)
             .select_related('owner')
+            .prefetch_related('subfolders')
             .order_by('-created_at')
         )
-
-    @staticmethod
-    def _latest_subfolders(project_ids: list) -> dict:
-        """Return {project_id: subfolder_str} for the most-recent subfolder upload per project."""
-        result = {}
-        if not project_ids:
-            return result
-        from apps.uploads.models import ProjectUpload
-        for row in (
-            ProjectUpload.objects
-            .filter(project_id__in=project_ids)
-            .exclude(deploy_subfolder='')
-            .order_by('-created_at')
-            .values('project_id', 'deploy_subfolder')
-        ):
-            pid = row['project_id']
-            if pid not in result:
-                result[pid] = row['deploy_subfolder'].strip('/')
-        return result
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['project_count'] = len(ctx['projects'])
-        ctx['project_subfolders'] = self._latest_subfolders(
-            [p.pk for p in ctx['projects']]
-        )
         ctx['plan_limit'] = user_project_limit(self.request.user)
         from core.server_stats import get_server_stats
         ctx['server'] = get_server_stats()

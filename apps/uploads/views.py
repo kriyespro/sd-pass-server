@@ -10,11 +10,33 @@ from django.views.generic import CreateView
 from apps.deployments.services import MAX_STATIC_FILES_PER_POST, _validate_subfolder, save_static_files
 from apps.logs.models import LogKind
 from apps.logs.services import append_project_log
-from apps.projects.models import Project, ProjectType
+from apps.projects.models import Project, ProjectSubfolder, ProjectType
 
 from .forms import MultiStaticUploadForm, ZipUploadForm
 from .models import ProjectUpload
 from .tasks import enqueue_upload_pipeline
+
+
+def _site_url_hints(project: Project) -> dict:
+    """Context vars for URL preview shown on upload forms."""
+    base = (settings.STUDENT_APPS_BASE_DOMAIN or '').strip()
+    scheme = getattr(settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http') or 'http'
+    port = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
+    port_seg = f':{port}' if port else ''
+    sub_base_url = f'{scheme}://{project.subdomain}.{base}{port_seg}/' if base else ''
+    custom_base_url = ''
+    if project.custom_hostname and project.custom_hostname_verified:
+        custom_base_url = f'{scheme}://{project.custom_hostname}/'
+    return {
+        'sub_base_url': sub_base_url,
+        'custom_base_url': custom_base_url,
+        'deployed_subfolders': list(
+            ProjectSubfolder.objects
+            .filter(project=project)
+            .order_by('path')
+            .values_list('path', flat=True)
+        ),
+    }
 
 
 def _friendly_static_upload_error(msg: str) -> str:
@@ -75,6 +97,7 @@ class ZipUploadView(LoginRequiredMixin, CreateView):
         )
         ctx['upload_max_mb'] = settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
         ctx['is_static_project'] = self.project.project_type == ProjectType.STATIC
+        ctx.update(_site_url_hints(self.project))
         return ctx
 
     def form_valid(self, form):
@@ -128,61 +151,35 @@ class MultiStaticFilesView(LoginRequiredMixin, View):
             return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': self.project.slug}))
         return super().dispatch(request, *args, **kwargs)
 
+    def _ctx(self, form=None):
+        return {
+            'project': self.project,
+            'form': form or MultiStaticUploadForm(),
+            'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
+            'max_files': MAX_STATIC_FILES_PER_POST,
+            **_site_url_hints(self.project),
+        }
+
     def get(self, request, *args, **kwargs):
-        return render(
-            request,
-            self.template_name,
-            {
-                'project': self.project,
-                'form': MultiStaticUploadForm(),
-                'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
-                'max_files': MAX_STATIC_FILES_PER_POST,
-            },
-        )
+        return render(request, self.template_name, self._ctx())
 
     def post(self, request, *args, **kwargs):
         form = MultiStaticUploadForm(request.POST)
         files = request.FILES.getlist('files')
         if not form.is_valid():
-            return render(
-                request,
-                self.template_name,
-                {
-                    'project': self.project,
-                    'form': form,
-                    'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
-                    'max_files': MAX_STATIC_FILES_PER_POST,
-                },
-                status=422,
-            )
+            return render(request, self.template_name, self._ctx(form), status=422)
         if not files:
             form.add_error(None, 'Select one or more files.')
-            return render(
-                request,
-                self.template_name,
-                {
-                    'project': self.project,
-                    'form': form,
-                    'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
-                    'max_files': MAX_STATIC_FILES_PER_POST,
-                },
-                status=422,
-            )
+            return render(request, self.template_name, self._ctx(form), status=422)
         subfolder = request.POST.get('subfolder', '').strip()
         ok, msg = save_static_files(self.project, files, subfolder=subfolder)
         if not ok:
             form.add_error(None, _friendly_static_upload_error(msg))
-            return render(
-                request,
-                self.template_name,
-                {
-                    'project': self.project,
-                    'form': form,
-                    'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
-                    'max_files': MAX_STATIC_FILES_PER_POST,
-                },
-                status=422,
-            )
+            return render(request, self.template_name, self._ctx(form), status=422)
+        # Persist the subfolder so the dashboard shows the correct site URL.
+        normalised = subfolder.strip('/')
+        Project.objects.filter(pk=self.project.pk).update(site_subfolder=normalised)
+        ProjectSubfolder.objects.update_or_create(project=self.project, path=normalised)
         append_project_log(
             self.project,
             LogKind.BUILD,

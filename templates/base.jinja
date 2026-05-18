@@ -21,10 +21,13 @@
       opts = opts || {};
       var redirectFallback = opts.redirectFallback || '/projects/';
       var wizardRootId = opts.wizardRootId || '';
+      var imageMaxBytes = (opts.imageMaxKb || 0) * 1024;
+      var IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
       return {
         uploading: false,
         uploadPct: 0,
         label: 'Uploading…',
+        imageErrors: [],
         start: function (event) {
           var form = event.target;
           var self = this;
@@ -32,6 +35,22 @@
             form.reportValidity();
             return;
           }
+          if (imageMaxBytes > 0) {
+            var oversized = [];
+            form.querySelectorAll('input[type="file"]').forEach(function (inp) {
+              Array.from(inp.files || []).forEach(function (f) {
+                var ext = '.' + f.name.split('.').pop().toLowerCase();
+                if (IMAGE_EXTS.indexOf(ext) !== -1 && f.size > imageMaxBytes) {
+                  oversized.push(f.name + ' (' + Math.round(f.size / 1024) + ' KB)');
+                }
+              });
+            });
+            if (oversized.length) {
+              self.imageErrors = oversized;
+              return;
+            }
+          }
+          self.imageErrors = [];
           form.querySelectorAll('input[type="file"]').forEach(function (inp) {
             if (!inp.files || inp.files.length === 0) {
               inp.disabled = true;

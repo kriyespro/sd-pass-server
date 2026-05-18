@@ -7,7 +7,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView
 
-from apps.deployments.services import MAX_STATIC_FILES_PER_POST, save_static_files
+from apps.deployments.services import MAX_STATIC_FILES_PER_POST, _validate_subfolder, save_static_files
 from apps.logs.models import LogKind
 from apps.logs.services import append_project_log
 from apps.projects.models import Project, ProjectType
@@ -41,6 +41,14 @@ def _friendly_static_upload_error(msg: str) -> str:
         return f'Too many files (maximum {MAX_STATIC_FILES_PER_POST} per request).'
     if msg == 'use_zip_upload_for_archives':
         return 'Do not upload .zip here — use the ZIP upload page for archives.'
+    if msg == 'invalid_subfolder':
+        return (
+            'Subfolder must contain only letters, digits, hyphens, underscores, or / '
+            '— no leading/trailing slashes or ..'
+        )
+    if msg.startswith('image_too_large:'):
+        name = msg.split(':', 1)[1]
+        return f'Image "{name}" exceeds 120 KB. Please compress it and re-upload.'
     return msg
 
 
@@ -76,8 +84,18 @@ class ZipUploadView(LoginRequiredMixin, CreateView):
         if not uploaded:
             form.add_error('file', 'Choose a ZIP file to upload.')
             return self.form_invalid(form)
+        subfolder = self.request.POST.get('subfolder', '').strip()
+        sub_ok, _ = _validate_subfolder(subfolder)
+        if not sub_ok:
+            form.add_error(
+                None,
+                'Subfolder must contain only letters, digits, hyphens, underscores, or / '
+                '— no leading/trailing slashes or ..',
+            )
+            return self.form_invalid(form)
         form.instance.original_name = uploaded.name
         form.instance.size_bytes = uploaded.size
+        form.instance.deploy_subfolder = subfolder
         response = super().form_valid(form)
         enqueue_upload_pipeline.delay(self.object.pk)
         messages.success(
@@ -150,7 +168,8 @@ class MultiStaticFilesView(LoginRequiredMixin, View):
                 },
                 status=422,
             )
-        ok, msg = save_static_files(self.project, files)
+        subfolder = request.POST.get('subfolder', '').strip()
+        ok, msg = save_static_files(self.project, files, subfolder=subfolder)
         if not ok:
             form.add_error(None, _friendly_static_upload_error(msg))
             return render(

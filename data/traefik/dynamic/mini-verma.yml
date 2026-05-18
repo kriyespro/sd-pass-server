@@ -1,0 +1,16 @@
+http:
+  routers:
+    proj-14-mini-verma:
+      rule: "Host(`mini-verma.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj-14-mini-verma-svc
+
+
+  services:
+    proj-14-mini-verma-svc:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://127.0.0.1:8000"

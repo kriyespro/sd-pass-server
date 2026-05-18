@@ -122,29 +122,19 @@ def _resolve_project_for_static_host(host: str):
         Project.objects.filter(
             custom_hostname__iexact=host,
             is_deleted=False,
-            custom_hostname_verified=True,
         )
-        .only('id', 'subdomain', 'slug', 'custom_hostname')
+        .only('id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified')
         .first()
     )
-    if project is not None:
+    if project is None:
+        return None
+    if project.custom_hostname_verified:
         return project
-    if (
-        Project.objects.filter(
-            custom_hostname__iexact=host,
-            is_deleted=False,
-            custom_hostname_verified=False,
-        )
-        .exclude(custom_hostname__isnull=True)
-        .exclude(custom_hostname='')
-        .exists()
-    ):
-        return HttpResponse(
-            _DOMAIN_PENDING_VERIFY,
-            status=503,
-            content_type='text/html; charset=utf-8',
-        )
-    return None
+    return HttpResponse(
+        _DOMAIN_PENDING_VERIFY,
+        status=503,
+        content_type='text/html; charset=utf-8',
+    )
 
 
 class StudentStaticSiteMiddleware:
@@ -175,13 +165,11 @@ class StudentStaticSiteMiddleware:
         project = resolved
 
         root = project_site_dir(project)
-        if not root.is_dir():
-            return HttpResponse(
-                'No published site bundle yet. Upload a ZIP (Static project) from the dashboard.',
-                status=503,
-                content_type='text/plain; charset=utf-8',
-            )
-        if not any(root.iterdir()):
+        try:
+            has_contents = any(root.iterdir())
+        except OSError:
+            has_contents = False
+        if not has_contents:
             return HttpResponse(
                 'No published site bundle yet. Upload a ZIP (Static project) from the dashboard.',
                 status=503,

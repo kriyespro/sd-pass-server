@@ -13,8 +13,18 @@
       For <span class="font-semibold text-slate-200">Static</span> projects only. You can pick several loose files <em>or</em> a whole project folder so paths like <code class="text-emerald-300">images/hero.jpg</code> match your HTML (Chrome, Edge, Firefox).
       Allowed: HTML, CSS, JS, images, fonts, SVG, JSON, webmanifest. Max {{ upload_max_mb }} MB total per request, up to {{ max_files }} files (same relative paths overwrite). Use <code class="text-emerald-300">index.html</code> at the site root for <code class="text-emerald-300">/</code>. For very large sites, use <a href="{{ url('projects:upload_zip', slug=project.slug) }}" class="text-sky-400 hover:text-sky-300">ZIP upload</a>.
     </p>
-    <div x-data="uploadForm({ redirectFallback: '{{ url('projects:dashboard') }}' })">
+    <div x-data="uploadForm({ redirectFallback: '{{ url('projects:dashboard') }}', imageMaxKb: 120 })">
     {% include "partials/uploads/_upload_progress_overlay.jinja" %}
+    <template x-if="imageErrors.length > 0">
+      <div class="mt-4 rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+        <p class="font-medium">Images exceed 120 KB — please compress before uploading:</p>
+        <ul class="mt-1 list-inside list-disc">
+          <template x-for="e in imageErrors" :key="e">
+            <li x-text="e"></li>
+          </template>
+        </ul>
+      </div>
+    </template>
     <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" @submit.prevent="start($event)">
       {{ csrf_input }}
       {% if form.non_field_errors() %}
@@ -46,6 +56,20 @@
           />
           <p class="mt-1 text-xs text-slate-500">Choose the <strong>project root</strong> (the folder that contains <code class="text-slate-400">index.html</code> and your <code class="text-slate-400">images</code> folder) so links like <code class="text-slate-400">images/photo.jpg</code> work. If you only pick the <code class="text-slate-400">images</code> folder, files land at the site root without an <code class="text-slate-400">images/</code> prefix.</p>
         </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-200" for="subfolder-input">
+          Upload into subfolder <span class="text-slate-500 font-normal">(optional)</span>
+        </label>
+        <input
+          id="subfolder-input"
+          type="text"
+          name="subfolder"
+          placeholder="e.g. myapp  or  v2/release"
+          maxlength="64"
+          class="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600"
+        />
+        <p class="mt-1 text-xs text-slate-500">Files will be served at <code class="text-slate-400">/subfolder/</code>. Leave blank to deploy to the site root.</p>
       </div>
       <button type="submit" class="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50" :disabled="uploading">Save files to site</button>
     </form>

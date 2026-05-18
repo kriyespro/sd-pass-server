@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import shutil
 import zipfile
 from pathlib import Path
@@ -41,32 +42,54 @@ STATIC_ASSET_SUFFIXES = frozenset(
     }
 )
 
+IMAGE_SUFFIXES = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'})
+MAX_IMAGE_BYTES = 120 * 1024  # 120 KB
+
+_SUBFOLDER_RE = re.compile(r'^[a-zA-Z0-9_\-][a-zA-Z0-9_\-/]*$')
+
+
+def _validate_subfolder(s: str) -> tuple[bool, str]:
+    if not s:
+        return True, ''
+    if len(s) > 64 or '..' in s or s.startswith('/') or s.endswith('/'):
+        return False, 'invalid_subfolder'
+    if not _SUBFOLDER_RE.match(s):
+        return False, 'invalid_subfolder'
+    return True, ''
+
 
 def project_site_dir(project: Project) -> Path:
     root = Path(settings.STUDENT_SITE_ROOT)
     return root / str(project.pk)
 
 
-def extract_static_site_from_zip(project: Project, zip_path: Path) -> tuple[bool, str]:
+def extract_static_site_from_zip(project: Project, zip_path: Path, subfolder: str = '') -> tuple[bool, str]:
     """
-    Unpack a ZIP into STUDENT_SITE_ROOT/<project_id>/ for static (HTML) projects.
-    Returns (ok, message). On failure the previous bundle is removed if present.
+    Unpack a ZIP into STUDENT_SITE_ROOT/<project_id>/[subfolder]/ for static (HTML) projects.
+    If subfolder given, only that subfolder is wiped/replaced (rest of site preserved).
+    Returns (ok, message). On failure the extraction target is removed if present.
     """
     if project.project_type != ProjectType.STATIC:
         return False, 'skip_non_static_project'
 
-    dest = project_site_dir(project)
+    site_root = project_site_dir(project)
+    extract_dest = site_root / subfolder if subfolder else site_root
     try:
-        if dest.exists():
-            shutil.rmtree(dest)
-        dest.mkdir(parents=True, exist_ok=True)
-        _safe_unzip(zip_path, dest)
+        if subfolder:
+            if extract_dest.exists():
+                shutil.rmtree(extract_dest)
+            extract_dest.mkdir(parents=True, exist_ok=True)
+        else:
+            if site_root.exists():
+                shutil.rmtree(site_root)
+            site_root.mkdir(parents=True, exist_ok=True)
+        _safe_unzip(zip_path, extract_dest)
     except (OSError, ValueError, zipfile.BadZipFile, RuntimeError) as exc:
-        if dest.exists():
-            shutil.rmtree(dest, ignore_errors=True)
+        if extract_dest.exists():
+            shutil.rmtree(extract_dest, ignore_errors=True)
         return False, str(exc)
 
-    index = dest / 'index.html'
+    index = extract_dest / 'index.html'
     if not index.is_file():
         return True, 'extracted_no_index_html'
 
@@ -94,6 +117,12 @@ def _safe_unzip(zip_path: Path, dest: Path) -> None:
             if info.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
                 continue
+            suf = Path(name).suffix.lower()
+            if suf in IMAGE_SUFFIXES and info.file_size > MAX_IMAGE_BYTES:
+                raise ValueError(
+                    f'Image too large: {name!r} is {info.file_size // 1024} KB '
+                    f'(max 120 KB). Compress it before uploading.'
+                )
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info, 'r') as src, open(target, 'wb') as out:
                 shutil.copyfileobj(src, out)
@@ -125,11 +154,12 @@ def _safe_rel_path_for_static_upload(raw_name: str, dest: Path) -> tuple[bool, s
     return True, '', rel_path
 
 
-def save_static_files(project: Project, file_list: list) -> tuple[bool, str]:
+def save_static_files(project: Project, file_list: list, subfolder: str = '') -> tuple[bool, str]:
     """
     Save multiple uploaded files under the static site directory (merge/overwrite).
     Accepts flat names (index.html) or relative paths (images/logo.png) from a folder upload.
     Only for Static projects. Total size must be within STUDENT_UPLOAD_MAX_BYTES.
+    If subfolder given, files land under <site_root>/<subfolder>/. Images must be ≤ 120 KB.
     """
     if project.project_type != ProjectType.STATIC:
         return False, 'only_static_projects'
@@ -139,6 +169,10 @@ def save_static_files(project: Project, file_list: list) -> tuple[bool, str]:
 
     if len(file_list) > MAX_STATIC_FILES_PER_POST:
         return False, f'max_{MAX_STATIC_FILES_PER_POST}_files_per_request'
+
+    sub_ok, sub_err = _validate_subfolder(subfolder)
+    if not sub_ok:
+        return False, sub_err
 
     max_bytes = settings.STUDENT_UPLOAD_MAX_BYTES
     dest = project_site_dir(project)
@@ -162,6 +196,12 @@ def save_static_files(project: Project, file_list: list) -> tuple[bool, str]:
             return False, 'use_zip_upload_for_archives'
         if suf not in STATIC_ASSET_SUFFIXES:
             return False, f'disallowed_type:{rel_key}'
+        if suf in IMAGE_SUFFIXES:
+            file_size = getattr(uploaded, 'size', 0) or 0
+            if file_size > MAX_IMAGE_BYTES:
+                return False, f'image_too_large:{rel_key}'
+        if subfolder:
+            rel_path = Path(subfolder) / rel_path
         total += getattr(uploaded, 'size', 0) or 0
         if total > max_bytes:
             return False, 'total_size_exceeds_limit'

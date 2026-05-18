@@ -54,7 +54,9 @@ def deploy_after_scan(scan_result: dict) -> dict:
     )
 
     if proj.project_type == ProjectType.STATIC:
-        extract_ok, extract_msg = extract_static_site_from_zip(proj, Path(upload.file.path))
+        extract_ok, extract_msg = extract_static_site_from_zip(
+            proj, Path(upload.file.path), subfolder=upload.deploy_subfolder or ''
+        )
         if extract_ok:
             append_project_log(
                 proj,

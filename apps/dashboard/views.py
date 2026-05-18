@@ -1,4 +1,5 @@
 from datetime import timedelta
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
@@ -24,7 +25,7 @@ from apps.security.models import ScanReport
 from apps.dashboard.trainer_access import is_trainer, trainee_users_queryset
 from apps.envmanager.models import EnvVar
 from apps.students.models import Batch
-from apps.deployments.services import build_project_site_zip, project_site_has_files
+from apps.deployments.services import build_project_site_zip
 from apps.uploads.models import ProjectUpload, UploadStatus
 
 from apps.platform_ops.models import PlatformBackup
@@ -35,6 +36,29 @@ from apps.platform_ops import views as platform_ops_views
 
 _WEBSITE_ROWS_CACHE_KEY = 'sdpaas:admin:website_rows'
 _WEBSITE_ROWS_CACHE_TTL = 60  # seconds
+
+
+def _projects_with_site_files() -> set:
+    """Return set of project PKs that have at least one file in their site directory."""
+    import os
+    site_root = Path(settings.STUDENT_SITE_ROOT)
+    result: set = set()
+    try:
+        for entry in os.scandir(site_root):
+            if not entry.is_dir():
+                continue
+            try:
+                pk = int(entry.name)
+            except ValueError:
+                continue
+            try:
+                if any(True for e in os.scandir(entry.path) if not e.is_dir()):
+                    result.add(pk)
+            except OSError:
+                pass
+    except OSError:
+        pass
+    return result
 
 
 def _student_website_rows(bust_cache: bool = False):
@@ -62,6 +86,7 @@ def _student_website_rows(bust_cache: bool = False):
         .values_list('owner_id', 'c')
     )
     subs = {s.user_id: s for s in Subscription.objects.all()}
+    projects_with_files = _projects_with_site_files()
 
     rows = []
     for p in (
@@ -82,7 +107,7 @@ def _student_website_rows(bust_cache: bool = False):
             'project_name': p.name,
             'site_url': site_url,
             'custom_url': custom_url,
-            'has_site_files': project_site_has_files(p),
+            'has_site_files': p.pk in projects_with_files,
             'email': owner.email,
             'name': name,
             'city': owner.city or '—',

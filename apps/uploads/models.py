@@ -42,6 +42,7 @@ class ProjectUpload(models.Model):
         default=UploadStatus.PENDING,
         db_index=True,
     )
+    deploy_subfolder = models.CharField(max_length=64, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

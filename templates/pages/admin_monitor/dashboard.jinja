@@ -142,7 +142,10 @@
             <tr class="hover:bg-slate-900/80">
               <td class="px-3 py-2.5">
                 <span class="font-medium text-white">{{ row.project_name }}</span>
-                {% if row.site_url %}
+                {% if row.subfolder_url %}
+                  <span class="text-slate-600"> · </span>
+                  <a href="{{ row.subfolder_url }}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-medium text-sky-400 hover:text-sky-300">Visit /{{ row.subfolder }} ↗</a>
+                {% elif row.site_url %}
                   <span class="text-slate-600"> · </span>
                   <a href="{{ row.site_url }}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-medium text-sky-400 hover:text-sky-300">Visit website ↗</a>
                 {% endif %}

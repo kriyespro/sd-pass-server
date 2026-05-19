@@ -192,6 +192,12 @@ class ProjectCustomDomainView(LoginRequiredMixin, View):
 
     template_name = 'pages/projects/project_domain.jinja'
 
+    def _user_is_paid(self, user) -> bool:
+        try:
+            return user.subscription.is_paid
+        except Exception:
+            return False
+
     def dispatch(self, request, *args, **kwargs):
         self.project = get_object_or_404(
             Project,
@@ -202,9 +208,14 @@ class ProjectCustomDomainView(LoginRequiredMixin, View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
+        if not self._user_is_paid(request.user):
+            return self._render_upgrade(request)
         return self._render(request, ProjectCustomHostnameForm(instance=self.project))
 
     def post(self, request, *args, **kwargs):
+        if not self._user_is_paid(request.user):
+            messages.warning(request, 'Custom domains require a paid plan.')
+            return HttpResponseRedirect(reverse('billing:redeem'))
         form = ProjectCustomHostnameForm(request.POST, instance=self.project)
         if not form.is_valid():
             return self._render(request, form, status=422)
@@ -236,6 +247,21 @@ class ProjectCustomDomainView(LoginRequiredMixin, View):
             verify_single_custom_domain.delay(self.project.pk)
         return HttpResponseRedirect(reverse('projects:domain', kwargs={'slug': self.project.slug}))
 
+    def _render_upgrade(self, request):
+        from apps.domains.services import project_fqdn
+        fqdn = project_fqdn(self.project)
+        return render(
+            request,
+            self.template_name,
+            {
+                'project': self.project,
+                'platform_fqdn': fqdn,
+                'apps_base_domain': settings.STUDENT_APPS_BASE_DOMAIN,
+                'is_paid': False,
+                'upgrade_url': reverse('billing:redeem'),
+            },
+        )
+
     def _render(self, request, form, status=200):
         from apps.domains.services import project_fqdn
         from apps.domains.verification import challenge_txt_fqdn
@@ -256,6 +282,7 @@ class ProjectCustomDomainView(LoginRequiredMixin, View):
                 'challenge_txt_fqdn': challenge_fqdn,
                 'challenge_token': (self.project.custom_domain_challenge_token or ''),
                 'domain_verified': self.project.custom_hostname_verified,
+                'is_paid': True,
             },
             status=status,
         )

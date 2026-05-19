@@ -38,7 +38,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
     list_per_page = 50
 
     fields = (
-        'user', 'plan_slug', 'status', 'current_period_end',
+        'user', 'plan_slug', 'status', 'current_period_end', 'trial_ends_at',
         'external_customer_id', 'notes', 'created_at', 'updated_at',
     )
 

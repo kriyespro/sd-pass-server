@@ -14,6 +14,8 @@ PLAN_LIMITS = {
     'business': 10,
 }
 
+FREE_TRIAL_DAYS = 7
+
 PLAN_PRICES = {
     'starter':  Decimal('1499.00'),
     'pro':      Decimal('2099.00'),
@@ -58,6 +60,12 @@ class Subscription(models.Model):
         db_index=True,
     )
     current_period_end = models.DateTimeField(null=True, blank=True)
+    trial_ends_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Free-plan trial expiry. Null = no trial (paid plan or legacy account).',
+        db_index=True,
+    )
     external_customer_id = models.CharField(max_length=255, blank=True)
     notes = models.CharField(max_length=500, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -76,6 +84,19 @@ class Subscription(models.Model):
         if self.current_period_end and self.current_period_end < timezone.now():
             return False
         return True
+
+    @property
+    def is_paid(self) -> bool:
+        return self.is_active and self.plan_slug != self.Plan.FREE
+
+    @property
+    def trial_expired(self) -> bool:
+        """True for free-plan accounts whose 7-day trial window has closed."""
+        if self.plan_slug != self.Plan.FREE:
+            return False
+        if self.trial_ends_at is None:
+            return False
+        return self.trial_ends_at < timezone.now()
 
     @property
     def max_projects(self) -> int:

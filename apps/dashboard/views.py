@@ -101,12 +101,16 @@ def _student_website_rows(bust_cache: bool = False):
         site_url = f'{scheme}://{fqdn}{port_seg}/' if fqdn else ''
         custom = (p.custom_hostname or '').strip()
         custom_url = f'{scheme}://{custom}/' if custom and p.custom_hostname_verified else ''
+        subfolder = (p.site_subfolder or '').strip().strip('/')
+        subfolder_url = f'{scheme}://{fqdn}{port_seg}/{subfolder}/' if subfolder and fqdn else ''
 
         rows.append({
             'project_id': p.pk,
             'project_name': p.name,
             'site_url': site_url,
             'custom_url': custom_url,
+            'subfolder_url': subfolder_url,
+            'subfolder': subfolder,
             'has_site_files': p.pk in projects_with_files,
             'email': owner.email,
             'name': name,
@@ -356,7 +360,7 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
             (PlatformBackup.BackupType.DATABASE, 'Database only'),
             (PlatformBackup.BackupType.SITES, 'Sites only'),
         ]
-        platform_backups = list(PlatformBackup.objects.all()[:25])
+        platform_backups = list(PlatformBackup.objects.filter(status=PlatformBackup.Status.DONE)[:25])
         for backup in platform_backups:
             backup.size_human = format_bytes(backup.size_bytes)
         ctx['platform_backups'] = platform_backups

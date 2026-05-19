@@ -8,6 +8,28 @@
     <span class="text-slate-300">{{ project.name }}</span>
   </p>
 
+  {# ── Upgrade notice for free plan users ── #}
+  {% if is_paid is defined and not is_paid %}
+  <div class="rounded-2xl border border-amber-700/50 bg-amber-950/30 p-6 space-y-3">
+    <h1 class="text-xl font-semibold text-white">Custom domain</h1>
+    <p class="text-sm text-slate-400">
+      Your site is live at:
+      <a href="https://{{ platform_fqdn }}/" target="_blank"
+         class="font-mono text-sky-300 hover:text-sky-200">{{ platform_fqdn }}</a>
+    </p>
+    <div class="rounded-xl border border-amber-600/40 bg-amber-900/20 px-4 py-3">
+      <p class="text-sm font-semibold text-amber-200">Custom domains require a paid plan</p>
+      <p class="mt-1 text-sm text-amber-300/80">
+        Upgrade your account to connect your own domain (e.g. <span class="font-mono">www.mybrand.com</span>).
+      </p>
+      <a href="{{ upgrade_url }}"
+         class="mt-3 inline-block rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400">
+        Upgrade plan →
+      </a>
+    </div>
+  </div>
+  {% else %}
+
   {# ── Default platform URL ── #}
   <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
     <h1 class="text-xl font-semibold text-white">Custom domain</h1>
@@ -152,5 +174,6 @@
     <p>If you use Cloudflare <strong>orange cloud (proxied)</strong>, your visitors get Cloudflare DDoS
        protection and free SSL. Set SSL mode to <strong>Full</strong> in your Cloudflare dashboard.</p>
   </div>
+  {% endif %}
 </section>
 {% endblock %}

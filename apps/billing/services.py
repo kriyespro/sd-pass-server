@@ -4,7 +4,7 @@ from __future__ import annotations
 from django.db import transaction
 from django.utils import timezone
 
-from .models import PLAN_LIMITS, CouponCode, Subscription
+from .models import FREE_TRIAL_DAYS, PLAN_LIMITS, CouponCode, Subscription
 
 
 def user_project_limit(user) -> int:
@@ -18,9 +18,13 @@ def user_project_limit(user) -> int:
 
 
 def get_or_create_subscription(user) -> Subscription:
-    sub, _ = Subscription.objects.get_or_create(
+    sub, created = Subscription.objects.get_or_create(
         user=user,
-        defaults={'plan_slug': Subscription.Plan.FREE, 'status': Subscription.Status.ACTIVE},
+        defaults={
+            'plan_slug': Subscription.Plan.FREE,
+            'status': Subscription.Status.ACTIVE,
+            'trial_ends_at': timezone.now() + timezone.timedelta(days=FREE_TRIAL_DAYS),
+        },
     )
     return sub
 

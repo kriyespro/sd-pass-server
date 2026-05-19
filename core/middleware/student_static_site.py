@@ -93,6 +93,21 @@ Add the TXT record shown on your project’s <strong>Custom domain</strong> page
 <strong>Check verification</strong> or wait a few minutes.</p>
 </body></html>"""
 
+_TRIAL_EXPIRED = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Free trial ended</title>
+<style>
+body{{font-family:system-ui,sans-serif;max-width:36rem;margin:4rem auto;padding:0 1.5rem;background:#0f172a;color:#e2e8f0;}}
+h1{{color:#f8fafc;font-size:1.5rem;margin-bottom:.75rem;}}
+p{{color:#94a3b8;line-height:1.6;margin:.5rem 0;}}
+a.btn{{display:inline-block;margin-top:1.25rem;padding:.6rem 1.4rem;background:#6366f1;color:#fff;border-radius:.5rem;text-decoration:none;font-weight:600;}}
+a.btn:hover{{background:#4f46e5;}}
+</style></head><body>
+<h1>Your free trial has ended</h1>
+<p>This website is on a free trial plan that has expired.</p>
+<p>Upgrade your account to restore public access to this site.</p>
+<a class="btn" href="{upgrade_url}">Upgrade account</a>
+</body></html>"""
+
 
 def _resolve_project_for_static_host(host: str):
     """
@@ -107,7 +122,7 @@ def _resolve_project_for_static_host(host: str):
             return None
         project = (
             Project.objects.filter(subdomain__iexact=sub, is_deleted=False)
-            .only('id', 'subdomain', 'slug', 'custom_hostname')
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname')
             .first()
         )
         if project is None:
@@ -123,7 +138,7 @@ def _resolve_project_for_static_host(host: str):
             custom_hostname__iexact=host,
             is_deleted=False,
         )
-        .only('id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified')
+        .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified')
         .first()
     )
     if project is None:
@@ -152,6 +167,23 @@ class StudentStaticSiteMiddleware:
             return response
         return self.get_response(request)
 
+    @staticmethod
+    def _is_trial_expired(project) -> bool:
+        try:
+            from apps.billing.models import Subscription
+            sub = Subscription.objects.only('plan_slug', 'trial_ends_at').get(user_id=project.owner_id)
+            return sub.trial_expired
+        except Exception:
+            return False
+
+    @staticmethod
+    def _upgrade_url(request) -> str:
+        try:
+            from django.urls import reverse
+            return request.build_absolute_uri(reverse('billing:redeem'))
+        except Exception:
+            return '/billing/redeem/'
+
     def _maybe_static_site(self, request):
         if request.method not in ('GET', 'HEAD'):
             return None
@@ -163,6 +195,14 @@ class StudentStaticSiteMiddleware:
         if isinstance(resolved, HttpResponse):
             return resolved
         project = resolved
+
+        if self._is_trial_expired(project):
+            upgrade_url = self._upgrade_url(request)
+            return HttpResponse(
+                _TRIAL_EXPIRED.format(upgrade_url=upgrade_url),
+                status=402,
+                content_type='text/html; charset=utf-8',
+            )
 
         root = project_site_dir(project)
         try:

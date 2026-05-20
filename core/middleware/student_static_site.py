@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from django.conf import settings
+from django.core.cache import cache
 from django.http import Http404, HttpResponse, HttpResponsePermanentRedirect
 from django.views.static import serve
 
@@ -14,6 +15,22 @@ from apps.projects.models import Project
 _FLATTEN_IF_MISSING_TOP = frozenset(
     {'img', 'image', 'images', 'pics', 'photos', 'media', 'pictures', 'assets'},
 )
+
+# Cache project PK by host to avoid 2 DB queries per static site request.
+# TTL=30s: new deploy appears to visitors within 30 seconds.
+_PROJ_HOST_CACHE_PREFIX = 'studentsite:host:'
+_TRIAL_CACHE_PREFIX = 'studentsite:trial:'
+_SITE_CACHE_TTL = 30
+
+
+def invalidate_site_host_cache(project) -> None:
+    """Call after deploy or delete so the next request re-fetches the project."""
+    base = getattr(settings, 'STUDENT_APPS_BASE_DOMAIN', '').strip().strip('.').lower()
+    sub_host = f'{(project.subdomain or "").lower()}.{base}'
+    cache.delete(_PROJ_HOST_CACHE_PREFIX + sub_host)
+    if project.custom_hostname:
+        cache.delete(_PROJ_HOST_CACHE_PREFIX + project.custom_hostname.strip().lower())
+    cache.delete(_TRIAL_CACHE_PREFIX + str(project.owner_id))
 
 
 def _host_without_port(raw: str) -> str:
@@ -113,7 +130,26 @@ def _resolve_project_for_static_host(host: str):
     """
     Return a Project to serve, an HttpResponse to return immediately, or None
     to let Django handle the request (host is not a student site hostname).
+
+    Results are cached for _SITE_CACHE_TTL seconds to avoid a DB hit on every
+    static site request. Call invalidate_site_host_cache() on deploy / delete.
     """
+    cache_key = _PROJ_HOST_CACHE_PREFIX + host
+    cached_pk = cache.get(cache_key)
+    if cached_pk is not None:
+        project = (
+            Project.objects.filter(pk=cached_pk, is_deleted=False)
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified')
+            .first()
+        )
+        if project:
+            # Re-check custom domain verification on cache hit (status can change)
+            if project.custom_hostname and not project.custom_hostname_verified:
+                return HttpResponse(_DOMAIN_PENDING_VERIFY, status=503, content_type='text/html; charset=utf-8')
+            return project
+        # Project deleted after cache was set — invalidate and fall through
+        cache.delete(cache_key)
+
     base = settings.STUDENT_APPS_BASE_DOMAIN.strip().strip('.').lower()
     suffix = f'.{base}'
     if host.endswith(suffix) and host != base:
@@ -131,6 +167,7 @@ def _resolve_project_for_static_host(host: str):
                 status=404,
                 content_type='text/html; charset=utf-8',
             )
+        cache.set(cache_key, project.pk, _SITE_CACHE_TTL)
         return project
 
     project = (
@@ -144,6 +181,7 @@ def _resolve_project_for_static_host(host: str):
     if project is None:
         return None
     if project.custom_hostname_verified:
+        cache.set(cache_key, project.pk, _SITE_CACHE_TTL)
         return project
     return HttpResponse(
         _DOMAIN_PENDING_VERIFY,
@@ -169,12 +207,18 @@ class StudentStaticSiteMiddleware:
 
     @staticmethod
     def _is_trial_expired(project) -> bool:
+        cache_key = _TRIAL_CACHE_PREFIX + str(project.owner_id)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return bool(cached)
         try:
             from apps.billing.models import Subscription
             sub = Subscription.objects.only('plan_slug', 'trial_ends_at').get(user_id=project.owner_id)
-            return sub.trial_expired
+            result = sub.trial_expired
         except Exception:
-            return False
+            result = False
+        cache.set(cache_key, result, _SITE_CACHE_TTL)
+        return result
 
     @staticmethod
     def _upgrade_url(request) -> str:

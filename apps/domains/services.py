@@ -53,3 +53,5 @@ def remove_project_router_file(project) -> None:
         path.unlink(missing_ok=True)
     except OSError:
         pass
+    from core.middleware.student_static_site import invalidate_site_host_cache
+    invalidate_site_host_cache(project)

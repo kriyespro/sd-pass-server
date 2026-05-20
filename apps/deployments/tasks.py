@@ -103,6 +103,9 @@ def deploy_after_scan(scan_result: dict) -> dict:
         'Deployment record created after successful scan.',
     )
 
+    from core.middleware.student_static_site import invalidate_site_host_cache
+    invalidate_site_host_cache(proj)
+
     base = settings.STUDENT_APPS_BASE_DOMAIN.strip().strip('.')
     fqdn = f'{proj.subdomain}.{base}'
     site_port = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0

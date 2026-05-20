@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.db.models import Value
+from django.db.models.functions import Replace, Upper
 from django.utils import timezone
 
 from .models import FREE_TRIAL_DAYS, PLAN_LIMITS, CouponCode, Subscription
@@ -33,18 +35,33 @@ def redeem_coupon(user, code: str) -> tuple[bool, str]:
     """
     Redeem *code* for *user*.
     Returns (True, plan_slug) on success or (False, error_message) on failure.
+
+    Normalises both sides before comparing so STUD-ABCD-1234-EFGH, STUDABCD1234EFGH,
+    and stud abcd 1234 efgh all resolve to the same stored coupon.
     """
-    code_clean = code.strip().replace(' ', '').replace('-', '')
+    code_clean = code.strip().upper().replace(' ', '').replace('-', '')
+    if not code_clean:
+        return False, 'Please enter a coupon code.'
+
     with transaction.atomic():
-        try:
-            # Case-insensitive lookup; strip hyphens so GEETA == geeta == G-E-E-T-A
-            coupon = CouponCode.objects.select_for_update().get(code__iexact=code_clean)
-        except CouponCode.DoesNotExist:
-            # Try with hyphens preserved (for auto-generated XXXX-XXXX-XXXX-XXXX codes)
-            try:
-                coupon = CouponCode.objects.select_for_update().get(code__iexact=code.strip())
-            except CouponCode.DoesNotExist:
-                return False, 'Invalid coupon code. Please check and try again.'
+        # Annotate DB codes with hyphens/spaces stripped so the lookup is symmetric.
+        # This means STUD-ABCD-1234-EFGH matches STUDABCD1234EFGH typed by the user.
+        coupon = (
+            CouponCode.objects
+            .annotate(
+                code_norm=Upper(
+                    Replace(
+                        Replace('code', Value('-'), Value('')),
+                        Value(' '), Value(''),
+                    )
+                )
+            )
+            .select_for_update()
+            .filter(code_norm=code_clean)
+            .first()
+        )
+        if coupon is None:
+            return False, 'Invalid coupon code. Please check and try again.'
 
         if not coupon.is_redeemable:
             if coupon.used_by_id:

@@ -95,8 +95,8 @@ def _build_site_url(obj):
 @admin.register(WebsiteOverview)
 class WebsiteOverviewAdmin(admin.ModelAdmin):
     list_display = (
+        'owner_link',
         'project_link',
-        'owner',
         'subdomain_link',
         'custom_domain_link',
         'subfolder_display',
@@ -110,6 +110,7 @@ class WebsiteOverviewAdmin(admin.ModelAdmin):
         'status',
         'is_deleted',
     )
+    ordering = ('owner__email', 'name')
     search_fields = ('name', 'subdomain', 'owner__email', 'custom_hostname')
     actions = [_soft_delete, _restore, _purge_with_traefik]
     show_full_result_count = True
@@ -119,6 +120,11 @@ class WebsiteOverviewAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    @admin.display(description='Owner', ordering='owner__email')
+    def owner_link(self, obj):
+        url = reverse('admin:projects_websiteoverview_changelist') + f'?owner__id__exact={obj.owner_id}'
+        return format_html('<a href="{}">{}</a>', url, obj.owner)
 
     @admin.display(description='Project', ordering='name')
     def project_link(self, obj):
@@ -148,10 +154,14 @@ class WebsiteOverviewAdmin(admin.ModelAdmin):
 
     @admin.display(description='Subfolders')
     def subfolder_display(self, obj):
-        paths = list(obj.subfolders.values_list('path', flat=True))
-        if not paths:
+        rows = list(obj.subfolders.values_list('pk', 'path'))
+        if not rows:
             return '/ (root)'
-        return format_html('<br>'.join(format_html('{}', p) for p in paths))
+        links = []
+        for pk, path in rows:
+            url = reverse('admin:projects_projectsubfolder_change', args=[pk])
+            links.append(format_html('<a href="{}">{}</a>', url, path))
+        return format_html('<br>'.join(links))
 
     @admin.display(description='Delete')
     def delete_action(self, obj):

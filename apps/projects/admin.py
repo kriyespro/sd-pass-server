@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib import admin, messages
+from django.contrib.admin import RelatedOnlyFieldListFilter
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -103,7 +104,12 @@ class WebsiteOverviewAdmin(admin.ModelAdmin):
         'is_deleted',
         'delete_action',
     )
-    list_filter = ('project_type', 'status', 'is_deleted')
+    list_filter = (
+        ('owner', RelatedOnlyFieldListFilter),
+        'project_type',
+        'status',
+        'is_deleted',
+    )
     search_fields = ('name', 'subdomain', 'owner__email', 'custom_hostname')
     actions = [_soft_delete, _restore, _purge_with_traefik]
     show_full_result_count = True
@@ -140,10 +146,12 @@ class WebsiteOverviewAdmin(admin.ModelAdmin):
         badge = '✅' if verified else '⏳'
         return format_html('<a href="{}" target="_blank" rel="noopener">{} {}</a>', url, badge, host)
 
-    @admin.display(description='Subfolder')
+    @admin.display(description='Subfolders')
     def subfolder_display(self, obj):
-        sf = (obj.site_subfolder or '').strip('/')
-        return sf or '/ (root)'
+        paths = list(obj.subfolders.values_list('path', flat=True))
+        if not paths:
+            return '/ (root)'
+        return format_html('<br>'.join(format_html('{}', p) for p in paths))
 
     @admin.display(description='Delete')
     def delete_action(self, obj):

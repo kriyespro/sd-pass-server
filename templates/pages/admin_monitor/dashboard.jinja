@@ -276,7 +276,7 @@
                 <form method="post"
                       action="{{ url('admin_monitor:delete_project', project_id=row.project_id) }}"
                       onsubmit="return confirm('Delete \'{{ row.project_name }}\'? Removes Traefik route and marks deleted.')">
-                  {% csrf_token %}
+                  {{ csrf_input }}
                   <button type="submit"
                     class="rounded border border-rose-700/40 bg-rose-900/20 px-2 py-0.5 text-[10px] font-semibold text-rose-400 hover:bg-rose-800/40 hover:text-rose-300 transition-colors">
                     Delete

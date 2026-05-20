@@ -373,6 +373,109 @@ CreatePlatformBackupView = platform_ops_views.CreatePlatformBackupView
 DownloadPlatformBackupView = platform_ops_views.DownloadPlatformBackupView
 
 
+def _website_overview_rows(search: str = ''):
+    """Build rows for the custom website overview table."""
+    from apps.projects.models import ProjectSubfolder
+
+    base = settings.STUDENT_APPS_BASE_DOMAIN.strip().strip('.')
+    scheme = getattr(settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http') or 'http'
+    port = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
+    port_seg = f':{port}' if port else ''
+
+    qs = (
+        Project.objects.filter(is_deleted=False)
+        .select_related('owner')
+        .prefetch_related('subfolders')
+        .order_by('-created_at')
+    )
+    if search:
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(name__icontains=search)
+            | Q(subdomain__icontains=search)
+            | Q(owner__email__icontains=search)
+            | Q(custom_hostname__icontains=search)
+        )
+
+    rows = []
+    for p in qs:
+        fqdn = f'{p.subdomain}.{base}' if base else p.subdomain
+        site_url = f'{scheme}://{fqdn}{port_seg}/' if fqdn else ''
+        active_sub = (p.site_subfolder or '').strip('/')
+        active_url = f'{scheme}://{fqdn}{port_seg}/{active_sub}/' if active_sub and fqdn else site_url
+        custom = (p.custom_hostname or '').strip()
+        custom_url = f'{scheme}://{custom}/' if custom and p.custom_hostname_verified else ''
+        custom_unverified = custom and not p.custom_hostname_verified
+        subfolders = [sf.path for sf in p.subfolders.all() if sf.path]
+        rows.append({
+            'project_id': p.pk,
+            'project_name': p.name,
+            'subdomain': p.subdomain,
+            'fqdn': fqdn,
+            'site_url': site_url,
+            'active_sub': active_sub,
+            'active_url': active_url,
+            'custom': custom,
+            'custom_url': custom_url,
+            'custom_unverified': custom_unverified,
+            'subfolders': subfolders,
+            'status': p.get_status_display(),
+            'status_raw': p.status,
+            'owner_email': p.owner.email,
+            'project_type': p.get_project_type_display(),
+        })
+    return rows
+
+
+class WebsiteOverviewDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """Custom dashboard page: /admin/projects/websiteoverview/ — domain/subdomain/subfolder table."""
+
+    login_url = reverse_lazy('accounts:login')
+    template_name = 'pages/admin_monitor/website_overview.jinja'
+    raise_exception = False
+
+    def test_func(self):
+        u = self.request.user
+        return u.is_authenticated and u.is_staff
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            messages.warning(self.request, 'Staff access required.')
+            return HttpResponseRedirect(reverse('home'))
+        return super().handle_no_permission()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        search = self.request.GET.get('q', '').strip()
+        ctx['rows'] = _website_overview_rows(search)
+        ctx['search'] = search
+        ctx['total'] = Project.objects.filter(is_deleted=False).count()
+        return ctx
+
+
+class DeleteProjectDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """POST: soft-delete a project + remove Traefik config. Staff only."""
+
+    raise_exception = False
+
+    def test_func(self):
+        u = self.request.user
+        return u.is_authenticated and u.is_staff
+
+    def post(self, request, project_id: int):
+        from apps.domains.services import remove_project_router_file
+
+        project = get_object_or_404(Project, pk=project_id, is_deleted=False)
+        try:
+            remove_project_router_file(project)
+        except Exception:
+            pass
+        project.is_deleted = True
+        project.save(update_fields=['is_deleted'])
+        messages.success(request, f'"{project.name}" has been deleted.')
+        return HttpResponseRedirect(reverse('admin_monitor:website_overview'))
+
+
 class TrainerOverviewView(UserPassesTestMixin, TemplateView):
     template_name = 'pages/trainer/overview.jinja'
     raise_exception = True

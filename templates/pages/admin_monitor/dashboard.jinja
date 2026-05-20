@@ -309,6 +309,7 @@
     <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">⚡ Quick Links</p>
     <div class="flex flex-wrap gap-2 text-xs">
       {% set links = [
+        ('🌐 Website Overview', url('admin_monitor:website_overview')),
         ('Billing', url('admin:billing_subscription_changelist')),
         ('Coupons', url('admin:billing_couponcode_changelist')),
         ('Batches', url('admin:students_batch_changelist')),

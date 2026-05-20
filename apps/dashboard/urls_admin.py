@@ -27,4 +27,14 @@ urlpatterns = [
         views.DownloadPlatformBackupView.as_view(),
         name='download_platform_backup',
     ),
+    path(
+        'projects/websiteoverview/',
+        views.WebsiteOverviewDashboardView.as_view(),
+        name='website_overview',
+    ),
+    path(
+        'projects/<int:project_id>/delete/',
+        views.DeleteProjectDashboardView.as_view(),
+        name='delete_project',
+    ),
 ]

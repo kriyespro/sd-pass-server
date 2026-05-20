@@ -1,0 +1,171 @@
+{% extends "base.jinja" %}
+{% block title %}Website Overview — Mission Control{% endblock %}
+{% block content %}
+<section class="space-y-4">
+
+  {# ── Header ── #}
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-lg font-bold text-white">Website Overview</h1>
+      <p class="text-[11px] text-slate-500">
+        <a href="{{ url('admin_monitor:dashboard') }}" class="hover:text-slate-300">Mission Control</a>
+        <span class="mx-1 text-slate-700">›</span>
+        {{ rows|length }} of {{ total }} active project{{ 's' if total != 1 }}
+        {% if search %}<span class="ml-1 text-amber-400">· filtered</span>{% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url('admin:projects_websiteoverview_changelist') }}"
+         class="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-[11px] font-medium text-slate-300 hover:bg-slate-800">
+        Django Admin View →
+      </a>
+    </div>
+  </div>
+
+  {# ── Search ── #}
+  <form method="get" class="flex gap-2">
+    <input
+      type="search"
+      name="q"
+      value="{{ search }}"
+      placeholder="Search project, subdomain, email, domain…"
+      class="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:border-violet-500 focus:outline-none"
+    />
+    <button type="submit"
+      class="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700">
+      Search
+    </button>
+    {% if search %}
+      <a href="{{ url('admin_monitor:website_overview') }}"
+         class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-200">
+        Clear
+      </a>
+    {% endif %}
+  </form>
+
+  {# ── Table ── #}
+  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+    <div class="max-h-[80vh] overflow-auto">
+      <table class="min-w-full text-left text-xs">
+        <thead class="sticky top-0 z-10 bg-slate-950/95 text-slate-500">
+          <tr>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Project</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Subdomain</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Custom Domain</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Subfolder</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">All Subfolders</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Type</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Status</th>
+            <th class="px-3 py-2.5 font-semibold uppercase tracking-wide">Owner</th>
+            <th class="px-3 py-2.5 text-center font-semibold uppercase tracking-wide">Delete</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 text-slate-300">
+          {% for row in rows %}
+            {% set status_colour = {
+              'running':   'bg-emerald-700/30 text-emerald-300',
+              'failed':    'bg-rose-700/30 text-rose-300',
+              'stopped':   'bg-slate-700/40 text-slate-400',
+              'pending':   'bg-amber-700/20 text-amber-300',
+              'building':  'bg-sky-700/20 text-sky-300',
+              'deploying': 'bg-violet-700/20 text-violet-300',
+              'suspended': 'bg-orange-700/20 text-orange-300',
+            } %}
+            <tr class="hover:bg-slate-900/60">
+
+              {# Project name #}
+              <td class="px-3 py-2.5">
+                <a href="{{ url('admin:projects_project_change', row.project_id) }}"
+                   class="font-medium text-violet-300 hover:underline">
+                  {{ row.project_name }}
+                </a>
+              </td>
+
+              {# Subdomain URL #}
+              <td class="px-3 py-2.5">
+                {% if row.site_url %}
+                  <a href="{{ row.active_url }}" target="_blank" rel="noopener noreferrer"
+                     class="font-mono text-sky-400 hover:text-sky-300">
+                    {{ row.subdomain }} ↗
+                  </a>
+                {% else %}
+                  <span class="text-slate-600">—</span>
+                {% endif %}
+              </td>
+
+              {# Custom domain #}
+              <td class="px-3 py-2.5">
+                {% if row.custom_url %}
+                  <a href="{{ row.custom_url }}" target="_blank" rel="noopener noreferrer"
+                     class="text-amber-400 hover:text-amber-300">
+                    ✅ {{ row.custom }} ↗
+                  </a>
+                {% elif row.custom_unverified %}
+                  <span class="text-slate-500" title="Domain not yet verified">⏳ {{ row.custom }}</span>
+                {% else %}
+                  <span class="text-slate-700">—</span>
+                {% endif %}
+              </td>
+
+              {# Active subfolder #}
+              <td class="px-3 py-2.5 font-mono">
+                {% if row.active_sub %}
+                  <a href="{{ row.active_url }}" target="_blank" rel="noopener noreferrer"
+                     class="text-emerald-400 hover:text-emerald-300">/{{ row.active_sub }} ↗</a>
+                {% else %}
+                  <span class="text-slate-600">/ root</span>
+                {% endif %}
+              </td>
+
+              {# All subfolders #}
+              <td class="px-3 py-2.5 font-mono text-slate-500">
+                {% if row.subfolders %}
+                  /{{ row.subfolders | join(', /') }}
+                {% else %}
+                  <span class="text-slate-700">—</span>
+                {% endif %}
+              </td>
+
+              {# Type #}
+              <td class="px-3 py-2.5 text-slate-400">{{ row.project_type }}</td>
+
+              {# Status #}
+              <td class="px-3 py-2.5">
+                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {{ status_colour.get(row.status_raw, 'bg-slate-700/40 text-slate-400') }}">
+                  {{ row.status }}
+                </span>
+              </td>
+
+              {# Owner #}
+              <td class="px-3 py-2.5">
+                <a href="mailto:{{ row.owner_email }}" class="text-sky-300 hover:underline">{{ row.owner_email }}</a>
+              </td>
+
+              {# Delete #}
+              <td class="px-3 py-2.5 text-center">
+                <form method="post"
+                      action="{{ url('admin_monitor:delete_project', project_id=row.project_id) }}"
+                      onsubmit="return confirm('Delete "{{ row.project_name }}"? This removes the Traefik route and marks the project deleted.')">
+                  {% csrf_token %}
+                  <button type="submit"
+                    class="rounded border border-rose-700/40 bg-rose-900/20 px-2 py-0.5 text-[10px] font-semibold text-rose-400 hover:bg-rose-800/40 hover:text-rose-300 transition-colors">
+                    Delete
+                  </button>
+                </form>
+              </td>
+
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="9" class="py-12 text-center text-slate-500">
+                {% if search %}No projects match "{{ search }}".{% else %}No active projects.{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</section>
+{% endblock %}

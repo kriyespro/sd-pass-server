@@ -138,3 +138,12 @@ class ProjectSubfolder(models.Model):
 
     def __str__(self):
         return f'{self.project_id}/{self.path}' if self.path else str(self.project_id)
+
+
+class WebsiteOverview(Project):
+    """Proxy model — admin-only table showing domain/subdomain/subfolder per project."""
+
+    class Meta:
+        proxy = True
+        verbose_name = 'Website Overview'
+        verbose_name_plural = 'Website Overview'

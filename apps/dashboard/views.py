@@ -247,6 +247,10 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
         week_ago = now - timedelta(days=7)
 
         ctx['student_websites'] = _student_website_rows()
+        ctx['website_overview_rows'] = _website_overview_rows(
+            search=self.request.GET.get('wo_q', '').strip()
+        )
+        ctx['website_overview_search'] = self.request.GET.get('wo_q', '').strip()
 
         ctx['user_total'] = User.objects.count()
         ctx['user_active'] = User.objects.filter(is_active=True).count()

@@ -53,7 +53,7 @@ class QuotaConfig(models.Model):
     ram_mb = models.PositiveIntegerField(default=512)
     cpu_cores = models.DecimalField(max_digits=5, decimal_places=2, default=1)
     disk_gb = models.PositiveIntegerField(default=2)
-    max_projects = models.PositiveIntegerField(default=3)
+    max_projects = models.PositiveIntegerField(null=True, blank=True, default=None)
 
     def __str__(self):
         return f'Quota for {self.user.email}'

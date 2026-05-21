@@ -19,9 +19,11 @@ def user_can_use_subfolder(user) -> bool:
 
 def user_project_limit(user) -> int:
     """Return how many projects this user is allowed to create."""
-    # Students: trainer-set QuotaConfig takes priority over billing plan
+    # Trainer-set override (explicit non-None value) takes priority over billing plan.
     try:
-        return user.quota_config.max_projects
+        override = user.quota_config.max_projects
+        if override is not None:
+            return override
     except Exception:
         pass
     try:

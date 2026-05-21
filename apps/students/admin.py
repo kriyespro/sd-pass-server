@@ -17,4 +17,11 @@ class StudentProfileAdmin(admin.ModelAdmin):
 
 @admin.register(QuotaConfig)
 class QuotaConfigAdmin(admin.ModelAdmin):
-    list_display = ('user', 'ram_mb', 'cpu_cores', 'disk_gb', 'max_projects')
+    list_display = ('user', 'ram_mb', 'cpu_cores', 'disk_gb', 'max_projects_display')
+    search_fields = ('user__email',)
+
+    @admin.display(description='Max projects')
+    def max_projects_display(self, obj):
+        if obj.max_projects is None:
+            return '— (billing plan)'
+        return obj.max_projects

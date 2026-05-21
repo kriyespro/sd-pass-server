@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 choices=[
                     ('free', 'Free'),
-                    ('test_plan', 'Test Plan'),
+                    ('test_plan', 'Starter Trial'),
                     ('launch_lite', 'Launch Lite'),
                     ('starter_cloud', 'Starter Cloud'),
                     ('wordpress_pro', 'WordPress Pro'),
@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 choices=[
                     ('free', 'Free'),
-                    ('test_plan', 'Test Plan'),
+                    ('test_plan', 'Starter Trial'),
                     ('launch_lite', 'Launch Lite'),
                     ('starter_cloud', 'Starter Cloud'),
                     ('wordpress_pro', 'WordPress Pro'),

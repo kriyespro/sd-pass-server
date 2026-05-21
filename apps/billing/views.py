@@ -59,12 +59,12 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
         ctx['plans'] = [
             {
                 'slug': 'test_plan',
-                'name': 'Test Plan',
-                'subtitle': '₹1 · Payment Test Only',
+                'name': 'Starter Trial',
+                'subtitle': 'India · 1 Website · Custom Domain · 9 Days',
                 'sites': '1',
-                'price': '₹1',
-                'period': 'year',
-                'specs': 'Test only — do not use in production',
+                'price': '₹99',
+                'period': '9 days',
+                'specs': '1 website · Custom domain · Upgrade anytime · Suspends after 9 days',
                 'highlight': False,
             },
             {
@@ -209,10 +209,11 @@ def verify_payment(request):
         logger.warning('Razorpay signature mismatch for user %s order %s', request.user.id, order_id)
         return JsonResponse({'error': 'Payment verification failed'}, status=400)
 
+    plan_days = 9 if plan_slug == 'test_plan' else 365
     sub = get_or_create_subscription(request.user)
     sub.plan_slug = plan_slug
     sub.status = Subscription.Status.ACTIVE
-    sub.current_period_end = timezone.now() + timezone.timedelta(days=365)
+    sub.current_period_end = timezone.now() + timezone.timedelta(days=plan_days)
     sub.save()
 
     label = PLAN_LABELS.get(plan_slug, plan_slug)

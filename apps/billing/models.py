@@ -21,7 +21,7 @@ PLAN_LIMITS = {
 FREE_TRIAL_DAYS = 7
 
 PLAN_PRICES = {
-    'test_plan':        Decimal('1.00'),
+    'test_plan':        Decimal('99.00'),
     'launch_lite':     Decimal('1499.00'),
     'starter_cloud':   Decimal('2099.00'),
     'wordpress_pro':   Decimal('3699.00'),
@@ -32,7 +32,7 @@ PLAN_PRICES = {
 
 PLAN_LABELS = {
     'free':            'Free — 1 website',
-    'test_plan':        'Test Plan — 1 website · ₹1 (test only)',
+    'test_plan':        'Starter Trial — 1 website · ₹99 · 9 days',
     'launch_lite':     'Launch Lite — 1 website · ₹1,499/year',
     'starter_cloud':   'Starter Cloud — 1 website · ₹2,099/year',
     'wordpress_pro':   'WordPress Pro — 1 website · ₹3,699/year',
@@ -45,7 +45,7 @@ PLAN_LABELS = {
 class Subscription(models.Model):
     class Plan(models.TextChoices):
         FREE            = 'free',            'Free'
-        TEST_PLAN       = 'test_plan',       'Test Plan'
+        TEST_PLAN       = 'test_plan',       'Starter Trial'
         LAUNCH_LITE     = 'launch_lite',     'Launch Lite'
         STARTER_CLOUD   = 'starter_cloud',   'Starter Cloud'
         WORDPRESS_PRO   = 'wordpress_pro',   'WordPress Pro'

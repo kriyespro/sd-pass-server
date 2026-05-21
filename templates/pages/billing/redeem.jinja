@@ -1,13 +1,15 @@
 {% extends "base.jinja" %}
 {% block title %}Upgrade Plan — StudentCloud Deploy{% endblock %}
 {% block content %}
-<section class="mx-auto max-w-3xl space-y-8">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<section class="mx-auto max-w-3xl space-y-8" x-data="razorpayCheckout()">
 
   {# ── Page header ── #}
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-2xl font-semibold text-white">Upgrade Your Plan</h1>
-      <p class="mt-1 text-sm text-slate-400">Enter a coupon code to unlock more websites.</p>
+      <p class="mt-1 text-sm text-slate-400">Choose a plan below and pay securely with Razorpay.</p>
     </div>
     <a href="{{ url('projects:dashboard') }}" class="text-sm font-medium text-slate-400 hover:text-white">← Back</a>
   </div>
@@ -29,10 +31,20 @@
     </span>
   </div>
 
+  {# ── Payment error/success banners ── #}
+  <div x-show="errorMsg" x-cloak
+       class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
+    <span x-text="errorMsg"></span>
+  </div>
+  <div x-show="successMsg" x-cloak
+       class="rounded-lg border border-emerald-700/60 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
+    <span x-text="successMsg"></span>
+  </div>
+
   {# ── Pricing cards ── #}
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {% for p in plans %}
-      <div class="relative rounded-2xl border {{ 'border-emerald-500/60 bg-emerald-500/5 ring-1 ring-emerald-500/30' if p.highlight else 'border-slate-800 bg-slate-900/60' }} p-5">
+      <div class="relative flex flex-col rounded-2xl border {{ 'border-emerald-500/60 bg-emerald-500/5 ring-1 ring-emerald-500/30' if p.highlight else 'border-slate-800 bg-slate-900/60' }} p-5">
         {% if p.highlight %}
           <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-0.5 text-xs font-bold text-slate-950">Most Popular</span>
         {% endif %}
@@ -48,16 +60,30 @@
           <li>✓ Custom domain support</li>
           <li>✓ 1-year validity</li>
         </ul>
+        <div class="mt-4 flex-1 flex items-end">
+          {% if subscription.plan_slug == p.slug and subscription.is_active and subscription.is_paid %}
+            <span class="w-full text-center rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-300">
+              ✓ Current Plan
+            </span>
+          {% else %}
+            <button
+              @click="pay('{{ p.slug }}', '{{ p.price }}', '{{ p.name }}')"
+              :disabled="loading"
+              class="w-full rounded-lg {{ 'bg-emerald-500 hover:bg-emerald-400 text-slate-950' if p.highlight else 'bg-slate-700 hover:bg-slate-600 text-white' }} px-4 py-2.5 text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span x-show="loading && activePlan === '{{ p.slug }}'" x-cloak>Processing…</span>
+              <span x-show="!(loading && activePlan === '{{ p.slug }}')">Buy Now — {{ p.price }}/yr</span>
+            </button>
+          {% endif %}
+        </div>
       </div>
     {% endfor %}
   </div>
 
   {# ── Coupon redemption form ── #}
   <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-    <h2 class="text-base font-semibold text-white">Redeem Coupon Code</h2>
-    <p class="mt-1 text-sm text-slate-400">Got a coupon? Enter it below to activate your plan instantly.</p>
+    <h2 class="text-base font-semibold text-white">Have a Coupon Code?</h2>
+    <p class="mt-1 text-sm text-slate-400">Enter it below to activate your plan instantly — no payment needed.</p>
 
-    {# Inline form errors (invalid/used coupons) #}
     {% if form.errors or form.non_field_errors() %}
       <div class="mt-4 rounded-lg border border-rose-700/60 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
         {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
@@ -79,15 +105,107 @@
         {% endif %}
       </div>
       <button type="submit"
-        class="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 active:scale-95 transition-transform">
-        Activate Plan
+        class="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-600 active:scale-95 transition-transform">
+        Activate with Coupon
       </button>
     </form>
-
-    <p class="mt-4 text-xs text-slate-500">
-      Need a coupon? Contact your trainer or admin. Each code is single-use and tied to your account once redeemed.
-    </p>
   </div>
 
 </section>
+
+<script>
+function razorpayCheckout() {
+  return {
+    loading: false,
+    activePlan: '',
+    errorMsg: '',
+    successMsg: '',
+    csrfToken: document.querySelector('meta[name="csrf-token"]').content,
+
+    async pay(planSlug, planPrice, planName) {
+      this.errorMsg = '';
+      this.successMsg = '';
+      this.loading = true;
+      this.activePlan = planSlug;
+
+      try {
+        const orderRes = await fetch('{{ url("billing:create_order") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.csrfToken,
+          },
+          body: JSON.stringify({ plan_slug: planSlug }),
+        });
+
+        const orderData = await orderRes.json();
+        if (!orderRes.ok) {
+          this.errorMsg = orderData.error || 'Failed to initiate payment. Please try again.';
+          this.loading = false;
+          return;
+        }
+
+        const self = this;
+        const options = {
+          key: '{{ razorpay_key_id }}',
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: 'StudentCloud Deploy',
+          description: planName + ' — 1 Year',
+          order_id: orderData.order_id,
+          theme: { color: '#10b981' },
+          handler: async function(response) {
+            try {
+              const verifyRes = await fetch('{{ url("billing:verify_payment") }}', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': self.csrfToken,
+                },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                  plan_slug: planSlug,
+                }),
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.status === 'success') {
+                self.successMsg = '🎉 Payment successful! You are now on ' + verifyData.label + '. Refreshing…';
+                setTimeout(function() { window.location.reload(); }, 1800);
+              } else {
+                self.errorMsg = verifyData.error || 'Payment verified but plan activation failed. Contact support.';
+              }
+            } catch(e) {
+              self.errorMsg = 'Network error during verification. Contact support with your payment ID: ' + response.razorpay_payment_id;
+            }
+            self.loading = false;
+          },
+          modal: {
+            ondismiss: function() {
+              self.loading = false;
+              self.activePlan = '';
+            },
+          },
+          prefill: {
+            email: '{{ request.user.email }}',
+          },
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function(response) {
+          self.errorMsg = 'Payment failed: ' + (response.error.description || 'Please try again.');
+          self.loading = false;
+          self.activePlan = '';
+        });
+        rzp.open();
+
+      } catch(e) {
+        this.errorMsg = 'Network error. Please check your connection and try again.';
+        this.loading = false;
+      }
+    },
+  };
+}
+</script>
 {% endblock %}

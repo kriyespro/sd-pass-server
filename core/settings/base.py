@@ -18,6 +18,9 @@ elif os.path.isfile(BASE_DIR / '.env.prod'):
 
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-set-secret-key-in-env')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+
+RAZORPAY_KEY_ID = env('RAZORPAY_KEY_ID', default='')
+RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='')
 DEBUG = False
 
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])

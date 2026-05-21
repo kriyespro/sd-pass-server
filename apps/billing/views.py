@@ -1,10 +1,18 @@
+import hashlib
+import hmac
+import json
 import logging
 
+import razorpay
 from django import forms
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.views.generic import FormView
 
 logger = logging.getLogger(__name__)
@@ -47,6 +55,7 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
         ctx['plan_labels'] = PLAN_LABELS
         ctx['plan_limits'] = PLAN_LIMITS
         ctx['plan_prices'] = PLAN_PRICES
+        ctx['razorpay_key_id'] = settings.RAZORPAY_KEY_ID
         ctx['plans'] = [
             {
                 'slug': 'launch_lite',
@@ -124,3 +133,78 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
         else:
             messages.error(self.request, result)
             return self.render_to_response(self.get_context_data(form=form))
+
+
+@login_required
+@require_POST
+def create_order(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    plan_slug = data.get('plan_slug', '')
+    if plan_slug not in PLAN_PRICES:
+        return JsonResponse({'error': 'Invalid plan'}, status=400)
+
+    amount_paise = int(PLAN_PRICES[plan_slug] * 100)
+    if amount_paise < 100:
+        return JsonResponse({'error': 'Amount too small'}, status=400)
+
+    try:
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        order = client.order.create({
+            'amount': amount_paise,
+            'currency': 'INR',
+            'receipt': f'plan_{plan_slug}_{request.user.id}',
+        })
+    except Exception as exc:
+        logger.exception('Razorpay create_order failed: %s', exc)
+        return JsonResponse({'error': 'Payment service error. Please try again.'}, status=500)
+
+    return JsonResponse({
+        'order_id': order['id'],
+        'amount': order['amount'],
+        'currency': order['currency'],
+    })
+
+
+@login_required
+@require_POST
+def verify_payment(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    payment_id = data.get('razorpay_payment_id', '')
+    order_id = data.get('razorpay_order_id', '')
+    signature = data.get('razorpay_signature', '')
+    plan_slug = data.get('plan_slug', '')
+
+    if not all([payment_id, order_id, signature, plan_slug]):
+        return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+    if plan_slug not in PLAN_PRICES:
+        return JsonResponse({'error': 'Invalid plan'}, status=400)
+
+    msg = f'{order_id}|{payment_id}'.encode()
+    expected = hmac.new(
+        settings.RAZORPAY_KEY_SECRET.encode(),
+        msg,
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, signature):
+        logger.warning('Razorpay signature mismatch for user %s order %s', request.user.id, order_id)
+        return JsonResponse({'error': 'Payment verification failed'}, status=400)
+
+    sub = get_or_create_subscription(request.user)
+    sub.plan_slug = plan_slug
+    sub.status = Subscription.Status.ACTIVE
+    sub.current_period_end = timezone.now() + timezone.timedelta(days=365)
+    sub.save()
+
+    label = PLAN_LABELS.get(plan_slug, plan_slug)
+    logger.info('Payment verified — user %s upgraded to %s', request.user.id, plan_slug)
+    return JsonResponse({'status': 'success', 'plan': plan_slug, 'label': label})

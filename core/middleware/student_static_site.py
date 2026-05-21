@@ -279,7 +279,19 @@ class StudentStaticSiteMiddleware:
     def _upgrade_url(request) -> str:
         try:
             from django.urls import reverse
-            return request.build_absolute_uri(reverse('billing:redeem'))
+            path = reverse('billing:redeem')
+            # Must use the main platform domain, not the student site host.
+            # request.build_absolute_uri() would produce e.g. https://kriss.crorepatinetwork.com/billing/redeem/
+            # which the middleware intercepts → 404.
+            origins = getattr(settings, 'CSRF_TRUSTED_ORIGINS', [])
+            if origins:
+                base = origins[0].rstrip('/')
+            else:
+                allowed = getattr(settings, 'ALLOWED_HOSTS', [])
+                host = next((h for h in allowed if not h.startswith('.')), 'localhost')
+                scheme = 'https' if not host.startswith('localhost') else 'http'
+                base = f'{scheme}://{host}'
+            return base + path
         except Exception:
             return '/billing/redeem/'
 

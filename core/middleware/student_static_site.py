@@ -376,4 +376,8 @@ class StudentStaticSiteMiddleware:
                 return HttpResponse(_NO_INDEX_HTML, status=200, content_type='text/html; charset=utf-8')
             raise Http404()
 
-        return serve(request, rel, document_root=document_root, show_indexes=False)
+        response = serve(request, rel, document_root=document_root, show_indexes=False)
+        # Force browsers to revalidate every request via ETag/Last-Modified.
+        # Without this, browsers use heuristic caching and images won't refresh after re-upload.
+        response['Cache-Control'] = 'no-cache'
+        return response

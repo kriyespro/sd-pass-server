@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import shutil
+import time
 import zipfile
 from pathlib import Path
 
@@ -126,6 +128,9 @@ def _safe_unzip(zip_path: Path, dest: Path) -> None:
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info, 'r') as src, open(target, 'wb') as out:
                 shutil.copyfileobj(src, out)
+            # Force current mtime so browser cache sees file as changed after re-upload.
+            now = time.time()
+            os.utime(target, (now, now))
 
 
 def _safe_rel_path_for_static_upload(raw_name: str, dest: Path) -> tuple[bool, str, Path]:
@@ -214,6 +219,8 @@ def save_static_files(project: Project, file_list: list, subfolder: str = '') ->
             with path.open('wb') as out:
                 for chunk in uploaded.chunks():
                     out.write(chunk)
+            now = time.time()
+            os.utime(path, (now, now))
     except OSError as exc:
         return False, str(exc)
 

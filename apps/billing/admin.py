@@ -1,4 +1,6 @@
 from django.contrib import admin, messages
+from django.shortcuts import redirect
+from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.html import format_html
 
@@ -50,7 +52,47 @@ class SubscriptionAdmin(admin.ModelAdmin):
         _make_set_plan_action('agency_turbo'),
         _make_set_plan_action('performance_max'),
         _make_set_plan_action('free'),
+        'generate_coupon_action',
     ]
+
+    def generate_coupon_action(self, request, queryset):
+        """Generate coupon code(s) for selected users with a plan of your choice."""
+        if 'apply' in request.POST:
+            plan = request.POST.get('plan', 'launch_lite')
+            valid_days = max(1, min(3650, int(request.POST.get('valid_days', 365) or 365)))
+            count_per_user = max(1, min(10, int(request.POST.get('count_per_user', 1) or 1)))
+            plan_label = PLAN_LABELS.get(plan, plan)
+
+            all_codes = []
+            for sub in queryset.select_related('user'):
+                for _ in range(count_per_user):
+                    code = _generate_coupon_code()
+                    CouponCode.objects.create(
+                        code=code,
+                        plan=plan,
+                        valid_days=valid_days,
+                        created_by=request.user,
+                    )
+                    all_codes.append(f'{sub.user.email} → {code}')
+
+            self.message_user(
+                request,
+                f'Generated {len(all_codes)} × {plan_label} code(s): {" | ".join(all_codes)}',
+                messages.SUCCESS,
+            )
+            return None
+
+        plan_choices = [(s, l) for s, l in Subscription.Plan.choices if s != 'free']
+        return TemplateResponse(request, 'admin/billing/generate_coupon.html', {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'title': 'Generate Coupon Codes',
+            'subscriptions': queryset.select_related('user'),
+            'selected_count': queryset.count(),
+            'plan_choices': plan_choices,
+        })
+
+    generate_coupon_action.short_description = 'Generate coupon code(s) for selected users'
 
     @admin.display(description='Email', ordering='user__email')
     def user_email(self, obj):
@@ -118,6 +160,7 @@ class CouponCodeAdmin(admin.ModelAdmin):
     raw_id_fields = ('used_by', 'created_by')
     readonly_fields = ('redeemed_at', 'created_at', 'created_by')
     ordering = ('-created_at',)
+    change_list_template = 'admin/billing/couponcode/change_list.html'
 
     actions = [
         _make_generate_action('launch_lite',     1),
@@ -133,6 +176,66 @@ class CouponCodeAdmin(admin.ModelAdmin):
         _make_generate_action('performance_max', 1),
         _make_generate_action('performance_max', 5),
     ]
+
+    def get_urls(self):
+        from django.urls import path
+        return [
+            path(
+                'generate-for-user/',
+                self.admin_site.admin_view(self.generate_for_user_view),
+                name='billing_coupon_generate_for_user',
+            ),
+        ] + super().get_urls()
+
+    def generate_for_user_view(self, request):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        plan_choices = [(s, l) for s, l in Subscription.Plan.choices if s != 'free']
+        error = None
+
+        if request.method == 'POST':
+            user_input = request.POST.get('user', '').strip()
+            plan = request.POST.get('plan', 'launch_lite')
+            valid_days = max(1, min(3650, int(request.POST.get('valid_days', 365) or 365)))
+            count = max(1, min(20, int(request.POST.get('count', 1) or 1)))
+
+            user = None
+            if user_input.isdigit():
+                user = User.objects.filter(pk=int(user_input)).first()
+            if user is None:
+                user = User.objects.filter(email__iexact=user_input).first()
+
+            if user is None:
+                error = f'No user found for "{user_input}". Try exact email or numeric ID.'
+            else:
+                codes = []
+                for _ in range(count):
+                    code = _generate_coupon_code()
+                    CouponCode.objects.create(
+                        code=code,
+                        plan=plan,
+                        valid_days=valid_days,
+                        created_by=request.user,
+                    )
+                    codes.append(code)
+
+                plan_label = PLAN_LABELS.get(plan, plan)
+                self.message_user(
+                    request,
+                    f'Generated {count} × {plan_label} code(s) for {user.email}: {" | ".join(codes)}',
+                    messages.SUCCESS,
+                )
+                return redirect('../')
+
+        return TemplateResponse(request, 'admin/billing/generate_for_user.html', {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'title': 'Generate Coupon Code for User',
+            'plan_choices': plan_choices,
+            'error': error,
+            'post': request.POST if request.method == 'POST' else {},
+        })
 
     def save_model(self, request, obj, form, change):
         if not obj.pk:

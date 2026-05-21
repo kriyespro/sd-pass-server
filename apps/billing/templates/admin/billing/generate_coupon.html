@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Generate Coupon Codes — {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+  <a href="{% url 'admin:billing_subscription_changelist' %}">Subscriptions</a> &rsaquo;
+  Generate Coupon Codes
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>Generate Coupon Codes</h1>
+
+<p>Create coupon code(s) for <strong>{{ selected_count }} selected user(s)</strong>:</p>
+
+<ul style="margin-bottom:1rem;">
+{% for sub in subscriptions %}
+  <li><strong>{{ sub.user.email }}</strong> — current plan: <em>{{ sub.plan_slug }}</em></li>
+{% endfor %}
+</ul>
+
+<form method="post">
+  {% csrf_token %}
+  {% for sub in subscriptions %}
+    <input type="hidden" name="_selected_action" value="{{ sub.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="generate_coupon_action">
+  <input type="hidden" name="apply" value="1">
+
+  <fieldset class="module aligned">
+    <h2>Coupon Options</h2>
+
+    <div class="form-row">
+      <div>
+        <label for="id_plan">Plan:</label>
+        <select name="plan" id="id_plan">
+          {% for value, label in plan_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label for="id_valid_days">Valid for (days):</label>
+        <input type="number" name="valid_days" id="id_valid_days" value="365" min="1" max="3650">
+        <p class="help">365 = 1 year. Code stays active this many days after redemption.</p>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label for="id_count">Codes per user:</label>
+        <input type="number" name="count_per_user" id="id_count" value="1" min="1" max="10">
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" value="Generate Codes" class="default">
+    <a href="{% url 'admin:billing_subscription_changelist' %}" style="margin-left:1rem;">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -9,8 +9,21 @@ from django.utils import timezone
 from .models import FREE_TRIAL_DAYS, PLAN_LIMITS, CouponCode, Subscription
 
 
+def user_can_use_subfolder(user) -> bool:
+    """Only paid (non-free) active subscribers may deploy to a path subfolder."""
+    try:
+        return user.subscription.is_paid
+    except Exception:
+        return False
+
+
 def user_project_limit(user) -> int:
     """Return how many projects this user is allowed to create."""
+    # Students: trainer-set QuotaConfig takes priority over billing plan
+    try:
+        return user.quota_config.max_projects
+    except Exception:
+        pass
     try:
         sub = user.subscription
         return sub.max_projects

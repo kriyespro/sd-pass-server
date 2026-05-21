@@ -20,6 +20,8 @@ _FLATTEN_IF_MISSING_TOP = frozenset(
 # TTL=30s: new deploy appears to visitors within 30 seconds.
 _PROJ_HOST_CACHE_PREFIX = 'studentsite:host:'
 _TRIAL_CACHE_PREFIX = 'studentsite:trial:'
+_FREE_PLAN_CACHE_PREFIX = 'studentsite:free_plan:'
+_SUBFOLDER_LIST_CACHE_PREFIX = 'studentsite:subfolders:'
 _SITE_CACHE_TTL = 30
 
 
@@ -31,6 +33,8 @@ def invalidate_site_host_cache(project) -> None:
     if project.custom_hostname:
         cache.delete(_PROJ_HOST_CACHE_PREFIX + project.custom_hostname.strip().lower())
     cache.delete(_TRIAL_CACHE_PREFIX + str(project.owner_id))
+    cache.delete(_FREE_PLAN_CACHE_PREFIX + str(project.owner_id))
+    cache.delete(_SUBFOLDER_LIST_CACHE_PREFIX + str(project.pk))
 
 
 def _host_without_port(raw: str) -> str:
@@ -108,6 +112,21 @@ _DOMAIN_PENDING_VERIFY = """<!DOCTYPE html>
 <p>This hostname is linked to a project, but <strong>DNS verification</strong> is still pending.
 Add the TXT record shown on your project’s <strong>Custom domain</strong> page, then use
 <strong>Check verification</strong> or wait a few minutes.</p>
+</body></html>"""
+
+_SUBFOLDER_BLOCKED = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Paid plan required</title>
+<style>
+body{{font-family:system-ui,sans-serif;max-width:36rem;margin:4rem auto;padding:0 1.5rem;background:#0f172a;color:#e2e8f0;}}
+h1{{color:#f8fafc;font-size:1.5rem;margin-bottom:.75rem;}}
+p{{color:#94a3b8;line-height:1.6;margin:.5rem 0;}}
+a.btn{{display:inline-block;margin-top:1.25rem;padding:.6rem 1.4rem;background:#6366f1;color:#fff;border-radius:.5rem;text-decoration:none;font-weight:600;}}
+a.btn:hover{{background:#4f46e5;}}
+</style></head><body>
+<h1>Subfolder sites require a paid plan</h1>
+<p>This site is deployed inside a subfolder path which is only available on paid plans.</p>
+<p>Upgrade your account to restore access, or re-deploy to the site root.</p>
+<a class="btn" href="{upgrade_url}">Upgrade account</a>
 </body></html>"""
 
 _TRIAL_EXPIRED = """<!DOCTYPE html>
@@ -206,6 +225,42 @@ class StudentStaticSiteMiddleware:
         return self.get_response(request)
 
     @staticmethod
+    def _is_free_plan(project) -> bool:
+        cache_key = _FREE_PLAN_CACHE_PREFIX + str(project.owner_id)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return bool(cached)
+        try:
+            from apps.billing.models import Subscription
+            sub = Subscription.objects.only(
+                'plan_slug', 'status', 'trial_ends_at', 'current_period_end'
+            ).get(user_id=project.owner_id)
+            result = not sub.is_paid
+        except Exception:
+            result = False
+        cache.set(cache_key, result, _SITE_CACHE_TTL)
+        return result
+
+    @staticmethod
+    def _project_subfolder_paths(project_id: int) -> frozenset:
+        cache_key = _SUBFOLDER_LIST_CACHE_PREFIX + str(project_id)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        try:
+            from apps.projects.models import ProjectSubfolder
+            paths = frozenset(
+                ProjectSubfolder.objects
+                .filter(project_id=project_id)
+                .exclude(path='')
+                .values_list('path', flat=True)
+            )
+        except Exception:
+            paths = frozenset()
+        cache.set(cache_key, paths, _SITE_CACHE_TTL)
+        return paths
+
+    @staticmethod
     def _is_trial_expired(project) -> bool:
         cache_key = _TRIAL_CACHE_PREFIX + str(project.owner_id)
         cached = cache.get(cache_key)
@@ -247,6 +302,19 @@ class StudentStaticSiteMiddleware:
                 status=402,
                 content_type='text/html; charset=utf-8',
             )
+
+        if self._is_free_plan(project):
+            url_path = request.path.lstrip('/')
+            if url_path:
+                subfolder_paths = self._project_subfolder_paths(project.pk)
+                for sf in subfolder_paths:
+                    if url_path == sf or url_path.startswith(sf + '/'):
+                        upgrade_url = self._upgrade_url(request)
+                        return HttpResponse(
+                            _SUBFOLDER_BLOCKED.format(upgrade_url=upgrade_url),
+                            status=402,
+                            content_type='text/html; charset=utf-8',
+                        )
 
         root = project_site_dir(project)
         try:

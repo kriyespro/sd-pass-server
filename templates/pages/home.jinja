@@ -95,7 +95,7 @@
       ('🔗', 'Custom Domain', 'Point your own domain (from any registrar) to StudentCloud using a simple A record.', 'violet'),
       ('🔒', 'Security Scan', 'Every upload is scanned for malware before it goes live — keeping the platform safe for everyone.', 'rose'),
       ('📊', 'Server Stats', 'See real-time CPU, RAM and disk usage right on your dashboard — always know the server is healthy.', 'amber'),
-      ('🎟', 'Coupon Plans', 'Need more than 1 site? Unlock 3, 5 or 10 sites with a coupon code. Plans start at ₹1,499/year.', 'emerald'),
+      ('🎟', 'Coupon Plans', 'Need more sites? Unlock additional websites with a coupon code from your trainer.', 'emerald'),
     ] %}
       {% set border = 'border-' ~ feat[3] ~ '-500/20' %}
       {% set glow = 'bg-' ~ feat[3] ~ '-500/5' %}
@@ -109,34 +109,7 @@
   </div>
 </section>
 
-{# ══ PRICING ══ #}
-<section class="mt-10 space-y-4">
-  <p class="text-center text-xs font-semibold uppercase tracking-widest text-slate-500">Simple pricing</p>
-  <div class="grid gap-4 sm:grid-cols-3">
-    {% for plan in [
-      ('Free',     '₹0',     'year', 1,  ['1 website', 'Subdomain hosting', 'AI optimizer', 'Security scan'], False),
-      ('Pro',      '₹2,099', 'year', 5,  ['5 websites', 'Custom domains', 'AI optimizer', 'Priority support'], True),
-      ('Business', '₹3,699', 'year', 10, ['10 websites', 'Custom domains', 'AI optimizer', 'Everything in Pro'], False),
-    ] %}
-      <div class="relative rounded-2xl border {{ 'border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/20' if plan[5] else 'border-slate-800 bg-slate-900/50' }} p-6">
-        {% if plan[5] %}
-          <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-0.5 text-xs font-bold text-slate-950">Most Popular</span>
-        {% endif %}
-        <p class="font-semibold text-white">{{ plan[0] }}</p>
-        <p class="mt-1 text-3xl font-extrabold text-white">{{ plan[1] }}<span class="text-sm font-normal text-slate-400">/{{ plan[2] }}</span></p>
-        <p class="mt-1 text-xs text-slate-500">Up to {{ plan[3] }} website{{ 's' if plan[3] > 1 }}</p>
-        <ul class="mt-4 space-y-1.5 text-sm text-slate-300">
-          {% for f in plan[4] %}
-            <li class="flex items-center gap-2"><span class="text-emerald-400 text-xs">✓</span> {{ f }}</li>
-          {% endfor %}
-        </ul>
-        {% if not loop.first %}
-          <p class="mt-4 text-xs text-slate-500">Activate with a coupon code from your trainer.</p>
-        {% endif %}
-      </div>
-    {% endfor %}
-  </div>
-</section>
+{# ══ PRICING — hidden ══ #}
 
 {# ══ CTA ══ #}
 <section class="mt-10 overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/50 to-slate-900 px-8 py-12 text-center">

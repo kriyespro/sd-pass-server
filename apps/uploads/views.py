@@ -7,6 +7,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView
 
+from apps.billing.services import user_can_use_subfolder
 from apps.deployments.services import MAX_STATIC_FILES_PER_POST, _validate_subfolder, save_static_files
 from apps.logs.models import LogKind
 from apps.logs.services import append_project_log
@@ -108,6 +109,9 @@ class ZipUploadView(LoginRequiredMixin, CreateView):
             form.add_error('file', 'Choose a ZIP file to upload.')
             return self.form_invalid(form)
         subfolder = self.request.POST.get('subfolder', '').strip()
+        if subfolder and not user_can_use_subfolder(self.request.user):
+            form.add_error(None, 'Subfolder deployment requires a paid plan. Upgrade to use this feature.')
+            return self.form_invalid(form)
         sub_ok, _ = _validate_subfolder(subfolder)
         if not sub_ok:
             form.add_error(
@@ -172,6 +176,9 @@ class MultiStaticFilesView(LoginRequiredMixin, View):
             form.add_error(None, 'Select one or more files.')
             return render(request, self.template_name, self._ctx(form), status=422)
         subfolder = request.POST.get('subfolder', '').strip()
+        if subfolder and not user_can_use_subfolder(request.user):
+            form.add_error(None, 'Subfolder deployment requires a paid plan. Upgrade to use this feature.')
+            return render(request, self.template_name, self._ctx(form), status=402)
         ok, msg = save_static_files(self.project, files, subfolder=subfolder)
         if not ok:
             form.add_error(None, _friendly_static_upload_error(msg))

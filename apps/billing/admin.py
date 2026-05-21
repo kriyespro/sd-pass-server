@@ -43,9 +43,12 @@ class SubscriptionAdmin(admin.ModelAdmin):
     )
 
     actions = [
-        _make_set_plan_action('starter'),
-        _make_set_plan_action('pro'),
-        _make_set_plan_action('business'),
+        _make_set_plan_action('launch_lite'),
+        _make_set_plan_action('starter_cloud'),
+        _make_set_plan_action('wordpress_pro'),
+        _make_set_plan_action('business_cloud'),
+        _make_set_plan_action('agency_turbo'),
+        _make_set_plan_action('performance_max'),
         _make_set_plan_action('free'),
     ]
 
@@ -56,15 +59,18 @@ class SubscriptionAdmin(admin.ModelAdmin):
     @admin.display(description='Plan')
     def plan_badge(self, obj):
         colours = {
-            'free':     '#64748b',
-            'starter':  '#0ea5e9',
-            'pro':      '#10b981',
-            'business': '#8b5cf6',
+            'free':            '#64748b',
+            'launch_lite':     '#0369a1',
+            'starter_cloud':   '#0ea5e9',
+            'wordpress_pro':   '#3b82f6',
+            'business_cloud':  '#10b981',
+            'agency_turbo':    '#8b5cf6',
+            'performance_max': '#d97706',
         }
         colour = colours.get(obj.plan_slug, '#64748b')
         limit = PLAN_LIMITS.get(obj.plan_slug, 1)
-        label = obj.plan_slug.capitalize()
-        sites = f'{limit} site{"s" if limit != 1 else ""}'
+        label = PLAN_LABELS.get(obj.plan_slug, obj.plan_slug)
+        sites = 'Unlimited' if limit >= 999 else f'{limit} site{"s" if limit != 1 else ""}'
         expired = ''
         if obj.current_period_end and obj.current_period_end < timezone.now():
             expired = ' ⚠ expired'
@@ -81,7 +87,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
     @admin.display(description='Max sites')
     def max_projects_display(self, obj):
-        return obj.max_projects
+        return 'Unlimited' if obj.max_projects >= 999 else obj.max_projects
 
 
 def _make_generate_action(plan_slug, count):
@@ -114,15 +120,18 @@ class CouponCodeAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
     actions = [
-        _make_generate_action('starter',  1),
-        _make_generate_action('starter',  5),
-        _make_generate_action('starter',  10),
-        _make_generate_action('pro',      1),
-        _make_generate_action('pro',      5),
-        _make_generate_action('pro',      10),
-        _make_generate_action('business', 1),
-        _make_generate_action('business', 5),
-        _make_generate_action('business', 10),
+        _make_generate_action('launch_lite',     1),
+        _make_generate_action('launch_lite',     5),
+        _make_generate_action('starter_cloud',   1),
+        _make_generate_action('starter_cloud',   5),
+        _make_generate_action('wordpress_pro',   1),
+        _make_generate_action('wordpress_pro',   5),
+        _make_generate_action('business_cloud',  1),
+        _make_generate_action('business_cloud',  5),
+        _make_generate_action('agency_turbo',    1),
+        _make_generate_action('agency_turbo',    5),
+        _make_generate_action('performance_max', 1),
+        _make_generate_action('performance_max', 5),
     ]
 
     def save_model(self, request, obj, form, change):

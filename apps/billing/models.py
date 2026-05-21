@@ -8,39 +8,52 @@ from django.utils import timezone
 
 
 PLAN_LIMITS = {
-    'free':     1,
-    'starter':  3,
-    'pro':      5,
-    'business': 10,
+    'free':            1,
+    'launch_lite':     1,
+    'starter_cloud':   1,
+    'wordpress_pro':   1,
+    'business_cloud':  5,
+    'agency_turbo':    10,
+    'performance_max': 999,
 }
 
 FREE_TRIAL_DAYS = 7
 
 PLAN_PRICES = {
-    'starter':  Decimal('1499.00'),
-    'pro':      Decimal('2099.00'),
-    'business': Decimal('3699.00'),
+    'launch_lite':     Decimal('1499.00'),
+    'starter_cloud':   Decimal('2099.00'),
+    'wordpress_pro':   Decimal('3699.00'),
+    'business_cloud':  Decimal('5999.00'),
+    'agency_turbo':    Decimal('8499.00'),
+    'performance_max': Decimal('11999.00'),
 }
 
 PLAN_LABELS = {
-    'free':     'Free — 1 website',
-    'starter':  'Starter — 3 websites · ₹1,499/year',
-    'pro':      'Pro — 5 websites · ₹2,099/year',
-    'business': 'Business — 10 websites · ₹3,699/year',
+    'free':            'Free — 1 website',
+    'launch_lite':     'Launch Lite — 1 website · ₹1,499/year',
+    'starter_cloud':   'Starter Cloud — 1 website · ₹2,099/year',
+    'wordpress_pro':   'WordPress Pro — 1 website · ₹3,699/year',
+    'business_cloud':  'Business Cloud — 5 websites · ₹5,999/year',
+    'agency_turbo':    'Agency Turbo — 10 websites · ₹8,499/year',
+    'performance_max': 'Performance Max — Unlimited websites · ₹11,999/year',
 }
 
 
 class Subscription(models.Model):
     class Plan(models.TextChoices):
-        FREE     = 'free',     'Free'
-        STARTER  = 'starter',  'Starter'
-        PRO      = 'pro',      'Pro'
-        BUSINESS = 'business', 'Business'
+        FREE            = 'free',            'Free'
+        LAUNCH_LITE     = 'launch_lite',     'Launch Lite'
+        STARTER_CLOUD   = 'starter_cloud',   'Starter Cloud'
+        WORDPRESS_PRO   = 'wordpress_pro',   'WordPress Pro'
+        BUSINESS_CLOUD  = 'business_cloud',  'Business Cloud'
+        AGENCY_TURBO    = 'agency_turbo',    'Agency Turbo'
+        PERFORMANCE_MAX = 'performance_max', 'Performance Max'
 
     class Status(models.TextChoices):
         ACTIVE    = 'active',    'Active'
         PAST_DUE  = 'past_due',  'Past due'
         CANCELLED = 'cancelled', 'Cancelled'
+        SUSPENDED = 'suspended', 'Suspended'
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -83,6 +96,8 @@ class Subscription(models.Model):
             return False
         if self.current_period_end and self.current_period_end < timezone.now():
             return False
+        if self.trial_expired:
+            return False
         return True
 
     @property
@@ -100,6 +115,8 @@ class Subscription(models.Model):
 
     @property
     def max_projects(self) -> int:
+        if self.trial_expired:
+            return 0
         if not self.is_active:
             return PLAN_LIMITS['free']
         return PLAN_LIMITS.get(self.plan_slug, PLAN_LIMITS['free'])
@@ -121,7 +138,7 @@ class CouponCode(models.Model):
     plan = models.CharField(
         max_length=32,
         choices=Subscription.Plan.choices,
-        default=Subscription.Plan.STARTER,
+        default=Subscription.Plan.LAUNCH_LITE,
     )
     valid_days = models.PositiveIntegerField(
         default=365,

@@ -96,7 +96,7 @@
   {# ══ Billing / Plans (compact) ══ #}
   <div class="flex flex-wrap items-center gap-2">
     <span class="text-[10px] font-semibold uppercase text-slate-500">Plans</span>
-    {% set plan_colours = {'free':'bg-slate-700','starter':'bg-sky-600','pro':'bg-emerald-600','business':'bg-violet-600'} %}
+    {% set plan_colours = {'free':'bg-slate-700','launch_lite':'bg-sky-700','starter_cloud':'bg-sky-600','wordpress_pro':'bg-blue-600','business_cloud':'bg-emerald-600','agency_turbo':'bg-violet-600','performance_max':'bg-amber-600'} %}
     {% for row in sub_by_plan %}
       <div class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1">
         <span class="rounded-full {{ plan_colours.get(row.plan_slug, 'bg-slate-700') }} px-1.5 py-0.5 text-[10px] font-bold text-white">{{ row.plan_slug | capitalize }}</span>
@@ -159,7 +159,7 @@
               <td class="px-3 py-2.5 text-slate-400">{{ row.city }}</td>
               <td class="px-3 py-2.5 font-mono text-slate-400">{{ row.mobile }}</td>
               <td class="px-3 py-2.5">
-                {% set pc = {'free':'bg-slate-600','starter':'bg-sky-600','pro':'bg-emerald-600','business':'bg-violet-600'} %}
+                {% set pc = {'free':'bg-slate-600','launch_lite':'bg-sky-700','starter_cloud':'bg-sky-600','wordpress_pro':'bg-blue-600','business_cloud':'bg-emerald-600','agency_turbo':'bg-violet-600','performance_max':'bg-amber-600'} %}
                 <span class="inline-block rounded-full {{ pc.get(row.plan_slug, 'bg-slate-600') }} px-2 py-0.5 text-[10px] font-bold text-white">{{ row.plan_slug | capitalize }}</span>
               </td>
               <td class="px-3 py-2.5 text-center font-semibold text-white">{{ row.site_count }}</td>

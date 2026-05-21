@@ -58,6 +58,16 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
         ctx['razorpay_key_id'] = settings.RAZORPAY_KEY_ID
         ctx['plans'] = [
             {
+                'slug': 'test_plan',
+                'name': 'Test Plan',
+                'subtitle': '₹1 · Payment Test Only',
+                'sites': '1',
+                'price': '₹1',
+                'period': 'year',
+                'specs': 'Test only — do not use in production',
+                'highlight': False,
+            },
+            {
                 'slug': 'launch_lite',
                 'name': 'Launch Lite',
                 'subtitle': 'India · 1 Website',

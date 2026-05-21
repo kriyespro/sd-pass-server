@@ -9,6 +9,7 @@ from django.utils import timezone
 
 PLAN_LIMITS = {
     'free':            1,
+    'test_plan':        1,
     'launch_lite':     1,
     'starter_cloud':   1,
     'wordpress_pro':   1,
@@ -20,6 +21,7 @@ PLAN_LIMITS = {
 FREE_TRIAL_DAYS = 7
 
 PLAN_PRICES = {
+    'test_plan':        Decimal('1.00'),
     'launch_lite':     Decimal('1499.00'),
     'starter_cloud':   Decimal('2099.00'),
     'wordpress_pro':   Decimal('3699.00'),
@@ -30,6 +32,7 @@ PLAN_PRICES = {
 
 PLAN_LABELS = {
     'free':            'Free — 1 website',
+    'test_plan':        'Test Plan — 1 website · ₹1 (test only)',
     'launch_lite':     'Launch Lite — 1 website · ₹1,499/year',
     'starter_cloud':   'Starter Cloud — 1 website · ₹2,099/year',
     'wordpress_pro':   'WordPress Pro — 1 website · ₹3,699/year',
@@ -42,6 +45,7 @@ PLAN_LABELS = {
 class Subscription(models.Model):
     class Plan(models.TextChoices):
         FREE            = 'free',            'Free'
+        TEST_PLAN       = 'test_plan',       'Test Plan'
         LAUNCH_LITE     = 'launch_lite',     'Launch Lite'
         STARTER_CLOUD   = 'starter_cloud',   'Starter Cloud'
         WORDPRESS_PRO   = 'wordpress_pro',   'WordPress Pro'

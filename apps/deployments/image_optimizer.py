@@ -13,6 +13,8 @@ Returns a summary dict with bytes saved and counts.
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -22,8 +24,9 @@ _IMAGE_SUFFIXES = {'.jpg', '.jpeg', '.png', '.webp'}
 
 def _optimize_image(path: Path) -> tuple[int, int]:
     """
-    Optimize one image file in-place.
-    Returns (original_bytes, new_bytes). Returns (0, 0) on failure.
+    Optimize one image file in-place via a temp file so a mid-write failure
+    never corrupts the original.
+    Returns (original_bytes, new_bytes). Returns (0, 0) on failure/skip.
     """
     try:
         from PIL import Image, UnidentifiedImageError
@@ -32,32 +35,40 @@ def _optimize_image(path: Path) -> tuple[int, int]:
 
     orig_size = path.stat().st_size
     suffix = path.suffix.lower()
+    tmp_path = None
 
     try:
         with Image.open(path) as img:
-            fmt = img.format or suffix.lstrip('.').upper()
-
             if suffix in ('.jpg', '.jpeg'):
-                # Convert RGBA/P → RGB before JPEG save
                 if img.mode in ('RGBA', 'P', 'LA'):
                     img = img.convert('RGB')
-                img.save(path, format='JPEG', quality=85, optimize=True, progressive=True)
-
+                save_kwargs: dict = {'format': 'JPEG', 'quality': 85, 'optimize': True, 'progressive': True}
             elif suffix == '.png':
-                img.save(path, format='PNG', optimize=True)
-
+                save_kwargs = {'format': 'PNG', 'optimize': True}
             elif suffix == '.webp':
-                img.save(path, format='WEBP', lossless=True, method=6, quality=85)
-
+                save_kwargs = {'format': 'WEBP', 'lossless': True, 'method': 6, 'quality': 85}
             else:
                 return 0, 0
+
+            fd, tmp_name = tempfile.mkstemp(dir=path.parent, suffix=suffix)
+            os.close(fd)
+            tmp_path = Path(tmp_name)
+            img.save(tmp_path, **save_kwargs)
+
+        new_size = tmp_path.stat().st_size
+        tmp_path.replace(path)  # atomic rename — original never half-written
+        tmp_path = None
+        return orig_size, new_size
 
     except (UnidentifiedImageError, OSError, Exception) as exc:
         logger.debug('image_optimizer: skipped %s — %s', path.name, exc)
         return 0, 0
-
-    new_size = path.stat().st_size
-    return orig_size, new_size
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
 
 
 def optimize_site_images(site_dir: Path) -> dict:

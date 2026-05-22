@@ -65,6 +65,33 @@ def project_site_dir(project: Project) -> Path:
     return root / str(project.pk)
 
 
+def _validate_zip_for_extraction(zip_path: Path) -> tuple[bool, str]:
+    """
+    Scan ZIP central directory for path-traversal and image-size violations.
+    No disk writes — safe to call before wiping the existing site.
+    """
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            for info in zf.infolist():
+                name = (info.filename or '').replace('\\', '/').strip()
+                if not name or name.startswith('/') or '..' in name.split('/'):
+                    return False, f'Unsafe ZIP entry: {name!r}'
+                rel = Path(name)
+                if '..' in rel.parts or rel.is_absolute():
+                    return False, f'Unsafe ZIP path: {name!r}'
+                if name.endswith('/') or info.is_dir():
+                    continue
+                suf = Path(name).suffix.lower()
+                if suf in IMAGE_SUFFIXES and info.file_size > MAX_IMAGE_BYTES:
+                    return False, (
+                        f'Image too large: {name!r} is {info.file_size // 1024} KB '
+                        f'(max 120 KB). Compress it before uploading.'
+                    )
+    except (OSError, zipfile.BadZipFile) as exc:
+        return False, str(exc)
+    return True, ''
+
+
 def extract_static_site_from_zip(project: Project, zip_path: Path, subfolder: str = '') -> tuple[bool, str]:
     """
     Unpack a ZIP into STUDENT_SITE_ROOT/<project_id>/[subfolder]/ for static (HTML) projects.
@@ -73,6 +100,12 @@ def extract_static_site_from_zip(project: Project, zip_path: Path, subfolder: st
     """
     if project.project_type != ProjectType.STATIC:
         return False, 'skip_non_static_project'
+
+    # Validate the ZIP before touching the existing site so a bad upload
+    # never leaves students with an empty site.
+    ok, err = _validate_zip_for_extraction(zip_path)
+    if not ok:
+        return False, err
 
     site_root = project_site_dir(project)
     extract_dest = site_root / subfolder if subfolder else site_root

@@ -187,6 +187,8 @@ class MultiStaticFilesView(LoginRequiredMixin, View):
         normalised = subfolder.strip('/')
         Project.objects.filter(pk=self.project.pk).update(site_subfolder=normalised)
         ProjectSubfolder.objects.update_or_create(project=self.project, path=normalised)
+        from core.middleware.student_static_site import invalidate_site_host_cache
+        invalidate_site_host_cache(self.project)
         append_project_log(
             self.project,
             LogKind.BUILD,

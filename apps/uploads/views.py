@@ -203,8 +203,9 @@ class MultiStaticFilesView(LoginRequiredMixin, View):
         )
         if has_images:
             try:
-                from apps.deployments.compress_task import compress_site_images
-                compress_site_images.delay(self.project.pk)
+                from apps.platform_ops.services.image_compression import queue_image_compression
+
+                queue_image_compression(self.project, trigger='upload')
             except Exception:
                 pass
 

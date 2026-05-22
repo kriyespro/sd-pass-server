@@ -70,7 +70,11 @@
     </table>
   </div>
   {% else %}
-  <p class="px-4 py-6 text-center text-xs text-slate-500">No image compression jobs yet — upload images to a static site to trigger one.</p>
+  <p class="px-4 py-6 text-center text-xs text-slate-500">
+    No jobs logged yet. They are created on each static upload with images (needs Celery <strong class="text-slate-400">worker</strong> running).
+    <br class="mt-1">
+    Backfill past sites: <code class="text-slate-400">python manage.py backfill_image_compression_logs</code>
+  </p>
   {% endif %}
 </div>
 

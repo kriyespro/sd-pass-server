@@ -151,7 +151,8 @@ def deploy_after_scan(scan_result: dict) -> dict:
             ),
             level=NotificationLevel.INFO,
         )
-        from apps.deployments.compress_task import compress_site_images
-        compress_site_images.delay(proj.pk)
+        from apps.platform_ops.services.image_compression import queue_image_compression
+
+        queue_image_compression(proj, trigger='upload')
 
     return {**scan_result, 'deploy': 'stub_recorded'}

@@ -35,7 +35,12 @@ def _throttled_optimize(img_path: Path, *, ultra: bool = False) -> tuple[int, in
 
 
 @app.task(name='deployments.compress_site_images', bind=True, max_retries=0)
-def compress_site_images(self, project_id: int, trigger: str = 'upload') -> dict:
+def compress_site_images(
+    self,
+    project_id: int,
+    trigger: str = 'upload',
+    log_id: int | None = None,
+) -> dict:
     from django.utils import timezone
 
     from apps.deployments.services import project_site_dir
@@ -62,11 +67,23 @@ def compress_site_images(self, project_id: int, trigger: str = 'upload') -> dict
     if not site_dir.is_dir():
         return {'error': 'site_dir_missing'}
 
-    log = ImageCompressionLog.objects.create(
-        project=proj,
-        status=ImageCompressionLog.Status.RUNNING,
-        trigger=trigger,
-    )
+    if log_id:
+        log = ImageCompressionLog.objects.filter(pk=log_id, project=proj).first()
+        if not log:
+            log = ImageCompressionLog.objects.create(
+                project=proj,
+                status=ImageCompressionLog.Status.RUNNING,
+                trigger=trigger,
+            )
+        elif log.trigger != trigger:
+            log.trigger = trigger
+            log.save(update_fields=['trigger'])
+    else:
+        log = ImageCompressionLog.objects.create(
+            project=proj,
+            status=ImageCompressionLog.Status.RUNNING,
+            trigger=trigger,
+        )
 
     images = [
         p for p in site_dir.rglob('*')

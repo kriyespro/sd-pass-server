@@ -173,6 +173,9 @@ def get_asset_optimization_dashboard() -> dict:
 
     from django.db.models import Sum, Count
 
+    from apps.platform_ops.services.image_compression import expire_stale_image_compression_logs
+
+    expire_stale_image_compression_logs()
     img_logs = ImageCompressionLog.objects.all()
     img_totals = img_logs.aggregate(
         total_images=Sum('images_found'),

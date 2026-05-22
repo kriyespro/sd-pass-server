@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.platform_ops.models import AssetOptimizationRun, PlatformBackup
+from apps.platform_ops.models import AssetOptimizationRun, ImageCompressionLog, PlatformBackup
 
 
 @admin.register(AssetOptimizationRun)
@@ -30,6 +30,32 @@ class AssetOptimizationRunAdmin(admin.ModelAdmin):
         'cache_used_memory_human',
         'cache_peak_memory_human',
         'cache_keys',
+        'error_message',
+    )
+
+
+@admin.register(ImageCompressionLog)
+class ImageCompressionLogAdmin(admin.ModelAdmin):
+    list_display = (
+        'pk',
+        'project',
+        'status',
+        'trigger',
+        'images_found',
+        'images_optimized',
+        'total_bytes_saved',
+        'started_at',
+    )
+    list_filter = ('status', 'trigger')
+    readonly_fields = (
+        'started_at',
+        'finished_at',
+        'images_found',
+        'images_optimized',
+        'bytes_saved',
+        'ultra_images_optimized',
+        'ultra_bytes_saved',
+        'total_bytes_saved',
         'error_message',
     )
 

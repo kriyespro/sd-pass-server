@@ -202,8 +202,11 @@ class MultiStaticFilesView(LoginRequiredMixin, View):
             Path(f.name).suffix.lower() in _IMAGE_EXTS for f in files
         )
         if has_images:
-            from apps.deployments.compress_task import compress_site_images
-            compress_site_images.delay(self.project.pk)
+            try:
+                from apps.deployments.compress_task import compress_site_images
+                compress_site_images.delay(self.project.pk)
+            except Exception:
+                pass
 
         messages.success(
             request,

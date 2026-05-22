@@ -55,6 +55,42 @@ class AssetOptimizationRun(models.Model):
         return f'AssetOptimizationRun #{self.pk} {self.status}'
 
 
+class ImageCompressionLog(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = 'running', 'Running'
+        DONE = 'done', 'Done'
+        FAILED = 'failed', 'Failed'
+
+    class Trigger(models.TextChoices):
+        UPLOAD = 'upload', 'Upload'
+        SCHEDULED = 'scheduled', 'Scheduled'
+
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.CASCADE,
+        related_name='image_compression_logs',
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.RUNNING, db_index=True)
+    trigger = models.CharField(max_length=20, choices=Trigger.choices, default=Trigger.UPLOAD)
+    started_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    images_found = models.PositiveIntegerField(default=0)
+    images_optimized = models.PositiveIntegerField(default=0)
+    bytes_saved = models.BigIntegerField(default=0)
+    ultra_images_optimized = models.PositiveIntegerField(default=0)
+    ultra_bytes_saved = models.BigIntegerField(default=0)
+    total_bytes_saved = models.BigIntegerField(default=0)
+
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f'ImageCompressionLog #{self.pk} {self.project_id} {self.status}'
+
+
 class PlatformBackup(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'

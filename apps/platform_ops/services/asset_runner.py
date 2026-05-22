@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from apps.deployments.services import project_site_dir, project_site_has_files
 from apps.deployments.site_assets import optimize_site_assets
-from apps.platform_ops.models import AssetOptimizationRun
+from apps.platform_ops.models import AssetOptimizationRun, ImageCompressionLog
 from apps.platform_ops.services.cache_stats import get_redis_cache_stats
 from apps.platform_ops.utils import format_bytes
 from apps.projects.models import Project, ProjectType
@@ -171,6 +171,20 @@ def get_asset_optimization_dashboard() -> dict:
     else:
         next_run = timezone.now()
 
+    from django.db.models import Sum, Count
+
+    img_logs = ImageCompressionLog.objects.all()
+    img_totals = img_logs.aggregate(
+        total_images=Sum('images_found'),
+        total_optimized=Sum('images_optimized'),
+        total_bytes_saved=Sum('total_bytes_saved'),
+        total_ultra_optimized=Sum('ultra_images_optimized'),
+        total_ultra_bytes=Sum('ultra_bytes_saved'),
+        total_jobs=Count('pk'),
+    )
+    img_running = img_logs.filter(status=ImageCompressionLog.Status.RUNNING).count()
+    recent_img_logs = img_logs.select_related('project').order_by('-started_at')[:10]
+
     return {
         'asset_run': latest,
         'asset_running': in_progress,
@@ -181,4 +195,14 @@ def get_asset_optimization_dashboard() -> dict:
         'cache_stats': cache,
         'bytes_saved_human': format_bytes(latest.bytes_saved if latest else 0),
         'asset_sites_eligible': count_eligible_static_sites(),
+        # per-upload image compression stats
+        'img_total_jobs': img_totals['total_jobs'] or 0,
+        'img_total_images': img_totals['total_images'] or 0,
+        'img_total_optimized': img_totals['total_optimized'] or 0,
+        'img_total_bytes_saved': img_totals['total_bytes_saved'] or 0,
+        'img_total_bytes_saved_human': format_bytes(img_totals['total_bytes_saved'] or 0),
+        'img_ultra_optimized': img_totals['total_ultra_optimized'] or 0,
+        'img_ultra_bytes_saved_human': format_bytes(img_totals['total_ultra_bytes'] or 0),
+        'img_running': img_running,
+        'recent_img_logs': recent_img_logs,
     }

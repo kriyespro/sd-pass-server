@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -194,6 +196,15 @@ class MultiStaticFilesView(LoginRequiredMixin, View):
             LogKind.BUILD,
             f'Multi-file static upload: {msg}',
         )
+
+        _IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp'}
+        has_images = any(
+            Path(f.name).suffix.lower() in _IMAGE_EXTS for f in files
+        )
+        if has_images:
+            from apps.deployments.compress_task import compress_site_images
+            compress_site_images.delay(self.project.pk)
+
         messages.success(
             request,
             f'Saved {len(files)} file(s). Open your site host when index.html is present.',

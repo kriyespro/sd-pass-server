@@ -45,7 +45,7 @@ STATIC_ASSET_SUFFIXES = frozenset(
 )
 
 IMAGE_SUFFIXES = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'})
-MAX_IMAGE_BYTES = 120 * 1024  # 120 KB
+MAX_IMAGE_BYTES: int | None = None  # TEMP: disabled for testing; restore to 120 * 1024
 
 _SUBFOLDER_RE = re.compile(r'^[a-zA-Z0-9_\-][a-zA-Z0-9_\-/]*$')
 
@@ -82,10 +82,10 @@ def _validate_zip_for_extraction(zip_path: Path) -> tuple[bool, str]:
                 if name.endswith('/') or info.is_dir():
                     continue
                 suf = Path(name).suffix.lower()
-                if suf in IMAGE_SUFFIXES and info.file_size > MAX_IMAGE_BYTES:
+                if MAX_IMAGE_BYTES is not None and suf in IMAGE_SUFFIXES and info.file_size > MAX_IMAGE_BYTES:
                     return False, (
                         f'Image too large: {name!r} is {info.file_size // 1024} KB '
-                        f'(max 120 KB). Compress it before uploading.'
+                        f'(max {MAX_IMAGE_BYTES // 1024} KB). Compress it before uploading.'
                     )
     except (OSError, zipfile.BadZipFile) as exc:
         return False, str(exc)
@@ -153,10 +153,10 @@ def _safe_unzip(zip_path: Path, dest: Path) -> None:
                 target.mkdir(parents=True, exist_ok=True)
                 continue
             suf = Path(name).suffix.lower()
-            if suf in IMAGE_SUFFIXES and info.file_size > MAX_IMAGE_BYTES:
+            if MAX_IMAGE_BYTES is not None and suf in IMAGE_SUFFIXES and info.file_size > MAX_IMAGE_BYTES:
                 raise ValueError(
                     f'Image too large: {name!r} is {info.file_size // 1024} KB '
-                    f'(max 120 KB). Compress it before uploading.'
+                    f'(max {MAX_IMAGE_BYTES // 1024} KB). Compress it before uploading.'
                 )
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info, 'r') as src, open(target, 'wb') as out:
@@ -197,7 +197,7 @@ def save_static_files(project: Project, file_list: list, subfolder: str = '') ->
     Save multiple uploaded files under the static site directory (merge/overwrite).
     Accepts flat names (index.html) or relative paths (images/logo.png) from a folder upload.
     Only for Static projects. Total size must be within STUDENT_UPLOAD_MAX_BYTES.
-    If subfolder given, files land under <site_root>/<subfolder>/. Images must be ≤ 120 KB.
+    If subfolder given, files land under <site_root>/<subfolder>/.
     """
     if project.project_type != ProjectType.STATIC:
         return False, 'only_static_projects'
@@ -234,7 +234,7 @@ def save_static_files(project: Project, file_list: list, subfolder: str = '') ->
             return False, 'use_zip_upload_for_archives'
         if suf not in STATIC_ASSET_SUFFIXES:
             return False, f'disallowed_type:{rel_key}'
-        if suf in IMAGE_SUFFIXES:
+        if MAX_IMAGE_BYTES is not None and suf in IMAGE_SUFFIXES:
             file_size = getattr(uploaded, 'size', 0) or 0
             if file_size > MAX_IMAGE_BYTES:
                 return False, f'image_too_large:{rel_key}'

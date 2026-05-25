@@ -65,6 +65,44 @@ def project_site_dir(project: Project) -> Path:
     return root / str(project.pk)
 
 
+def _detect_zip_strip_prefix(zip_path: Path) -> str | None:
+    """
+    Return the common root folder name to strip during extraction, or None.
+
+    Mirrors _find_common_root_prefix logic: strip the top-level folder only when
+    ALL files share the same first path segment AND that folder contains an index.html
+    directly (e.g. test-html-website/index.html → strip 'test-html-website').
+
+    This prevents ZIPs created by "compress folder" on macOS/Windows from landing
+    one directory too deep (dest/test-html-website/index.html instead of dest/index.html).
+    """
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            first_parts: set[str] = set()
+            names: list[str] = []
+            for info in zf.infolist():
+                name = (info.filename or '').replace('\\', '/').strip()
+                if not name or info.is_dir() or name.endswith('/'):
+                    continue
+                parts = [p for p in name.split('/') if p]
+                if len(parts) < 2:
+                    return None  # file at ZIP root → nothing to strip
+                first_parts.add(parts[0])
+                if len(first_parts) > 1:
+                    return None  # multiple top-level entries
+                names.append(name.lower())
+            if not first_parts or not names:
+                return None
+            common = first_parts.pop()
+            has_index = any(
+                n in (common.lower() + '/index.html', common.lower() + '/index.htm')
+                for n in names
+            )
+            return common if has_index else None
+    except (OSError, zipfile.BadZipFile):
+        return None
+
+
 def _validate_zip_for_extraction(zip_path: Path) -> tuple[bool, str]:
     """
     Scan ZIP central directory for path-traversal and image-size violations.
@@ -133,6 +171,7 @@ def extract_static_site_from_zip(project: Project, zip_path: Path, subfolder: st
 
 def _safe_unzip(zip_path: Path, dest: Path) -> None:
     root = dest.resolve()
+    strip_prefix = _detect_zip_strip_prefix(zip_path)
     with zipfile.ZipFile(zip_path, 'r') as zf:
         for info in zf.infolist():
             name = (info.filename or '').replace('\\', '/').strip()
@@ -142,6 +181,16 @@ def _safe_unzip(zip_path: Path, dest: Path) -> None:
             parts_raw = name.split('/')
             if parts_raw[0] == '__MACOSX' or any(p.startswith('._') for p in parts_raw):
                 continue
+            # Strip the top-level folder prefix when the ZIP was created by compressing
+            # a folder (e.g. test-html-website/index.html → index.html).
+            if strip_prefix:
+                prefix = strip_prefix + '/'
+                if name.startswith(prefix):
+                    name = name[len(prefix):]
+                elif name.lower().startswith(prefix.lower()):
+                    name = name[len(prefix):]
+                if not name:
+                    continue
             # Lowercase all path parts so ZIPs created on macOS/Windows work on Linux.
             parts = [p.lower() for p in name.rstrip('/').split('/') if p]
             lowered = '/'.join(parts)

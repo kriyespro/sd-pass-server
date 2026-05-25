@@ -67,14 +67,20 @@
           var fd = new FormData(form);
           // new FormData(form) uses file.name (basename only) and discards
           // webkitRelativePath, so "images/photo.jpg" arrives as "photo.jpg"
-          // and the images/ subfolder structure is lost. Re-add every file
-          // entry using webkitRelativePath when available.
+          // and the images/ subfolder structure is lost.
+          // Fix: collect ALL files from ALL active inputs first, then delete
+          // and re-add using webkitRelativePath. Must collect before any delete
+          // so the second input's fd.delete() doesn't wipe the first input's files.
+          var _fileEntries = [];
+          var _fileInputNames = {};
           form.querySelectorAll('input[type="file"]:not(:disabled)').forEach(function (inp) {
-            fd.delete(inp.name);
+            _fileInputNames[inp.name] = true;
             Array.from(inp.files || []).forEach(function (f) {
-              fd.append(inp.name, f, f.webkitRelativePath || f.name);
+              _fileEntries.push([inp.name, f, f.webkitRelativePath || f.name]);
             });
           });
+          Object.keys(_fileInputNames).forEach(function (n) { fd.delete(n); });
+          _fileEntries.forEach(function (e) { fd.append(e[0], e[1], e[2]); });
           var xhr = new XMLHttpRequest();
           var pulseTimer = null;
           var bytesSent = false;

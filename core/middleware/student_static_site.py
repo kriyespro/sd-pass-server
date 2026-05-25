@@ -65,11 +65,15 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
     Map request path to a path relative to site root for django.views.static.serve.
     Returns None if the URL must not be served (caller may 404/400).
 
-    Alias resolution order when the exact path is missing:
-      1. Try every other known image-folder alias as the first segment
-         (img/ ↔ images/ ↔ image/ ↔ photos/ etc.) — any nesting depth.
-      2. For single-level paths only: try the file flat at the site root
-         (handles uploads where the folder prefix was stripped).
+    Alias resolution when the exact path is missing:
+
+    Case A — no subfolder prefix, image alias is first segment:
+      images/photo.jpg  →  try img/, image/, photos/, … + flat at root
+
+    Case B — one subfolder prefix, image alias is second segment:
+      portfolio/images/photo.jpg  →  try portfolio/img/, … + flat in portfolio/
+
+    Both cases handle any nesting depth beyond the alias (e.g. images/gallery/photo.jpg).
     """
     if not url_path:
         return 'index.html'
@@ -85,24 +89,40 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
         return (rel / 'index.html').as_posix()
 
     parts = rel.parts
-    if len(parts) >= 2 and parts[0].lower() in _IMAGE_FOLDER_ALIASES:
-        tail = parts[1:]  # everything after the first folder segment
 
-        # 1. Try all other known folder aliases as replacement for first segment.
+    # Case A: first segment is a known image-folder alias (no subfolder prefix).
+    # e.g. images/photo.jpg, img/gallery/photo.jpg
+    if len(parts) >= 2 and parts[0].lower() in _IMAGE_FOLDER_ALIASES:
+        tail = parts[1:]
         for alias in _IMAGE_FOLDER_ALIASES:
             if alias == parts[0].lower():
                 continue
             candidate = Path(alias, *tail)
             if (root / candidate).is_file():
                 return candidate.as_posix()
+        # Flat fallback: try file at site root (no folder).
+        if len(parts) == 2 and '..' not in Path(parts[1]).parts:
+            flat = root / parts[1]
+            if flat.is_file():
+                return Path(parts[1]).as_posix()
 
-        # 2. For single-level paths (e.g. img/photo.jpg) also try flat at root.
-        if len(parts) == 2:
-            leaf = parts[1]
-            if '..' not in Path(leaf).parts:
-                flat = root / leaf
-                if flat.is_file():
-                    return Path(leaf).as_posix()
+    # Case B: second segment is a known image-folder alias (one subfolder prefix).
+    # e.g. portfolio/images/photo.jpg when file is at portfolio/img/photo.jpg
+    #      or portfolio/images/photo.jpg when file is flat at portfolio/photo.jpg
+    elif len(parts) >= 3 and parts[1].lower() in _IMAGE_FOLDER_ALIASES:
+        subfolder = parts[0]
+        tail = parts[2:]
+        for alias in _IMAGE_FOLDER_ALIASES:
+            if alias == parts[1].lower():
+                continue
+            candidate = Path(subfolder, alias, *tail)
+            if (root / candidate).is_file():
+                return candidate.as_posix()
+        # Flat fallback: try file directly inside the subfolder.
+        if len(parts) == 3 and '..' not in Path(parts[2]).parts:
+            flat = root / subfolder / parts[2]
+            if flat.is_file():
+                return (Path(subfolder) / parts[2]).as_posix()
 
     return rel.as_posix()
 

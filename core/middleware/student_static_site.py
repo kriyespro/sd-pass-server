@@ -88,6 +88,17 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
     if primary.is_dir():
         return (rel / 'index.html').as_posix()
 
+    # Files are stored lowercase (upload normalisation lowercases every path segment).
+    # HTML may still reference original mixed-case names (e.g. Hero.JPG → hero.jpg).
+    # Try lowercasing the full path before alias resolution.
+    lower_rel = Path(*[p.lower() for p in rel.parts]) if rel.parts else rel
+    if lower_rel != rel:
+        lower_candidate = root / lower_rel
+        if lower_candidate.is_file():
+            return lower_rel.as_posix()
+        if lower_candidate.is_dir():
+            return (lower_rel / 'index.html').as_posix()
+
     parts = rel.parts
 
     # Case A: first segment is a known image-folder alias (no subfolder prefix).

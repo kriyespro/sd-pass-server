@@ -192,6 +192,27 @@ def _safe_rel_path_for_static_upload(raw_name: str, dest: Path) -> tuple[bool, s
     return True, '', rel_path
 
 
+def _find_common_root_prefix(raw_names: list[str]) -> str | None:
+    """
+    When a browser folder-picker (webkitdirectory) is used, every uploaded filename
+    starts with the selected folder's name, e.g. "mysite/index.html" instead of
+    "index.html". Detect this by checking if ALL paths share the same first segment
+    AND every path has at least two segments. Return that segment so the caller can
+    strip it, making files land at the site root as expected.
+    Returns None if paths are flat or have differing first segments.
+    """
+    first_parts: set[str] = set()
+    for name in raw_names:
+        name = (name or '').replace('\\', '/').strip()
+        parts = [p for p in name.split('/') if p and p != '.']
+        if len(parts) < 2:
+            return None
+        first_parts.add(parts[0])
+        if len(first_parts) > 1:
+            return None
+    return first_parts.pop() if first_parts else None
+
+
 def save_static_files(project: Project, file_list: list, subfolder: str = '') -> tuple[bool, str]:
     """
     Save multiple uploaded files under the static site directory (merge/overwrite).
@@ -216,11 +237,20 @@ def save_static_files(project: Project, file_list: list, subfolder: str = '') ->
     dest = project_site_dir(project)
     dest.mkdir(parents=True, exist_ok=True)
 
+    # Strip the root folder name that webkitdirectory prepends to every filename
+    # (e.g. "mysite/index.html" → "index.html", "mysite/images/photo.jpg" → "images/photo.jpg").
+    common_root = _find_common_root_prefix([f.name or '' for f in file_list])
+
     staged: list[tuple[Path, object]] = []
     total = 0
     seen_rel: set[str] = set()
     for uploaded in file_list:
         raw_name = uploaded.name or ''
+        if common_root:
+            stripped = raw_name.replace('\\', '/').strip()
+            prefix = common_root + '/'
+            if stripped.startswith(prefix):
+                raw_name = stripped[len(prefix):]
         ok_path, err, rel_path = _safe_rel_path_for_static_upload(raw_name, dest)
         if not ok_path:
             return False, err

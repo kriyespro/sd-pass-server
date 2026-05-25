@@ -56,6 +56,11 @@ def _optimize_image(path: Path) -> tuple[int, int]:
             img.save(tmp_path, **save_kwargs)
 
         new_size = tmp_path.stat().st_size
+        if new_size >= orig_size:
+            # New file is not smaller — keep original untouched.
+            tmp_path.unlink(missing_ok=True)
+            tmp_path = None
+            return orig_size, orig_size
         tmp_path.replace(path)  # atomic rename — original never half-written
         tmp_path = None
         return orig_size, new_size
@@ -93,9 +98,10 @@ def _ultra_compress_image(path: Path) -> tuple[int, int]:
                     img = img.convert('RGB')
                 save_kwargs: dict = {'format': 'JPEG', 'quality': 55, 'optimize': True, 'progressive': True}
             elif suffix == '.png':
-                # Quantize to 256 colours for lossy-like PNG shrink, then save optimised
+                # Quantize to 256-colour palette for lossy-like PNG shrink.
+                # Keep as 'P' mode — converting back to RGBA would undo the size saving.
                 if img.mode not in ('P',):
-                    img = img.quantize(colors=256, method=Image.Quantize.MEDIANCUT).convert('RGBA')
+                    img = img.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
                 save_kwargs = {'format': 'PNG', 'optimize': True}
             elif suffix == '.webp':
                 save_kwargs = {'format': 'WEBP', 'lossless': False, 'method': 6, 'quality': 45}

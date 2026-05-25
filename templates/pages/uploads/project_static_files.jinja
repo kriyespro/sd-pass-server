@@ -44,7 +44,7 @@
             multiple
             class="block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-violet-500 file:px-3 file:py-1 file:text-slate-950"
           />
-          <p class="mt-1 text-xs text-slate-500">Choose the <strong>project root</strong> (the folder that contains <code class="text-slate-400">index.html</code> and your <code class="text-slate-400">images</code> folder) so links like <code class="text-slate-400">images/photo.jpg</code> work. If you only pick the <code class="text-slate-400">images</code> folder, files land at the site root without an <code class="text-slate-400">images/</code> prefix.</p>
+          <p class="mt-1 text-xs text-slate-500">Choose your <strong>project root</strong> (the folder that contains <code class="text-slate-400">index.html</code> and your <code class="text-slate-400">images</code> folder). The folder name itself is stripped automatically, so paths like <code class="text-slate-400">images/photo.jpg</code> land correctly regardless of what the folder is named.</p>
         </div>
       </div>
       <div x-data="{ subfolder: '' }">

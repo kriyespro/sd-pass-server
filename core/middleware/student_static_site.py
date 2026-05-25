@@ -206,7 +206,7 @@ def _resolve_project_for_static_host(host: str):
     if cached_pk is not None:
         project = (
             Project.objects.filter(pk=cached_pk, is_deleted=False)
-            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified')
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder')
             .first()
         )
         if project:
@@ -225,7 +225,7 @@ def _resolve_project_for_static_host(host: str):
             return None
         project = (
             Project.objects.filter(subdomain__iexact=sub, is_deleted=False)
-            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname')
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'site_subfolder')
             .first()
         )
         if project is None:
@@ -242,7 +242,7 @@ def _resolve_project_for_static_host(host: str):
             custom_hostname__iexact=host,
             is_deleted=False,
         )
-        .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified')
+        .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder')
         .first()
     )
     if project is None:
@@ -419,6 +419,19 @@ class StudentStaticSiteMiddleware:
         if not target.is_relative_to(root_resolved):
             return HttpResponse('Invalid path.', status=400, content_type='text/plain; charset=utf-8')
 
+        if not target.is_file():
+            # Subfolder fallback: when a site was deployed into a subfolder (e.g.
+            # 'test-html-website'), absolute-path references in its HTML like /styles.css
+            # won't find files at the site root. Prepend project.site_subfolder and retry.
+            sf = (getattr(project, 'site_subfolder', '') or '').strip().strip('/')
+            if sf and not url_path.startswith(sf + '/'):
+                sf_lookup = sf + '/' + url_path if url_path else sf
+                sf_rel = _resolve_site_file_rel(root, sf_lookup)
+                if sf_rel:
+                    sf_target = (root / sf_rel).resolve()
+                    if sf_target.is_relative_to(root_resolved) and sf_target.is_file():
+                        rel = sf_rel
+                        target = sf_target
         if not target.is_file():
             if not url_path and rel == 'index.html':
                 return HttpResponse(_NO_INDEX_HTML, status=200, content_type='text/html; charset=utf-8')

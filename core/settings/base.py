@@ -418,6 +418,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'domains.poll_custom_domain_verification',
         'schedule': crontab(minute='*/5'),
     },
+    'billing-suspend-expired-trials': {
+        'task': 'billing.suspend_expired_trials',
+        'schedule': crontab(hour=2, minute=0),
+    },
 }
 
 TEMPLATES = [

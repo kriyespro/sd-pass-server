@@ -65,6 +65,16 @@
           this.uploadPct = 0;
           this.label = 'Uploading…';
           var fd = new FormData(form);
+          // new FormData(form) uses file.name (basename only) and discards
+          // webkitRelativePath, so "images/photo.jpg" arrives as "photo.jpg"
+          // and the images/ subfolder structure is lost. Re-add every file
+          // entry using webkitRelativePath when available.
+          form.querySelectorAll('input[type="file"]:not(:disabled)').forEach(function (inp) {
+            fd.delete(inp.name);
+            Array.from(inp.files || []).forEach(function (f) {
+              fd.append(inp.name, f, f.webkitRelativePath || f.name);
+            });
+          });
           var xhr = new XMLHttpRequest();
           var pulseTimer = null;
           var bytesSent = false;

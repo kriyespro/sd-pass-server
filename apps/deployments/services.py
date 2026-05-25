@@ -138,6 +138,10 @@ def _safe_unzip(zip_path: Path, dest: Path) -> None:
             name = (info.filename or '').replace('\\', '/').strip()
             if not name or name.startswith('/') or '..' in name.split('/'):
                 raise ValueError(f'Unsafe ZIP entry: {name!r}')
+            # Skip macOS metadata entries (__MACOSX/ folder and ._* files).
+            parts_raw = name.split('/')
+            if parts_raw[0] == '__MACOSX' or any(p.startswith('._') for p in parts_raw):
+                continue
             # Lowercase all path parts so ZIPs created on macOS/Windows work on Linux.
             parts = [p.lower() for p in name.rstrip('/').split('/') if p]
             lowered = '/'.join(parts)

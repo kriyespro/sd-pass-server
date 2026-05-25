@@ -124,6 +124,14 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
             if flat.is_file():
                 return (Path(subfolder) / parts[2]).as_posix()
 
+    # Extension fallback: URL has no .html/.htm but the file exists with one.
+    # Handles links like href="/about" when only about.html is on disk.
+    if rel.suffix.lower() not in ('.html', '.htm'):
+        for ext in ('.html', '.htm'):
+            candidate = root / (url_path + ext)
+            if candidate.is_file():
+                return (rel.as_posix() + ext)
+
     return rel.as_posix()
 
 _NO_INDEX_HTML = """<!DOCTYPE html>

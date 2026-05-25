@@ -9,12 +9,15 @@ from django.views.static import serve
 from apps.deployments.services import project_site_dir
 from apps.projects.models import Project
 
-# When folder upload uses only the image directory, browsers often send bare filenames
-# (e.g. 6.jpg) while HTML still references img/6.jpg. Try these first-segment names only
-# for two-part paths, and only if the nested path is missing.
-_FLATTEN_IF_MISSING_TOP = frozenset(
+# Common image/asset folder names students use. When a request for one of these
+# folders fails, we try every other alias and also the flat-at-root fallback.
+# E.g. HTML uses /img/photo.jpg but files are in images/ → served transparently.
+_IMAGE_FOLDER_ALIASES = frozenset(
     {'img', 'image', 'images', 'pics', 'photos', 'media', 'pictures', 'assets'},
 )
+
+# Keep old name as alias so nothing else in this file needs to change.
+_FLATTEN_IF_MISSING_TOP = _IMAGE_FOLDER_ALIASES
 
 # Cache project PK by host to avoid 2 DB queries per static site request.
 # TTL=30s: new deploy appears to visitors within 30 seconds.
@@ -61,6 +64,12 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
     """
     Map request path to a path relative to site root for django.views.static.serve.
     Returns None if the URL must not be served (caller may 404/400).
+
+    Alias resolution order when the exact path is missing:
+      1. Try every other known image-folder alias as the first segment
+         (img/ ↔ images/ ↔ image/ ↔ photos/ etc.) — any nesting depth.
+      2. For single-level paths only: try the file flat at the site root
+         (handles uploads where the folder prefix was stripped).
     """
     if not url_path:
         return 'index.html'
@@ -76,13 +85,24 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
         return (rel / 'index.html').as_posix()
 
     parts = rel.parts
-    if len(parts) == 2 and parts[0].lower() in _FLATTEN_IF_MISSING_TOP:
-        leaf = parts[1]
-        if '..' in Path(leaf).parts:
-            return None
-        flat = root / leaf
-        if flat.is_file():
-            return Path(leaf).as_posix()
+    if len(parts) >= 2 and parts[0].lower() in _IMAGE_FOLDER_ALIASES:
+        tail = parts[1:]  # everything after the first folder segment
+
+        # 1. Try all other known folder aliases as replacement for first segment.
+        for alias in _IMAGE_FOLDER_ALIASES:
+            if alias == parts[0].lower():
+                continue
+            candidate = Path(alias, *tail)
+            if (root / candidate).is_file():
+                return candidate.as_posix()
+
+        # 2. For single-level paths (e.g. img/photo.jpg) also try flat at root.
+        if len(parts) == 2:
+            leaf = parts[1]
+            if '..' not in Path(leaf).parts:
+                flat = root / leaf
+                if flat.is_file():
+                    return Path(leaf).as_posix()
 
     return rel.as_posix()
 

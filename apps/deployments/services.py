@@ -138,7 +138,11 @@ def _safe_unzip(zip_path: Path, dest: Path) -> None:
             name = (info.filename or '').replace('\\', '/').strip()
             if not name or name.startswith('/') or '..' in name.split('/'):
                 raise ValueError(f'Unsafe ZIP entry: {name!r}')
-            rel = Path(name)
+            # Lowercase all path parts so ZIPs created on macOS/Windows work on Linux.
+            parts = [p.lower() for p in name.rstrip('/').split('/') if p]
+            lowered = '/'.join(parts)
+            is_dir_entry = name.endswith('/') or info.is_dir()
+            rel = Path(lowered) if lowered else Path(name)
             if '..' in rel.parts:
                 raise ValueError(f'Unsafe ZIP path: {name!r}')
             if rel.is_absolute():
@@ -146,13 +150,10 @@ def _safe_unzip(zip_path: Path, dest: Path) -> None:
             target = (root / rel).resolve()
             if not target.is_relative_to(root):
                 raise ValueError(f'Path escapes site root: {name!r}')
-            if name.endswith('/'):
+            if is_dir_entry:
                 target.mkdir(parents=True, exist_ok=True)
                 continue
-            if info.is_dir():
-                target.mkdir(parents=True, exist_ok=True)
-                continue
-            suf = Path(name).suffix.lower()
+            suf = rel.suffix.lower()
             if MAX_IMAGE_BYTES is not None and suf in IMAGE_SUFFIXES and info.file_size > MAX_IMAGE_BYTES:
                 raise ValueError(
                     f'Image too large: {name!r} is {info.file_size // 1024} KB '
@@ -181,6 +182,9 @@ def _safe_rel_path_for_static_upload(raw_name: str, dest: Path) -> tuple[bool, s
         return False, 'path_too_deep', Path()
     if len(name) > MAX_STATIC_REL_PATH_CHARS:
         return False, 'path_too_long', Path()
+    # Lowercase all path segments so uploads from case-insensitive filesystems
+    # (macOS/Windows) work on the Linux server without 404s from case mismatches.
+    parts = [p.lower() for p in parts]
     rel_path = Path(*parts)
     try:
         root = dest.resolve()
@@ -194,12 +198,15 @@ def _safe_rel_path_for_static_upload(raw_name: str, dest: Path) -> tuple[bool, s
 
 def _find_common_root_prefix(raw_names: list[str]) -> str | None:
     """
-    When a browser folder-picker (webkitdirectory) is used, every uploaded filename
-    starts with the selected folder's name, e.g. "mysite/index.html" instead of
-    "index.html". Detect this by checking if ALL paths share the same first segment
-    AND every path has at least two segments. Return that segment so the caller can
-    strip it, making files land at the site root as expected.
-    Returns None if paths are flat or have differing first segments.
+    webkitdirectory folder-picker includes the selected folder name as the first
+    path segment on every file: e.g. selecting "mysite/" sends "mysite/index.html"
+    and "mysite/images/photo.jpg". Strip that prefix ONLY when the upload looks
+    like a full site — i.e. ALL paths share the same first segment AND there is an
+    index.html directly under that root ("mysite/index.html").
+
+    This avoids stripping the prefix when students upload just a subfolder (e.g.
+    selecting "images/" sends "images/photo.jpg" — those should land in images/).
+    Returns None when no stripping should happen.
     """
     first_parts: set[str] = set()
     for name in raw_names:
@@ -210,7 +217,18 @@ def _find_common_root_prefix(raw_names: list[str]) -> str | None:
         first_parts.add(parts[0])
         if len(first_parts) > 1:
             return None
-    return first_parts.pop() if first_parts else None
+
+    if not first_parts:
+        return None
+
+    common_root = first_parts.pop()
+    root_index = common_root + '/index.html'
+    root_index_htm = common_root + '/index.htm'
+    has_root_index = any(
+        (n.replace('\\', '/').strip().lower() in (root_index, root_index_htm))
+        for n in raw_names
+    )
+    return common_root if has_root_index else None
 
 
 def save_static_files(project: Project, file_list: list, subfolder: str = '') -> tuple[bool, str]:

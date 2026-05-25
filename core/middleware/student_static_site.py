@@ -105,17 +105,26 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
     # e.g. images/photo.jpg, img/gallery/photo.jpg
     if len(parts) >= 2 and parts[0].lower() in _IMAGE_FOLDER_ALIASES:
         tail = parts[1:]
+        tail_lower = tuple(p.lower() for p in tail)
         for alias in _IMAGE_FOLDER_ALIASES:
             if alias == parts[0].lower():
                 continue
             candidate = Path(alias, *tail)
             if (root / candidate).is_file():
                 return candidate.as_posix()
-        # Flat fallback: try file at site root (no folder).
+            # Also try lowercase tail (uploaded files are normalised to lowercase).
+            if tail_lower != tail:
+                candidate_lower = Path(alias, *tail_lower)
+                if (root / candidate_lower).is_file():
+                    return candidate_lower.as_posix()
+        # Flat fallback: try file at site root (no folder), original then lowercase.
         if len(parts) == 2 and '..' not in Path(parts[1]).parts:
             flat = root / parts[1]
             if flat.is_file():
                 return Path(parts[1]).as_posix()
+            flat_lower = root / parts[1].lower()
+            if flat_lower.is_file():
+                return Path(parts[1].lower()).as_posix()
 
     # Case B: second segment is a known image-folder alias (one subfolder prefix).
     # e.g. portfolio/images/photo.jpg when file is at portfolio/img/photo.jpg
@@ -123,25 +132,39 @@ def _resolve_site_file_rel(root: Path, url_path: str) -> str | None:
     elif len(parts) >= 3 and parts[1].lower() in _IMAGE_FOLDER_ALIASES:
         subfolder = parts[0]
         tail = parts[2:]
+        tail_lower = tuple(p.lower() for p in tail)
         for alias in _IMAGE_FOLDER_ALIASES:
             if alias == parts[1].lower():
                 continue
             candidate = Path(subfolder, alias, *tail)
             if (root / candidate).is_file():
                 return candidate.as_posix()
-        # Flat fallback: try file directly inside the subfolder.
+            if tail_lower != tail:
+                candidate_lower = Path(subfolder, alias, *tail_lower)
+                if (root / candidate_lower).is_file():
+                    return candidate_lower.as_posix()
+        # Flat fallback: try file directly inside the subfolder, original then lowercase.
         if len(parts) == 3 and '..' not in Path(parts[2]).parts:
             flat = root / subfolder / parts[2]
             if flat.is_file():
                 return (Path(subfolder) / parts[2]).as_posix()
+            flat_lower = root / subfolder / parts[2].lower()
+            if flat_lower.is_file():
+                return (Path(subfolder) / parts[2].lower()).as_posix()
 
     # Extension fallback: URL has no .html/.htm but the file exists with one.
     # Handles links like href="/about" when only about.html is on disk.
+    # Try original case then lowercase (uploaded files are normalised to lowercase).
     if rel.suffix.lower() not in ('.html', '.htm'):
+        url_path_lower = url_path.lower()
         for ext in ('.html', '.htm'):
             candidate = root / (url_path + ext)
             if candidate.is_file():
                 return (rel.as_posix() + ext)
+            if url_path_lower != url_path:
+                candidate_lower = root / (url_path_lower + ext)
+                if candidate_lower.is_file():
+                    return (url_path_lower + ext)
 
     return rel.as_posix()
 

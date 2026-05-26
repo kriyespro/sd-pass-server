@@ -123,7 +123,7 @@
                             </a>
                             <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
                                   onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')">
-                              {% csrf_token %}
+                              {{ csrf_input }}
                               <button type="submit" title="Remove subfolder"
                                       class="rounded px-1 py-0.5 text-[10px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors leading-none">×</button>
                             </form>
@@ -148,7 +148,7 @@
                             </a>
                             <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
                                   onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')">
-                              {% csrf_token %}
+                              {{ csrf_input }}
                               <button type="submit" title="Remove subfolder"
                                       class="rounded px-1 py-0.5 text-[10px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors leading-none">×</button>
                             </form>

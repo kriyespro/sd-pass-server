@@ -75,33 +75,31 @@
       <table class="min-w-full divide-y divide-slate-800 text-sm">
         <thead class="bg-slate-950/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
           <tr>
-            <th class="px-4 py-3">Name</th>
-            <th class="px-4 py-3">Status</th>
-            <th class="px-4 py-3">Subdomain</th>
-            <th class="px-4 py-3">Live Site</th>
-            <th class="px-4 py-3">Created</th>
-            <th class="px-4 py-3 text-right">Actions</th>
+            <th class="px-3 py-2">Name</th>
+            <th class="px-3 py-2">Status</th>
+            <th class="px-3 py-2">Live Site</th>
+            <th class="px-3 py-2">Created</th>
+            <th class="px-3 py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800 text-slate-200">
           {% for p in projects %}
             <tr class="hover:bg-slate-900/80 transition-colors">
-              <td class="px-4 py-3 font-medium text-white">{{ p.name }}</td>
-              <td class="px-4 py-3">
+              <td class="px-3 py-2 font-medium text-white text-sm">{{ p.name }}</td>
+              <td class="px-3 py-2">
                 {% if p.status == 'running' %}
-                  <span class="inline-flex rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30">Running</span>
+                  <span class="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">Running</span>
                 {% elif p.status == 'pending' %}
-                  <span class="inline-flex rounded-full bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">Pending</span>
+                  <span class="inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/30">Pending</span>
                 {% elif p.status == 'failed' %}
-                  <span class="inline-flex rounded-full bg-rose-500/15 px-2 py-1 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/30">Failed</span>
+                  <span class="inline-flex rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-300 ring-1 ring-rose-500/30">Failed</span>
                 {% else %}
-                  <span class="inline-flex rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">{{ p.get_status_display() }}</span>
+                  <span class="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{{ p.get_status_display() }}</span>
                 {% endif %}
               </td>
-              <td class="px-4 py-3 font-mono text-xs text-slate-300">{{ p.subdomain }}</td>
 
               {# ── Live site button ── #}
-              <td class="px-4 py-3">
+              <td class="px-3 py-2">
                 {% if apps_base_domain and p.project_type == 'static' %}
                   {% set _fqdn = p.subdomain ~ '.' ~ apps_base_domain %}
                   {% set _port = ':' ~ student_site_port if student_site_port else '' %}
@@ -173,20 +171,19 @@
                 {% endif %}
               </td>
 
-              <td class="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{{ p.created_at.strftime("%d %b '%y") }}</td>
-              <td class="px-4 py-3 text-right">
-                <div class="inline-grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-medium">
-                  <a href="{{ url('projects:upload_zip', slug=p.slug) }}"
-                     class="rounded px-2 py-0.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors text-center">ZIP</a>
-                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}"
-                     class="rounded px-2 py-0.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors text-center">Files</a>
-                  <a href="{{ url('projects:domain', slug=p.slug) }}"
-                     class="rounded px-2 py-0.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-colors text-center">Domain</a>
-                  <a href="{{ url('projects:logs', slug=p.slug) }}"
-                     class="rounded px-2 py-0.5 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors text-center">Logs</a>
-                  <a href="{{ url('projects:delete', slug=p.slug) }}"
-                     class="col-span-2 rounded px-2 py-0.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors text-center">Delete</a>
-                </div>
+              <td class="px-3 py-2 text-slate-400 text-xs whitespace-nowrap">{{ p.created_at.strftime("%d %b '%y") }}</td>
+              <td class="px-3 py-2 text-right whitespace-nowrap">
+                <span class="inline-flex items-center gap-1 text-xs font-medium">
+                  <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:logs', slug=p.slug) }}" class="text-slate-400 hover:text-white">Logs</a>
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:delete', slug=p.slug) }}" class="text-rose-400 hover:text-rose-300">Del</a>
+                </span>
               </td>
             </tr>
           {% endfor %}

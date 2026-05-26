@@ -28,6 +28,33 @@
         uploadPct: 0,
         label: 'Uploading…',
         imageErrors: [],
+        terminalLines: [],
+        _termStart: 0,
+        _termTimers: [],
+        _termLog: function(msg) {
+          var elapsed = Date.now() - this._termStart;
+          var s = String(Math.floor(elapsed / 1000)).padStart(2, '0');
+          var ms = String(Math.floor(elapsed % 1000)).padStart(3, '0');
+          this.terminalLines.push('[' + s + '.' + ms + '] ' + msg);
+        },
+        _clearTermTimers: function() {
+          this._termTimers.forEach(function(t) { clearTimeout(t); });
+          this._termTimers = [];
+        },
+        _scheduleLog: function(delay, msg) {
+          var self = this;
+          this._termTimers.push(setTimeout(function() { self._termLog(msg); }, delay));
+        },
+        _startTerminal: function() {
+          var self = this;
+          self.terminalLines = [];
+          self._termStart = Date.now();
+          self._clearTermTimers();
+          self._termLog('Initializing upload session...');
+          self._scheduleLog(200, 'Resolving deploy endpoint...');
+          self._scheduleLog(450, 'Preparing file payload...');
+          self._scheduleLog(750, 'Starting XHR transfer...');
+        },
         start: function (event) {
           var form = event.target;
           var self = this;
@@ -64,6 +91,7 @@
           this.uploading = true;
           this.uploadPct = 0;
           this.label = 'Uploading…';
+          this._startTerminal();
           var fd = new FormData(form);
           // new FormData(form) uses file.name (basename only) and discards
           // webkitRelativePath, so "images/photo.jpg" arrives as "photo.jpg"
@@ -84,15 +112,24 @@
           var xhr = new XMLHttpRequest();
           var pulseTimer = null;
           var bytesSent = false;
+          var lastTermPct = 0;
           xhr.open(form.method || 'POST', form.action);
           xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
           xhr.upload.addEventListener('progress', function (e) {
             if (e.lengthComputable && e.total > 0) {
               var raw = Math.round((e.loaded / e.total) * 100);
               self.uploadPct = Math.min(raw >= 100 ? 88 : raw, 88);
+              if (self.uploadPct - lastTermPct >= 20) {
+                lastTermPct = self.uploadPct;
+                self._termLog('Transferring... ' + self.uploadPct + '%');
+              }
               if (e.loaded >= e.total) {
                 bytesSent = true;
                 self.label = 'Processing on server…';
+                self._termLog('Transfer complete — handing off to server...');
+                self._scheduleLog(400, 'Running security scan...');
+                self._scheduleLog(900, 'Verifying file integrity...');
+                self._scheduleLog(1500, 'Queuing deploy task...');
               }
             } else {
               self.uploadPct = Math.min(self.uploadPct + 4, 80);
@@ -133,12 +170,17 @@
             if (xhr.status >= 200 && xhr.status < 400) {
               self.uploadPct = 100;
               self.label = 'Done! Redirecting…';
+              self._clearTermTimers();
+              self._termLog('Deploy queued successfully.');
+              self._termLog('Done — redirecting...');
               var target = (xhr.responseURL || redirectFallback).split('#')[0];
               reenableFileInputs();
               self.uploading = false;
               window.location.assign(target);
               return;
             }
+            self._clearTermTimers();
+            self._termLog('ERROR: Server returned ' + xhr.status);
             reenableFileInputs();
             self.uploading = false;
             var msg = 'Upload failed. Please try again.';
@@ -147,12 +189,16 @@
           });
           xhr.addEventListener('error', function () {
             stopPulse();
+            self._clearTermTimers();
+            self._termLog('ERROR: Connection failed.');
             reenableFileInputs();
             self.uploading = false;
             alert('Upload failed. Check your connection and try again.');
           });
           xhr.addEventListener('timeout', function () {
             stopPulse();
+            self._clearTermTimers();
+            self._termLog('ERROR: Transfer timed out.');
             reenableFileInputs();
             self.uploading = false;
             alert('Upload timed out. Try fewer files or use ZIP upload from the project page.');

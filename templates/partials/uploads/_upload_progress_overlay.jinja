@@ -2,29 +2,59 @@
 <div
   x-show="uploading"
   x-cloak
-  class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-sm"
+  class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 backdrop-blur-sm px-4"
   aria-live="polite"
   aria-busy="true"
 >
-  <div class="flex flex-col items-center gap-4 rounded-2xl border border-emerald-500/30 bg-slate-900 px-10 py-8 shadow-2xl shadow-emerald-500/10">
-    <div class="relative h-[4.5rem] w-[4.5rem]">
-      <svg class="h-[4.5rem] w-[4.5rem] -rotate-90 animate-spin opacity-30" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="6" class="text-emerald-500/40"/>
-      </svg>
-      <svg class="absolute inset-0 h-[4.5rem] w-[4.5rem] -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="42" fill="none" stroke-width="6" class="stroke-slate-800"/>
-        <circle
-          cx="50" cy="50" r="42" fill="none" stroke-width="6" stroke-linecap="round"
-          class="stroke-emerald-400 transition-all duration-200 ease-out"
-          stroke-dasharray="264"
-          :stroke-dashoffset="264 - (264 * Math.min(uploadPct, 100) / 100)"
-        />
-      </svg>
-      <span class="absolute inset-0 flex items-center justify-center text-sm font-bold tabular-nums text-white" x-text="uploadPct + '%'"></span>
+  <div class="w-full max-w-lg rounded-xl overflow-hidden border border-slate-700/60 shadow-2xl shadow-emerald-500/10 font-mono">
+
+    {# Title bar #}
+    <div class="flex items-center gap-2 bg-slate-800 px-4 py-2.5 border-b border-slate-700/60 select-none">
+      <span class="h-3 w-3 rounded-full bg-rose-500/80"></span>
+      <span class="h-3 w-3 rounded-full bg-amber-400/80"></span>
+      <span class="h-3 w-3 rounded-full bg-emerald-400/80"></span>
+      <span class="mx-auto text-xs text-slate-400 tracking-wide pr-14">upload-terminal — deploy@student-cloud</span>
     </div>
-    <div class="text-center">
-      <p class="text-sm font-semibold text-white" x-text="label"></p>
-      <p class="mt-1 text-xs text-slate-400">Please wait — do not close this tab</p>
+
+    {# Terminal log body #}
+    <div
+      x-ref="termBody"
+      x-effect="terminalLines.length && $nextTick(() => { var el = $refs.termBody; el.scrollTop = el.scrollHeight; })"
+      class="bg-[#0d0d0d] px-4 py-3 h-52 overflow-y-auto"
+    >
+      <template x-for="(line, i) in terminalLines" :key="i">
+        <div
+          class="text-xs leading-5 text-emerald-400"
+          x-text="'$ ' + line"
+        ></div>
+      </template>
+      {# Blinking cursor line #}
+      <div class="text-xs leading-5 text-emerald-400 flex items-center gap-1">
+        <span>$</span>
+        <span class="inline-block w-[7px] h-[13px] bg-emerald-400" style="animation: blink 1s step-start infinite;"></span>
+      </div>
+    </div>
+
+    {# Progress bar footer #}
+    <div class="bg-slate-900 px-4 py-3 border-t border-slate-800">
+      <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+        <span x-text="label" class="text-slate-400"></span>
+        <span x-text="uploadPct + '%'" class="text-emerald-400 tabular-nums font-semibold"></span>
+      </div>
+      <div class="h-1 rounded-full bg-slate-800 overflow-hidden">
+        <div
+          class="h-full rounded-full bg-emerald-400 transition-all duration-300 ease-out"
+          :style="'width:' + Math.min(uploadPct, 100) + '%'"
+        ></div>
+      </div>
+      <p class="mt-2 text-[10px] text-slate-600 text-center">Do not close this tab</p>
     </div>
   </div>
 </div>
+
+<style>
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+</style>

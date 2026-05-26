@@ -106,46 +106,48 @@
                   {% set _fqdn = p.subdomain ~ '.' ~ apps_base_domain %}
                   {% set _port = ':' ~ student_site_port if student_site_port else '' %}
                   {% set _sub_root = student_site_scheme ~ '://' ~ _fqdn ~ _port ~ '/' %}
-                  {% set _custom_root = (student_site_scheme ~ '://' ~ p.custom_hostname ~ '/') if (p.custom_hostname and p.custom_hostname_verified) else '' %}
+                  {% set _has_custom = p.custom_hostname and p.custom_hostname_verified %}
+                  {% set _custom_root = (student_site_scheme ~ '://' ~ p.custom_hostname ~ '/') if _has_custom else '' %}
                   {# Collect all deployed subfolders for this project #}
                   {% set _subs = p.subfolders.all() %}
                   <div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                    {% if _subs %}
-                      {% for sf in _subs %}
-                        {% set _path = (sf.path.strip('/') ~ '/') if sf.path else '' %}
-                        {% set _sub_url = _sub_root ~ _path %}
-                        <div class="space-y-0.5">
-                          <a href="{{ _sub_url }}" target="_blank" rel="noopener noreferrer"
+                    {% if _has_custom %}
+                      {# Custom domain verified — show only custom domain links #}
+                      {% if _subs %}
+                        {% for sf in _subs %}
+                          {% set _path = (sf.path.strip('/') ~ '/') if sf.path else '' %}
+                          <a href="{{ _custom_root ~ _path }}" target="_blank" rel="noopener noreferrer"
+                             class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 transition-colors max-w-[200px] truncate">
+                            🔗 {{ p.custom_hostname }}/{{ _path }}
+                          </a>
+                        {% endfor %}
+                      {% else %}
+                        <a href="{{ _custom_root }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 transition-colors">
+                          🔗 Visit Site
+                        </a>
+                        <div class="select-all break-all font-mono text-[10px] text-slate-500">{{ _custom_root }}</div>
+                      {% endif %}
+                    {% else %}
+                      {# No verified custom domain — show platform default links #}
+                      {% if _subs %}
+                        {% for sf in _subs %}
+                          {% set _path = (sf.path.strip('/') ~ '/') if sf.path else '' %}
+                          <a href="{{ _sub_root ~ _path }}" target="_blank" rel="noopener noreferrer"
                              class="inline-flex items-center gap-1 rounded bg-sky-500/10 px-2 py-1 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/25 hover:bg-sky-500/20 transition-colors max-w-[200px] truncate">
                             🌐 {{ _fqdn }}/{{ _path }}
                           </a>
-                          {% if _custom_root %}
-                            {% set _cust_url = _custom_root ~ _path %}
-                            <a href="{{ _cust_url }}" target="_blank" rel="noopener noreferrer"
-                               class="block truncate max-w-[200px] text-[10px] font-medium text-amber-400 hover:text-amber-300">
-                              🔗 {{ p.custom_hostname }}/{{ _path }}
-                            </a>
-                          {% endif %}
-                        </div>
-                      {% endfor %}
-                    {% else %}
-                      {# No subfolder records yet — show plain root link #}
-                      <a href="{{ _sub_root }}" target="_blank" rel="noopener noreferrer"
-                         class="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30 hover:bg-sky-500/25 transition-colors">
-                        🌐 Visit Site
-                      </a>
-                      <div class="select-all break-all font-mono text-[10px] text-slate-500">{{ _sub_root }}</div>
-                      {% if _custom_root %}
-                        <a href="{{ _custom_root }}" target="_blank" rel="noopener noreferrer"
-                           class="block text-[10px] font-medium text-amber-400 hover:text-amber-300 truncate max-w-[200px]">
-                          🔗 {{ p.custom_hostname }}/
+                        {% endfor %}
+                      {% else %}
+                        <a href="{{ _sub_root }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30 hover:bg-sky-500/25 transition-colors">
+                          🌐 Visit Site
                         </a>
-                      {% elif p.custom_hostname %}
+                        <div class="select-all break-all font-mono text-[10px] text-slate-500">{{ _sub_root }}</div>
+                      {% endif %}
+                      {% if p.custom_hostname and not p.custom_hostname_verified %}
                         <span class="block text-[10px] text-slate-600">{{ p.custom_hostname }} (unverified)</span>
                       {% endif %}
-                    {% endif %}
-                    {% if p.custom_hostname and not p.custom_hostname_verified %}
-                      <span class="block text-[10px] text-slate-600">{{ p.custom_hostname }} (unverified)</span>
                     {% endif %}
                   </div>
                 {% elif apps_base_domain %}

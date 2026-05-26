@@ -84,87 +84,80 @@
         <tbody class="divide-y divide-slate-800 text-slate-200">
           {% for p in projects %}
             <tr class="hover:bg-slate-900/80 transition-colors">
-              {# ── Project: name + status + subdomain combined ── #}
-              <td class="px-3 py-2 min-w-[130px]">
-                <div class="font-medium text-white text-sm leading-tight">{{ p.name }}</div>
-                <div class="flex items-center gap-1.5 mt-0.5">
-                  {% if p.status == 'running' %}
-                    <span class="inline-flex rounded-full bg-emerald-500/15 px-1.5 py-px text-[9px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">Running</span>
-                  {% elif p.status == 'pending' %}
-                    <span class="inline-flex rounded-full bg-amber-500/15 px-1.5 py-px text-[9px] font-semibold text-amber-300 ring-1 ring-amber-500/30">Pending</span>
-                  {% elif p.status == 'failed' %}
-                    <span class="inline-flex rounded-full bg-rose-500/15 px-1.5 py-px text-[9px] font-semibold text-rose-300 ring-1 ring-rose-500/30">Failed</span>
-                  {% else %}
-                    <span class="inline-flex rounded-full bg-slate-800 px-1.5 py-px text-[9px] font-semibold text-slate-300">{{ p.get_status_display() }}</span>
-                  {% endif %}
-                  <span class="font-mono text-[9px] text-slate-500 truncate max-w-[90px]">{{ p.subdomain }}</span>
-                </div>
+              {# ── Project: name · status · subdomain — all inline ── #}
+              <td class="px-3 py-2 whitespace-nowrap">
+                <span class="font-medium text-white text-sm">{{ p.name }}</span>
+                <span class="mx-1.5 text-slate-700">·</span>
+                {% if p.status == 'running' %}
+                  <span class="inline-flex rounded-full bg-emerald-500/15 px-1.5 py-px text-[9px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">Running</span>
+                {% elif p.status == 'pending' %}
+                  <span class="inline-flex rounded-full bg-amber-500/15 px-1.5 py-px text-[9px] font-semibold text-amber-300 ring-1 ring-amber-500/30">Pending</span>
+                {% elif p.status == 'failed' %}
+                  <span class="inline-flex rounded-full bg-rose-500/15 px-1.5 py-px text-[9px] font-semibold text-rose-300 ring-1 ring-rose-500/30">Failed</span>
+                {% else %}
+                  <span class="inline-flex rounded-full bg-slate-800 px-1.5 py-px text-[9px] font-semibold text-slate-300">{{ p.get_status_display() }}</span>
+                {% endif %}
+                <span class="mx-1.5 text-slate-700">·</span>
+                <span class="font-mono text-[9px] text-slate-500">{{ p.subdomain }}</span>
               </td>
 
-              {# ── Live site button ── #}
-              <td class="px-3 py-2">
+              {# ── Live site — all links inline ── #}
+              <td class="px-3 py-2 whitespace-nowrap">
                 {% if apps_base_domain and p.project_type == 'static' %}
                   {% set _fqdn = p.subdomain ~ '.' ~ apps_base_domain %}
                   {% set _port = ':' ~ student_site_port if student_site_port else '' %}
                   {% set _sub_root = student_site_scheme ~ '://' ~ _fqdn ~ _port ~ '/' %}
                   {% set _has_custom = p.custom_hostname and p.custom_hostname_verified %}
                   {% set _custom_root = (student_site_scheme ~ '://' ~ p.custom_hostname ~ '/') if _has_custom else '' %}
-                  {# Collect all deployed subfolders for this project #}
                   {% set _subs = p.subfolders.all() %}
-                  <div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  <span class="inline-flex flex-wrap items-center gap-1">
                     {% if _has_custom %}
-                      {# Custom domain verified — root shows domain, subfolders show /path/ only #}
                       {% if _subs %}
                         {% for sf in _subs %}
                           {% set _path = (sf.path.strip('/') ~ '/') if sf.path else '' %}
-                          <div class="flex items-center gap-1">
-                            <a href="{{ _custom_root ~ _path }}" target="_blank" rel="noopener noreferrer"
-                               class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 transition-colors max-w-[200px] truncate">
-                              🔗 {% if _path %}/{{ _path }}{% else %}{{ p.custom_hostname }}{% endif %}
-                            </a>
-                            <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
-                                  onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')">
-                              {{ csrf_input }}
-                              <button type="submit" title="Remove subfolder"
-                                      class="rounded px-1 py-0.5 text-[10px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors leading-none">×</button>
-                            </form>
-                          </div>
+                          <a href="{{ _custom_root ~ _path }}" target="_blank" rel="noopener noreferrer"
+                             class="inline-flex items-center gap-0.5 rounded bg-amber-500/10 px-1.5 py-px text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 transition-colors">
+                            🔗 {% if _path %}/{{ _path }}{% else %}{{ p.custom_hostname }}{% endif %}
+                          </a>
+                          <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
+                                onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')" class="inline">
+                            {{ csrf_input }}
+                            <button type="submit" title="Remove subfolder"
+                                    class="text-[10px] text-rose-500 hover:text-rose-400 leading-none">×</button>
+                          </form>
                         {% endfor %}
                       {% else %}
                         <a href="{{ _custom_root }}" target="_blank" rel="noopener noreferrer"
-                           class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 transition-colors max-w-[200px] truncate">
+                           class="inline-flex items-center gap-0.5 rounded bg-amber-500/10 px-1.5 py-px text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 transition-colors">
                           🔗 {{ p.custom_hostname }}
                         </a>
                       {% endif %}
                     {% else %}
-                      {# Platform domain — root shows subdomain, subfolders show /path/ only #}
                       {% if _subs %}
                         {% for sf in _subs %}
                           {% set _path = (sf.path.strip('/') ~ '/') if sf.path else '' %}
-                          <div class="flex items-center gap-1">
-                            <a href="{{ _sub_root ~ _path }}" target="_blank" rel="noopener noreferrer"
-                               class="inline-flex items-center gap-1 rounded bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/25 hover:bg-sky-500/20 transition-colors max-w-[200px] truncate">
-                              🌐 {% if _path %}/{{ _path }}{% else %}{{ p.subdomain }}{% endif %}
-                            </a>
-                            <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
-                                  onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')">
-                              {{ csrf_input }}
-                              <button type="submit" title="Remove subfolder"
-                                      class="rounded px-1 py-0.5 text-[10px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors leading-none">×</button>
-                            </form>
-                          </div>
+                          <a href="{{ _sub_root ~ _path }}" target="_blank" rel="noopener noreferrer"
+                             class="inline-flex items-center gap-0.5 rounded bg-sky-500/10 px-1.5 py-px text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/25 hover:bg-sky-500/20 transition-colors">
+                            🌐 {% if _path %}/{{ _path }}{% else %}{{ p.subdomain }}{% endif %}
+                          </a>
+                          <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
+                                onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')" class="inline">
+                            {{ csrf_input }}
+                            <button type="submit" title="Remove subfolder"
+                                    class="text-[10px] text-rose-500 hover:text-rose-400 leading-none">×</button>
+                          </form>
                         {% endfor %}
                       {% else %}
                         <a href="{{ _sub_root }}" target="_blank" rel="noopener noreferrer"
-                           class="inline-flex items-center gap-1 rounded bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/25 hover:bg-sky-500/20 transition-colors max-w-[200px] truncate">
+                           class="inline-flex items-center gap-0.5 rounded bg-sky-500/10 px-1.5 py-px text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/25 hover:bg-sky-500/20 transition-colors">
                           🌐 {{ p.subdomain }}
                         </a>
                       {% endif %}
                       {% if p.custom_hostname and not p.custom_hostname_verified %}
-                        <span class="block text-[10px] text-slate-600">{{ p.custom_hostname }} (unverified)</span>
+                        <span class="text-[10px] text-slate-600">{{ p.custom_hostname }} (unverified)</span>
                       {% endif %}
                     {% endif %}
-                  </div>
+                  </span>
                 {% elif apps_base_domain %}
                   <span class="font-mono text-[10px] text-slate-500">{{ p.subdomain }}</span>
                 {% else %}

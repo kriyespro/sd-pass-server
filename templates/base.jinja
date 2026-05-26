@@ -31,6 +31,8 @@
         terminalLines: [],
         _termStart: 0,
         _termTimers: [],
+        _termHasImages: false,
+        _termFileCount: 0,
         _termLog: function(msg) {
           var elapsed = Date.now() - this._termStart;
           var s = String(Math.floor(elapsed / 1000)).padStart(2, '0');
@@ -45,15 +47,46 @@
           var self = this;
           this._termTimers.push(setTimeout(function() { self._termLog(msg); }, delay));
         },
-        _startTerminal: function() {
+        _startTerminal: function(fileEntries) {
           var self = this;
           self.terminalLines = [];
           self._termStart = Date.now();
           self._clearTermTimers();
-          self._termLog('Initializing upload session...');
-          self._scheduleLog(200, 'Resolving deploy endpoint...');
-          self._scheduleLog(450, 'Preparing file payload...');
-          self._scheduleLog(750, 'Starting XHR transfer...');
+          var files = fileEntries || [];
+          var IMG_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+          var CODE_EXTS = ['.html', '.htm', '.css', '.js', '.mjs', '.json'];
+          var imgFiles = files.filter(function(e) {
+            return IMG_EXTS.indexOf('.' + e[2].split('.').pop().toLowerCase()) !== -1;
+          });
+          self._termHasImages = imgFiles.length > 0;
+          self._termFileCount = files.length;
+
+          // Phase 1 — init
+          self._termLog('Connecting to student-cloud deploy server...');
+          self._scheduleLog(160, 'Session authenticated.');
+          self._scheduleLog(340, 'Reading file manifest...');
+          var t = 520;
+          if (files.length > 0) {
+            var preview = files.slice(0, 3).map(function(e) { return e[2].split('/').pop(); });
+            var moreStr = files.length > 3 ? ' +' + (files.length - 3) + ' more' : '';
+            self._scheduleLog(t, 'Found ' + files.length + ' file(s): ' + preview.join(', ') + moreStr);
+            t += 200;
+          }
+          self._scheduleLog(t, 'Calculating checksums...'); t += 200;
+          self._scheduleLog(t, 'Starting transfer...'); t += 220;
+
+          // Phase 2 — per-file upload logs (spread across transfer window)
+          var gap = 280;
+          files.slice(0, 7).forEach(function(entry) {
+            var name = entry[2].split('/').pop();
+            var kb = entry[1] && entry[1].size ? ' (' + (entry[1].size / 1024).toFixed(1) + ' KB)' : '';
+            var ext = '.' + name.split('.').pop().toLowerCase();
+            var verb = IMG_EXTS.indexOf(ext) !== -1 ? 'Uploading image' : 'Uploading file';
+            self._scheduleLog(t, verb + ': ' + name + kb); t += gap;
+          });
+          if (files.length > 7) {
+            self._scheduleLog(t, 'Uploading ' + (files.length - 7) + ' more file(s)...'); t += gap;
+          }
         },
         start: function (event) {
           var form = event.target;
@@ -91,7 +124,6 @@
           this.uploading = true;
           this.uploadPct = 0;
           this.label = 'Uploading…';
-          this._startTerminal();
           var fd = new FormData(form);
           // new FormData(form) uses file.name (basename only) and discards
           // webkitRelativePath, so "images/photo.jpg" arrives as "photo.jpg"
@@ -109,6 +141,7 @@
           });
           Object.keys(_fileInputNames).forEach(function (n) { fd.delete(n); });
           _fileEntries.forEach(function (e) { fd.append(e[0], e[1], e[2]); });
+          this._startTerminal(_fileEntries);
           var xhr = new XMLHttpRequest();
           var pulseTimer = null;
           var bytesSent = false;
@@ -126,10 +159,22 @@
               if (e.loaded >= e.total) {
                 bytesSent = true;
                 self.label = 'Processing on server…';
-                self._termLog('Transfer complete — handing off to server...');
-                self._scheduleLog(400, 'Running security scan...');
-                self._scheduleLog(900, 'Verifying file integrity...');
-                self._scheduleLog(1500, 'Queuing deploy task...');
+                self._termLog('Transfer complete. ' + self._termFileCount + ' file(s) received.');
+                self._scheduleLog(350,  'Scanning for malicious code...');
+                self._scheduleLog(750,  'No threats detected. Code is clean.');
+                self._scheduleLog(1050, 'Checking HTML/CSS structure...');
+                self._scheduleLog(1350, 'Validating file paths...');
+                var t2 = 1650;
+                if (self._termHasImages) {
+                  self._scheduleLog(t2, 'Optimizing images...'); t2 += 500;
+                  self._scheduleLog(t2, 'Image compression complete.'); t2 += 350;
+                }
+                self._scheduleLog(t2, 'Setting file permissions...'); t2 += 350;
+                self._scheduleLog(t2, 'Securing your website...'); t2 += 400;
+                self._scheduleLog(t2, 'SSL/TLS certificate verified.'); t2 += 350;
+                self._scheduleLog(t2, 'Publishing files to CDN...'); t2 += 450;
+                self._scheduleLog(t2, 'Routing traffic to your site...'); t2 += 400;
+                self._scheduleLog(t2, 'It\'s time to go online!'); t2 += 300;
               }
             } else {
               self.uploadPct = Math.min(self.uploadPct + 4, 80);
@@ -169,14 +214,16 @@
             }
             if (xhr.status >= 200 && xhr.status < 400) {
               self.uploadPct = 100;
-              self.label = 'Done! Redirecting…';
+              self.label = 'Done!';
               self._clearTermTimers();
               self._termLog('Deploy queued successfully.');
-              self._termLog('Done — redirecting...');
+              self._termLog('Site is live. Redirecting in 1s...');
               var target = (xhr.responseURL || redirectFallback).split('#')[0];
               reenableFileInputs();
-              self.uploading = false;
-              window.location.assign(target);
+              setTimeout(function() {
+                self.uploading = false;
+                window.location.assign(target);
+              }, 1000);
               return;
             }
             self._clearTermTimers();

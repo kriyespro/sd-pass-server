@@ -147,3 +147,20 @@ class WebsiteOverview(Project):
         proxy = True
         verbose_name = 'Website Overview'
         verbose_name_plural = 'Website Overview'
+
+
+class PromoMessage(models.Model):
+    """Promotional ticker messages shown on the projects dashboard."""
+
+    text = models.CharField(max_length=220, help_text='Message shown in the promo ticker.')
+    is_active = models.BooleanField(default=True, db_index=True)
+    order = models.PositiveSmallIntegerField(default=0, help_text='Lower = shown first.')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Promo Message'
+        verbose_name_plural = 'Promo Messages'
+
+    def __str__(self):
+        return self.text[:60]

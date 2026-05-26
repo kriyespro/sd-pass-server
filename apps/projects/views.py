@@ -46,6 +46,10 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
             ctx['plan_label'] = 'Free'
         from core.server_stats import get_server_stats
         ctx['server'] = get_server_stats()
+        from .models import PromoMessage
+        ctx['promo_messages'] = list(
+            PromoMessage.objects.filter(is_active=True).values_list('text', flat=True)
+        )
         base = (settings.STUDENT_APPS_BASE_DOMAIN or '').strip()
         ctx['apps_base_domain'] = base
         ctx['student_apps_base_is_ipv4'] = bool(_STUDENT_APPS_IPV4.match(base))

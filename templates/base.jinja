@@ -16,6 +16,42 @@
       }
     });
 
+    /** Promotional ticker with typewriter + RTL slide cycling through messages. */
+    function promoBanner(messages) {
+      var msgs = (messages && messages.length) ? messages : [];
+      return {
+        msgs: msgs,
+        i: 0,
+        txt: '',
+        show: true,
+        _t: null,
+        init() {
+          if (!this.msgs.length) return;
+          this._type();
+        },
+        _type() {
+          var self = this;
+          var target = self.msgs[self.i];
+          if (self.txt.length < target.length) {
+            self.txt += target.charAt(self.txt.length);
+            self._t = setTimeout(function() { self._type(); }, 38);
+          } else {
+            self._t = setTimeout(function() { self._next(); }, 3200);
+          }
+        },
+        _next() {
+          var self = this;
+          self.show = false;
+          self._t = setTimeout(function() {
+            self.i = (self.i + 1) % self.msgs.length;
+            self.txt = '';
+            self.show = true;
+            self._t = setTimeout(function() { self._type(); }, 350);
+          }, 500);
+        },
+      };
+    }
+
     /** Multipart upload with circular progress (static files + onboarding). */
     function uploadForm(opts) {
       opts = opts || {};

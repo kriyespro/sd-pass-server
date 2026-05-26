@@ -4,7 +4,7 @@ from django.contrib.admin import RelatedOnlyFieldListFilter
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Project, ProjectSubfolder, WebsiteOverview
+from .models import Project, ProjectSubfolder, PromoMessage, WebsiteOverview
 
 
 class ProjectSubfolderInline(admin.TabularInline):
@@ -169,3 +169,13 @@ class WebsiteOverviewAdmin(admin.ModelAdmin):
         return format_html(
             '<a href="{}" style="color:#ba2121;font-weight:bold;">Delete</a>', url
         )
+
+
+@admin.register(PromoMessage)
+class PromoMessageAdmin(admin.ModelAdmin):
+    list_display = ('text', 'is_active', 'order', 'created_at')
+    list_editable = ('is_active', 'order')
+    list_display_links = ('text',)
+    ordering = ('order', 'id')
+    search_fields = ('text',)
+    list_per_page = 30

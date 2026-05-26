@@ -323,6 +323,14 @@
     .htmx-request.htmx-indicator,
     form.htmx-request .htmx-indicator { opacity: 1; }
     [x-cloak] { display: none !important; }
+    @keyframes promo-scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
   </style>
 </head>
 <body class="min-h-full antialiased">

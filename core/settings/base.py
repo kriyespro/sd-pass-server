@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'apps.billing',
     'apps.api',
+    'apps.affiliates',
+    'apps.resell',
 ]
 
 MIDDLEWARE = [
@@ -421,6 +423,11 @@ CELERY_BEAT_SCHEDULE = {
     'billing-suspend-expired-trials': {
         'task': 'billing.suspend_expired_trials',
         'schedule': crontab(hour=2, minute=0),
+    },
+    # 4:10 AM IST = 22:40 UTC (IST is UTC+5:30)
+    'platform-ops-asset-optimization': {
+        'task': 'platform_ops.schedule_asset_optimization',
+        'schedule': crontab(hour=22, minute=40),
     },
 }
 

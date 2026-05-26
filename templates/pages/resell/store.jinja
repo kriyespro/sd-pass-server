@@ -1,0 +1,379 @@
+{% extends "base.jinja" %}
+{% block title %}Resell Store — StudentCloud{% endblock %}
+
+{% block content %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+{# ── Alpine store component ──────────────────────────────────────────────── #}
+<script>
+function resellStore() {
+  return {
+    /* cart */
+    cartCount: {{ cart_count }},
+    cartItems: {{ cart_items | tojson }},
+    cartTotal: {{ cart_total }},
+    cartOpen: false,
+
+    /* checkout form */
+    checkoutOpen: false,
+    buyerName: '',
+    buyerEmail: '',
+    buyerPhone: '',
+
+    /* ui state */
+    loading: false,
+    toastMsg: '',
+    toastType: 'success', /* success | error */
+    toastTimer: null,
+
+    csrf: document.querySelector('meta[name="csrf-token"]').content,
+
+    showToast(msg, type) {
+      this.toastMsg = msg;
+      this.toastType = type || 'success';
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => { this.toastMsg = ''; }, 3500);
+    },
+
+    async addToCart(productId, productName) {
+      const res = await fetch('{{ url("resell:cart_add") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify({ product_id: productId, qty: 1 }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        this.cartCount = d.cart_count;
+        this.cartTotal = d.cart_total;
+        this.showToast('"' + productName + '" added to cart 🛒', 'success');
+        /* reload cart items */
+        await this.refreshCart();
+      } else {
+        this.showToast(d.error || 'Could not add item', 'error');
+      }
+    },
+
+    async removeFromCart(productId) {
+      const res = await fetch('{{ url("resell:cart_remove") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify({ product_id: productId }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        this.cartCount = d.cart_count;
+        this.cartTotal = d.cart_total;
+        this.cartItems = this.cartItems.filter(i => i.id !== productId);
+      }
+    },
+
+    async refreshCart() {
+      /* Re-fetch page context by re-reading updated cart from the Alpine state.
+         Since server updates session, re-render items from the server response. */
+      /* We store items via the add API response — simpler: just remove & re-add locally */
+    },
+
+    /* buy single product immediately (skips cart, opens checkout with just that item) */
+    async buyNow(productId, productName) {
+      const res = await fetch('{{ url("resell:cart_add") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify({ product_id: productId, qty: 1 }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        this.cartCount = d.cart_count;
+        this.cartTotal = d.cart_total;
+        this.cartOpen = false;
+        this.checkoutOpen = true;
+        this.showToast('Ready to checkout for "' + productName + '"', 'success');
+      } else {
+        this.showToast(d.error || 'Could not initiate purchase', 'error');
+      }
+    },
+
+    async checkout() {
+      if (!this.buyerName.trim() || !this.buyerEmail.trim()) {
+        this.showToast('Please fill in your name and email', 'error');
+        return;
+      }
+      this.loading = true;
+
+      /* 1. Create Razorpay order */
+      const orderRes = await fetch('{{ url("resell:create_order") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify({
+          buyer_name: this.buyerName,
+          buyer_email: this.buyerEmail,
+          buyer_phone: this.buyerPhone,
+        }),
+      });
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) {
+        this.showToast(orderData.error || 'Order creation failed', 'error');
+        this.loading = false;
+        return;
+      }
+
+      /* 2. Open Razorpay checkout */
+      const self = this;
+      const options = {
+        key: '{{ razorpay_key_id }}',
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'StudentCloud Resell Store',
+        description: 'Order — ' + self.cartCount + ' item(s)',
+        order_id: orderData.order_id,
+        theme: { color: '#10b981' },
+        prefill: {
+          name: self.buyerName,
+          email: self.buyerEmail,
+          contact: self.buyerPhone,
+        },
+        handler: async function(response) {
+          /* 3. Verify payment */
+          try {
+            const verifyRes = await fetch('{{ url("resell:verify_payment") }}', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': self.csrf },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.status === 'success') {
+              self.showToast('🎉 Payment successful! Order confirmed.', 'success');
+              self.cartCount = 0;
+              self.cartItems = [];
+              self.cartTotal = 0;
+              self.checkoutOpen = false;
+              self.cartOpen = false;
+              setTimeout(() => {
+                alert('✅ Payment confirmed!\n\nOrder ID: ' + response.razorpay_order_id + '\nPayment ID: ' + response.razorpay_payment_id + '\n\nThank you for your purchase! You will receive a confirmation email shortly.');
+              }, 400);
+            } else {
+              self.showToast(verifyData.error || 'Verification failed — contact support', 'error');
+            }
+          } catch(e) {
+            self.showToast('Network error — save your Payment ID: ' + response.razorpay_payment_id, 'error');
+          }
+          self.loading = false;
+        },
+        modal: {
+          ondismiss: function() { self.loading = false; },
+        },
+      };
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function(response) {
+        self.showToast('Payment failed: ' + (response.error.description || 'Please try again.'), 'error');
+        self.loading = false;
+      });
+      rzp.open();
+    },
+  };
+}
+</script>
+
+<div x-data="resellStore()" class="relative space-y-6">
+
+  {# ── Toast ── #}
+  <div
+    x-show="toastMsg"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="translate-y-4 opacity-0"
+    x-transition:enter-end="translate-y-0 opacity-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-end="opacity-0"
+    :class="toastType === 'error' ? 'border-rose-500/40 bg-rose-950/90 text-rose-200' : 'border-emerald-500/40 bg-emerald-950/90 text-emerald-200'"
+    class="fixed bottom-5 right-5 z-[200] max-w-xs rounded-xl border px-4 py-3 text-sm font-medium shadow-2xl backdrop-blur-sm"
+    x-text="toastMsg"
+    style="display:none;"
+  ></div>
+
+  {# ── Cart drawer ── #}
+  <div x-show="cartOpen" x-cloak class="fixed inset-0 z-[150]" style="display:none;">
+    <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="cartOpen = false"></div>
+    <div class="absolute right-0 top-0 bottom-0 flex w-full max-w-sm flex-col border-l border-slate-800 bg-slate-900 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+        <h2 class="text-lg font-semibold text-white">Cart (<span x-text="cartCount"></span>)</h2>
+        <button @click="cartOpen = false" class="text-slate-400 hover:text-white text-xl leading-none">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <template x-if="cartItems.length === 0">
+          <div class="py-16 text-center">
+            <p class="text-4xl">🛒</p>
+            <p class="mt-3 text-slate-400 text-sm">Your cart is empty</p>
+          </div>
+        </template>
+        <template x-for="item in cartItems" :key="item.id">
+          <div class="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <img x-show="item.image_url" :src="item.image_url" class="h-12 w-12 rounded-lg object-cover shrink-0" style="display:none;">
+            <div x-show="!item.image_url" class="h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-900 to-slate-800 shrink-0 flex items-center justify-center text-emerald-400 text-lg">📦</div>
+            <div class="flex-1 min-w-0">
+              <p class="truncate text-sm font-medium text-white" x-text="item.name"></p>
+              <p class="text-xs text-slate-400">₹<span x-text="item.price.toFixed(2)"></span> × <span x-text="item.qty"></span></p>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="text-sm font-semibold text-emerald-300">₹<span x-text="item.subtotal.toFixed(2)"></span></p>
+              <button @click="removeFromCart(item.id)" class="mt-1 text-[10px] text-slate-500 hover:text-rose-400">Remove</button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div class="border-t border-slate-800 px-5 py-4 space-y-3">
+        <div class="flex items-center justify-between text-sm font-semibold">
+          <span class="text-slate-300">Total</span>
+          <span class="text-lg text-emerald-300">₹<span x-text="cartTotal.toFixed(2)"></span></span>
+        </div>
+        <button
+          @click="cartOpen = false; checkoutOpen = true"
+          :disabled="cartCount === 0"
+          class="w-full rounded-xl bg-emerald-500 py-3 text-sm font-bold text-slate-950 shadow hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+        >
+          Proceed to Checkout →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Checkout modal ── #}
+  <div x-show="checkoutOpen" x-cloak class="fixed inset-0 z-[160] flex items-center justify-center px-4" style="display:none;">
+    <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" @click="checkoutOpen = false"></div>
+    <div class="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-white">Checkout</h2>
+        <button @click="checkoutOpen = false" class="text-slate-400 hover:text-white text-xl">✕</button>
+      </div>
+      <p class="text-sm text-slate-400">Total: <span class="font-bold text-emerald-300 text-base">₹<span x-text="cartTotal.toFixed(2)"></span></span></p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Full name *</label>
+          <input type="text" x-model="buyerName" placeholder="Your name"
+                 class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-emerald-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Email address *</label>
+          <input type="email" x-model="buyerEmail" placeholder="you@example.com"
+                 class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-emerald-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Phone (optional)</label>
+          <input type="tel" x-model="buyerPhone" placeholder="+91 98765 43210"
+                 class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-emerald-500 focus:outline-none">
+        </div>
+      </div>
+
+      <button
+        @click="checkout()"
+        :disabled="loading"
+        class="w-full rounded-xl bg-emerald-500 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+      >
+        <template x-if="loading">
+          <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="40" stroke-dashoffset="10"/></svg>
+        </template>
+        <span x-text="loading ? 'Opening payment…' : 'Pay with Razorpay →'"></span>
+      </button>
+
+      <p class="text-center text-[11px] text-slate-600">Secured by Razorpay · 100% safe checkout</p>
+    </div>
+  </div>
+
+  {# ── Page header ── #}
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Resell Store</h1>
+      <p class="mt-1 text-sm text-slate-400">{{ products | length }} product{{ 's' if products | length != 1 }} available</p>
+    </div>
+    <button
+      @click="cartOpen = true"
+      class="relative flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-emerald-500/50 transition-colors"
+    >
+      🛒 Cart
+      <span
+        x-show="cartCount > 0"
+        class="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-slate-950"
+        x-text="cartCount"
+        style="display:none;"
+      ></span>
+    </button>
+  </div>
+
+  {# ── Product grid ── #}
+  {% if products %}
+  <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    {% for p in products %}
+    <div class="group flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 transition-all hover:border-slate-700 hover:shadow-xl hover:shadow-emerald-500/5">
+
+      {# Product image #}
+      <div class="relative h-48 overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+        {% if p.image %}
+          <img src="{{ p.image.url }}" alt="{{ p.name }}" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105">
+        {% else %}
+          <div class="flex h-full items-center justify-center text-5xl text-slate-700">
+            {% if p.category == 'course' %}🎓{% elif p.category == 'digital' %}💾{% elif p.category == 'physical' %}📦{% elif p.category == 'service' %}⚙️{% else %}🏷️{% endif %}
+          </div>
+        {% endif %}
+        {% if p.badge_text %}
+          <span class="absolute left-3 top-3 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[11px] font-bold text-slate-950">{{ p.badge_text }}</span>
+        {% endif %}
+        {% if p.discount_pct %}
+          <span class="absolute right-3 top-3 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">-{{ p.discount_pct }}%</span>
+        {% endif %}
+        {% if p.stock > 0 and p.stock <= 5 %}
+          <span class="absolute bottom-3 left-3 rounded-full border border-amber-500/40 bg-amber-950/80 px-2 py-0.5 text-[10px] font-semibold text-amber-300">Only {{ p.stock }} left!</span>
+        {% endif %}
+      </div>
+
+      {# Product info #}
+      <div class="flex flex-1 flex-col gap-3 p-4">
+        <div>
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ p.get_category_display() }}</span>
+          <h2 class="mt-0.5 text-base font-semibold text-white leading-tight">{{ p.name }}</h2>
+          {% if p.description %}
+            <p class="mt-1.5 text-xs text-slate-400 line-clamp-2">{{ p.description }}</p>
+          {% endif %}
+        </div>
+
+        <div class="mt-auto">
+          <div class="flex items-baseline gap-2 mb-3">
+            <span class="text-xl font-bold text-emerald-300">₹{{ p.price }}</span>
+            {% if p.original_price %}
+              <span class="text-sm text-slate-500 line-through">₹{{ p.original_price }}</span>
+            {% endif %}
+          </div>
+
+          <div class="flex gap-2">
+            <button
+              @click="addToCart({{ p.pk }}, '{{ p.name | replace("'", "\\'") }}')"
+              class="flex-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 active:scale-[0.97] transition-all"
+            >
+              + Add to Cart
+            </button>
+            <button
+              @click="buyNow({{ p.pk }}, '{{ p.name | replace("'", "\\'") }}')"
+              class="flex-1 rounded-lg bg-emerald-500 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 active:scale-[0.97] transition-all shadow"
+            >
+              Buy Now →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="py-24 text-center">
+    <p class="text-5xl">🏪</p>
+    <h2 class="mt-4 text-lg font-semibold text-white">No products yet</h2>
+    <p class="mt-2 text-sm text-slate-400">Check back soon — products will appear here once listed.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

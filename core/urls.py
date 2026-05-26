@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
@@ -20,8 +22,10 @@ urlpatterns = [
     path('ops/', include('apps.dashboard.urls_ops')),
     path('trainer/', include('apps.dashboard.urls_trainer')),
     path('api/v1/', include('apps.api.urls')),
+    path('affiliate/', include('apps.affiliates.urls')),
+    path('resell/', include('apps.resell.urls')),
     path('', core_views.home, name='home'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler404 = core_views.handler404
 handler500 = core_views.handler500

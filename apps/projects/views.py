@@ -40,6 +40,10 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx['project_count'] = len(ctx['projects'])
         ctx['plan_limit'] = user_project_limit(self.request.user)
+        try:
+            ctx['plan_label'] = self.request.user.subscription.plan_label
+        except Exception:
+            ctx['plan_label'] = 'Free'
         from core.server_stats import get_server_stats
         ctx['server'] = get_server_stats()
         base = (settings.STUDENT_APPS_BASE_DOMAIN or '').strip()

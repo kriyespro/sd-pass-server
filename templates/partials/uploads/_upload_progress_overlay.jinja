@@ -24,8 +24,9 @@
     >
       <template x-for="(line, i) in terminalLines" :key="i">
         <div
-          class="text-xs leading-5 text-emerald-400"
-          x-text="'$ ' + line"
+          class="text-xs leading-5"
+          :class="line.kind === 'error' ? 'text-rose-400 font-semibold' : line.kind === 'fix' ? 'text-amber-300' : 'text-emerald-400'"
+          x-text="(line.kind === 'error' ? '✗ ' : line.kind === 'fix' ? '→ ' : '$ ') + line.text"
         ></div>
       </template>
       {# Blinking cursor line #}

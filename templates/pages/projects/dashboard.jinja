@@ -116,10 +116,18 @@
                       {% if _subs %}
                         {% for sf in _subs %}
                           {% set _path = (sf.path.strip('/') ~ '/') if sf.path else '' %}
-                          <a href="{{ _custom_root ~ _path }}" target="_blank" rel="noopener noreferrer"
-                             class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 transition-colors max-w-[200px] truncate">
-                            🔗 {{ p.custom_hostname }}/{{ _path }}
-                          </a>
+                          <div class="flex items-center gap-1">
+                            <a href="{{ _custom_root ~ _path }}" target="_blank" rel="noopener noreferrer"
+                               class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/20 transition-colors max-w-[180px] truncate">
+                              🔗 {{ p.custom_hostname }}/{{ _path }}
+                            </a>
+                            <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
+                                  onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')">
+                              {% csrf_token %}
+                              <button type="submit" title="Remove subfolder"
+                                      class="rounded px-1 py-0.5 text-[10px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors leading-none">×</button>
+                            </form>
+                          </div>
                         {% endfor %}
                       {% else %}
                         <a href="{{ _custom_root }}" target="_blank" rel="noopener noreferrer"
@@ -133,10 +141,18 @@
                       {% if _subs %}
                         {% for sf in _subs %}
                           {% set _path = (sf.path.strip('/') ~ '/') if sf.path else '' %}
-                          <a href="{{ _sub_root ~ _path }}" target="_blank" rel="noopener noreferrer"
-                             class="inline-flex items-center gap-1 rounded bg-sky-500/10 px-2 py-1 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/25 hover:bg-sky-500/20 transition-colors max-w-[200px] truncate">
-                            🌐 {{ _fqdn }}/{{ _path }}
-                          </a>
+                          <div class="flex items-center gap-1">
+                            <a href="{{ _sub_root ~ _path }}" target="_blank" rel="noopener noreferrer"
+                               class="inline-flex items-center gap-1 rounded bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/25 hover:bg-sky-500/20 transition-colors max-w-[180px] truncate">
+                              🌐 {{ _fqdn }}/{{ _path }}
+                            </a>
+                            <form method="post" action="{{ url('projects:subfolder_delete', slug=p.slug, sf_id=sf.pk) }}"
+                                  onsubmit="return confirm('Remove subfolder \'{{ sf.path or '/' }}\'?')">
+                              {% csrf_token %}
+                              <button type="submit" title="Remove subfolder"
+                                      class="rounded px-1 py-0.5 text-[10px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 transition-colors leading-none">×</button>
+                            </form>
+                          </div>
                         {% endfor %}
                       {% else %}
                         <a href="{{ _sub_root }}" target="_blank" rel="noopener noreferrer"
@@ -157,18 +173,19 @@
                 {% endif %}
               </td>
 
-              <td class="px-4 py-3 text-slate-400">{{ p.created_at.strftime("%d %b %Y") }}</td>
+              <td class="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{{ p.created_at.strftime("%d %b '%y") }}</td>
               <td class="px-4 py-3 text-right">
-                <div class="flex flex-wrap justify-end gap-x-2 gap-y-1 text-xs font-medium">
-                  <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
-                  <span class="text-slate-700">·</span>
-                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
-                  <span class="text-slate-700">·</span>
-                  <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>
-                  <span class="text-slate-700">·</span>
-                  <a href="{{ url('projects:logs', slug=p.slug) }}" class="text-slate-400 hover:text-white">Logs</a>
-                  <span class="text-slate-700">·</span>
-                  <a href="{{ url('projects:delete', slug=p.slug) }}" class="text-rose-400 hover:text-rose-300">Delete</a>
+                <div class="inline-grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-medium">
+                  <a href="{{ url('projects:upload_zip', slug=p.slug) }}"
+                     class="rounded px-2 py-0.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors text-center">ZIP</a>
+                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}"
+                     class="rounded px-2 py-0.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors text-center">Files</a>
+                  <a href="{{ url('projects:domain', slug=p.slug) }}"
+                     class="rounded px-2 py-0.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-colors text-center">Domain</a>
+                  <a href="{{ url('projects:logs', slug=p.slug) }}"
+                     class="rounded px-2 py-0.5 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors text-center">Logs</a>
+                  <a href="{{ url('projects:delete', slug=p.slug) }}"
+                     class="col-span-2 rounded px-2 py-0.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors text-center">Delete</a>
                 </div>
               </td>
             </tr>

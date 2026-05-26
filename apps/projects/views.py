@@ -16,7 +16,7 @@ from apps.billing.services import user_project_limit
 from apps.domains.services import write_project_router_file
 
 from .forms import ProjectCustomHostnameForm, ProjectForm
-from .models import Project
+from .models import Project, ProjectSubfolder
 from .services import soft_delete_project
 from .services import enqueue_on_project_created
 
@@ -314,3 +314,20 @@ class CustomDomainVerifyNowView(LoginRequiredMixin, View):
             'Verification check queued. Wait a few seconds and refresh this page.',
         )
         return HttpResponseRedirect(reverse('projects:domain', kwargs={'slug': self.project.slug}))
+
+
+class ProjectSubfolderDeleteView(LoginRequiredMixin, View):
+    """Delete a single subfolder record for a project (POST only)."""
+
+    def post(self, request, *args, **kwargs):
+        project = get_object_or_404(
+            Project,
+            slug=kwargs['slug'],
+            owner=request.user,
+            is_deleted=False,
+        )
+        sf = get_object_or_404(ProjectSubfolder, pk=kwargs['sf_id'], project=project)
+        path_label = sf.path or '(root)'
+        sf.delete()
+        messages.success(request, f'Subfolder "{path_label}" removed from {project.name}.')
+        return HttpResponseRedirect(reverse('projects:dashboard'))

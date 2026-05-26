@@ -31,4 +31,9 @@ urlpatterns = [
         views.CustomDomainVerifyNowView.as_view(),
         name='domain_verify',
     ),
+    path(
+        '<slug:slug>/subfolder/<int:sf_id>/delete/',
+        views.ProjectSubfolderDeleteView.as_view(),
+        name='subfolder_delete',
+    ),
 ]

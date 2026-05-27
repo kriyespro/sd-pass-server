@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.contrib.admin import helpers
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.utils import timezone
@@ -45,6 +46,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
     )
 
     actions = [
+        'give_manual_trial_action',
         _make_set_plan_action('launch_lite'),
         _make_set_plan_action('starter_cloud'),
         _make_set_plan_action('wordpress_pro'),
@@ -54,6 +56,63 @@ class SubscriptionAdmin(admin.ModelAdmin):
         _make_set_plan_action('free'),
         'generate_coupon_action',
     ]
+
+    def give_manual_trial_action(self, request, queryset):
+        """Give selected users a manual short trial (1 website, choose duration)."""
+        DURATION_CHOICES = [
+            ('1',  '1 day'),
+            ('2',  '2 days'),
+            ('3',  '3 days'),
+            ('5',  '5 days'),
+            ('7',  '7 days'),
+            ('9',  '9 days'),
+            ('14', '14 days'),
+            ('30', '30 days'),
+        ]
+        if 'apply' in request.POST:
+            days = max(1, min(90, int(request.POST.get('days', 3) or 3)))
+            expiry = timezone.now() + timezone.timedelta(days=days)
+            updated = []
+            for sub in queryset.select_related('user'):
+                sub.plan_slug = Subscription.Plan.LAUNCH_LITE
+                sub.status = Subscription.Status.ACTIVE
+                sub.current_period_end = expiry
+                sub.save(update_fields=['plan_slug', 'status', 'current_period_end', 'updated_at'])
+                updated.append(sub.user.email)
+                try:
+                    from apps.notifications.models import NotificationLevel
+                    from apps.notifications.services import create_notification
+                    from django.urls import reverse as _rev
+                    create_notification(
+                        user_id=sub.user_id,
+                        title=f'🎉 {days}-day trial activated!',
+                        body=(
+                            f'Your {days}-day trial (1 website) has been activated by the admin. '
+                            f'It expires on {expiry.strftime("%d %b %Y")}. '
+                            'Upgrade before it ends to keep your site live.'
+                        ),
+                        level=NotificationLevel.INFO,
+                        link_url=_rev('billing:redeem'),
+                    )
+                except Exception:
+                    pass
+            self.message_user(
+                request,
+                f'✅ {days}-day trial (1 website) given to {len(updated)} user(s): {", ".join(updated)}',
+                messages.SUCCESS,
+            )
+            return None
+
+        return TemplateResponse(request, 'admin/billing/give_trial.html', {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'title': 'Give Manual Trial',
+            'queryset': queryset,
+            'duration_choices': DURATION_CHOICES,
+            'action_checkbox_name': admin.helpers.ACTION_CHECKBOX_NAME,
+        })
+
+    give_manual_trial_action.short_description = '🎁 Give manual trial (1 website · choose days)'
 
     def generate_coupon_action(self, request, queryset):
         """Generate coupon code(s) for selected users with a plan of your choice."""

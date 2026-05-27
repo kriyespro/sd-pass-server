@@ -1,0 +1,69 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Give Manual Trial — {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+  <a href="{% url 'admin:billing_subscription_changelist' %}">Subscriptions</a> &rsaquo;
+  Give Manual Trial
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>🎁 Give Manual Trial — 1 Website</h1>
+<p style="color:#666;margin:.5rem 0 1.5rem;">
+  Selected users will be activated on <strong>Launch Lite (1 website)</strong> for the chosen number of days.
+  Their existing plan is replaced and they receive an in-app notification.
+</p>
+
+<form method="post">
+  {% csrf_token %}
+
+  {# Pass selected IDs through #}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="give_manual_trial_action">
+  <input type="hidden" name="apply" value="1">
+
+  <fieldset class="module aligned">
+    <h2>Trial Settings</h2>
+
+    <div class="form-row">
+      <div>
+        <label for="id_days" class="required">Trial duration:</label>
+        <select name="days" id="id_days" style="min-width:180px;">
+          {% for value, label in duration_choices %}
+            <option value="{{ value }}" {% if value == "3" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="help">Subscription will be set to <strong>Launch Lite · 1 website</strong> and expire after the chosen period.</p>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label>Plan granted:</label>
+        <span style="font-weight:600;">Launch Lite — 1 website</span>
+        <p class="help">Fixed to 1 website for manual trials. Use "Set plan" actions for larger plans.</p>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="module">
+    <h2>Selected users ({{ queryset|length }})</h2>
+    <ul style="margin:.5rem 1rem;padding:0;list-style:disc inside;color:#333;">
+      {% for sub in queryset %}
+        <li>{{ sub.user.email }} &mdash; current plan: <strong>{{ sub.plan_slug }}</strong> / {{ sub.status }}</li>
+      {% endfor %}
+    </ul>
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" value="✅ Activate Trial" class="default">
+    <a href="{% url 'admin:billing_subscription_changelist' %}" style="margin-left:1rem;">Cancel</a>
+  </div>
+</form>
+{% endblock %}

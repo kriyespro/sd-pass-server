@@ -212,19 +212,113 @@ a.btn:hover{{background:#4f46e5;}}
 </body></html>"""
 
 _TRIAL_EXPIRED = """<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Account suspended</title>
-<style>
-body{{font-family:system-ui,sans-serif;max-width:36rem;margin:4rem auto;padding:0 1.5rem;background:#0f172a;color:#e2e8f0;}}
-h1{{color:#f8fafc;font-size:1.5rem;margin-bottom:.75rem;}}
-p{{color:#94a3b8;line-height:1.6;margin:.5rem 0;}}
-a.btn{{display:inline-block;margin-top:1.25rem;padding:.6rem 1.4rem;background:#6366f1;color:#fff;border-radius:.5rem;text-decoration:none;font-weight:600;}}
-a.btn:hover{{background:#4f46e5;}}
-</style></head><body>
-<h1>Account suspended</h1>
-<p>This account's plan has expired or been suspended.</p>
-<p>Purchase a plan (starting at ₹99 for 9 days) to restore public access.</p>
-<a class="btn" href="{upgrade_url}">Buy a plan — from ₹99</a>
-</body></html>"""
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Plan Expired — StudentCloud</title>
+  <style>
+    *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+    body{{
+      font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+      min-height:100vh;
+      background:radial-gradient(ellipse at 60% 0%,#0d2d1f 0%,#0f172a 55%,#0f0f1a 100%);
+      color:#e2e8f0;
+      display:flex;align-items:center;justify-content:center;
+      padding:2rem 1.25rem;
+    }}
+    .card{{
+      width:100%;max-width:34rem;
+      background:rgba(15,23,42,.85);
+      border:1px solid rgba(16,185,129,.18);
+      border-radius:1.5rem;
+      padding:2.5rem 2rem;
+      box-shadow:0 0 60px rgba(16,185,129,.07),0 24px 48px rgba(0,0,0,.5);
+      text-align:center;
+    }}
+    .fuel-icon{{font-size:3rem;line-height:1;margin-bottom:1.25rem;display:block}}
+    .eyebrow{{
+      display:inline-block;margin-bottom:1rem;
+      background:rgba(16,185,129,.12);
+      border:1px solid rgba(16,185,129,.3);
+      border-radius:999px;
+      padding:.3rem .9rem;
+      font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+      color:#34d399;
+    }}
+    h1{{
+      font-size:1.45rem;font-weight:800;line-height:1.3;
+      color:#f8fafc;margin-bottom:1rem;
+    }}
+    .msg{{
+      font-size:.9rem;line-height:1.7;color:#94a3b8;
+      margin-bottom:.6rem;
+    }}
+    .msg strong{{color:#cbd5e1}}
+    .divider{{
+      height:1px;background:rgba(255,255,255,.06);
+      margin:1.5rem 0;
+    }}
+    .price-pill{{
+      display:inline-flex;align-items:baseline;gap:.35rem;
+      background:rgba(16,185,129,.1);
+      border:1px solid rgba(16,185,129,.25);
+      border-radius:.75rem;
+      padding:.5rem 1.1rem;
+      margin-bottom:1.5rem;
+    }}
+    .price-pill .amount{{font-size:1.6rem;font-weight:900;color:#ecfdf5}}
+    .price-pill .period{{font-size:.8rem;color:#6ee7b7}}
+    .btn{{
+      display:inline-flex;align-items:center;gap:.5rem;
+      background:linear-gradient(135deg,#10b981,#059669);
+      color:#022c22;
+      font-weight:800;font-size:.9rem;
+      padding:.75rem 1.75rem;
+      border-radius:.75rem;
+      text-decoration:none;
+      box-shadow:0 4px 20px rgba(16,185,129,.3);
+      transition:transform .15s,box-shadow .15s;
+    }}
+    .btn:hover{{transform:translateY(-2px);box-shadow:0 8px 28px rgba(16,185,129,.4)}}
+    .btn:active{{transform:translateY(0)}}
+    .footer{{margin-top:1.5rem;font-size:.72rem;color:#475569}}
+    .dot{{
+      display:inline-block;width:.4rem;height:.4rem;border-radius:50%;
+      background:#10b981;vertical-align:middle;margin-right:.4rem;
+      animation:ping 1.5s ease-in-out infinite;
+    }}
+    @keyframes ping{{0%,100%{{opacity:1;transform:scale(1)}}50%{{opacity:.4;transform:scale(1.4)}}}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="fuel-icon">⛽</span>
+    <span class="eyebrow"><span class="dot"></span>Plan Expired</span>
+    <h1>We need a little fuel<br>to keep going ❤️</h1>
+    <p class="msg">
+      Dear visitor, running fast cloud servers costs real money —
+      <strong>and our fuel bill just went up!</strong>
+    </p>
+    <p class="msg">
+      To keep this site online and StudentCloud blazing fast for everyone,
+      the owner needs to activate a paid plan.
+      It starts at just ₹99 for a full 9-day trial.
+    </p>
+    <p class="msg">Thanks for your patience and support — it truly means a lot to us. 🙏</p>
+    <div class="divider"></div>
+    <div class="price-pill">
+      <span class="amount">₹99</span>
+      <span class="period">/ 9 days · full access</span>
+    </div>
+    <br>
+    <a class="btn" href="{upgrade_url}">
+      🚀 Restore this site — ₹99
+    </a>
+    <p class="footer">StudentCloud Deploy · Affordable Cloud Hosting for Students</p>
+  </div>
+</body>
+</html>"""
 
 
 def _resolve_project_for_static_host(host: str):

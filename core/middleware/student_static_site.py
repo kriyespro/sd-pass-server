@@ -313,8 +313,11 @@ _TRIAL_EXPIRED = """<!DOCTYPE html>
     </div>
     <br>
     <a class="btn" href="{upgrade_url}">
-      🚀 Restore this site — ₹99
+      🚀 Login &amp; Restore this site — ₹99
     </a>
+    <p class="footer" style="margin-top:.75rem;color:#64748b;font-size:.72rem;">
+      Are you the site owner? Log in to your StudentCloud account and activate a plan to bring this site back online.
+    </p>
     <p class="footer">StudentCloud Deploy · Affordable Cloud Hosting for Students</p>
   </div>
 </body>

@@ -122,7 +122,7 @@ class Subscription(models.Model):
         if self.trial_expired:
             return 0
         if not self.is_active:
-            return PLAN_LIMITS['free']
+            return 0
         return PLAN_LIMITS.get(self.plan_slug, PLAN_LIMITS['free'])
 
     @property

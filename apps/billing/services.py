@@ -51,8 +51,8 @@ def get_or_create_subscription(user) -> Subscription:
         user=user,
         defaults={
             'plan_slug': Subscription.Plan.FREE,
-            'status': Subscription.Status.ACTIVE,
-            'trial_ends_at': timezone.now() + timezone.timedelta(days=FREE_TRIAL_DAYS),
+            'status': Subscription.Status.SUSPENDED,
+            'trial_ends_at': None,
         },
     )
     return sub

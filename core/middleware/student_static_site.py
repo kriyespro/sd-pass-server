@@ -212,7 +212,7 @@ a.btn:hover{{background:#4f46e5;}}
 </body></html>"""
 
 _TRIAL_EXPIRED = """<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Free trial ended</title>
+<html lang="en"><head><meta charset="utf-8"><title>Account suspended</title>
 <style>
 body{{font-family:system-ui,sans-serif;max-width:36rem;margin:4rem auto;padding:0 1.5rem;background:#0f172a;color:#e2e8f0;}}
 h1{{color:#f8fafc;font-size:1.5rem;margin-bottom:.75rem;}}
@@ -220,10 +220,10 @@ p{{color:#94a3b8;line-height:1.6;margin:.5rem 0;}}
 a.btn{{display:inline-block;margin-top:1.25rem;padding:.6rem 1.4rem;background:#6366f1;color:#fff;border-radius:.5rem;text-decoration:none;font-weight:600;}}
 a.btn:hover{{background:#4f46e5;}}
 </style></head><body>
-<h1>Your free trial has ended</h1>
-<p>This website is on a free trial plan that has expired.</p>
-<p>Upgrade your account to restore public access to this site.</p>
-<a class="btn" href="{upgrade_url}">Upgrade account</a>
+<h1>Account suspended</h1>
+<p>This account's plan has expired or been suspended.</p>
+<p>Purchase a plan (starting at ₹99 for 9 days) to restore public access.</p>
+<a class="btn" href="{upgrade_url}">Buy a plan — from ₹99</a>
 </body></html>"""
 
 
@@ -344,14 +344,28 @@ class StudentStaticSiteMiddleware:
 
     @staticmethod
     def _is_trial_expired(project) -> bool:
+        """Return True when the site owner's account is suspended or their paid trial has expired."""
         cache_key = _TRIAL_CACHE_PREFIX + str(project.owner_id)
         cached = cache.get(cache_key)
         if cached is not None:
             return bool(cached)
         try:
+            from django.utils import timezone as tz
             from apps.billing.models import Subscription
-            sub = Subscription.objects.only('plan_slug', 'trial_ends_at').get(user_id=project.owner_id)
-            result = sub.trial_expired
+            sub = Subscription.objects.only(
+                'plan_slug', 'status', 'trial_ends_at', 'current_period_end'
+            ).get(user_id=project.owner_id)
+            # Explicitly suspended
+            if sub.status == Subscription.Status.SUSPENDED:
+                result = True
+            # Legacy free trial expired
+            elif sub.trial_expired:
+                result = True
+            # Paid trial (test_plan / any plan) whose period ended
+            elif sub.current_period_end and sub.current_period_end < tz.now() and sub.plan_slug != Subscription.Plan.FREE:
+                result = True
+            else:
+                result = False
         except Exception:
             result = False
         cache.set(cache_key, result, _SITE_CACHE_TTL)

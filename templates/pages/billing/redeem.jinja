@@ -3,7 +3,8 @@
 {% block content %}
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-<section class="mx-auto max-w-3xl space-y-8" x-data="razorpayCheckout()">
+<section class="mx-auto max-w-3xl space-y-8" x-data="razorpayCheckout()"
+         x-init="if(window.location.hash === '#addons') { $nextTick(() => document.getElementById('addons-section')?.scrollIntoView({behavior:'smooth'})); }">
 
   {# ── Page header ── #}
   <div class="flex items-center justify-between">
@@ -79,6 +80,70 @@
     {% endfor %}
   </div>
 
+  {# ── Add-on Plans ── #}
+  <div id="addons-section" class="space-y-4">
+    <div>
+      <h2 class="text-xl font-semibold text-white">Add-on Plans</h2>
+      <p class="mt-1 text-sm text-slate-400">
+        Already on a plan? Buy an add-on to stack extra website slots on top — your current plan stays active.
+      </p>
+    </div>
+
+    {# Active add-ons summary #}
+    {% if active_addons %}
+      <div class="rounded-xl border border-sky-700/40 bg-sky-900/20 px-5 py-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-sky-400">Your Active Add-ons</p>
+        <ul class="mt-2 space-y-1.5">
+          {% for addon in active_addons %}
+            <li class="flex items-center justify-between text-sm">
+              <span class="text-sky-100">{{ addon.plan_label }}
+                <span class="text-slate-500">·</span>
+                <span class="text-emerald-300">+{{ addon.extra_projects }} site{{ 's' if addon.extra_projects != 1 }}</span>
+              </span>
+              <span class="text-xs text-slate-400">until {{ addon.current_period_end.strftime('%d %b %Y') }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {# Add-on error/success banners #}
+    <div x-show="addonErrorMsg" x-cloak
+         class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
+      <span x-text="addonErrorMsg"></span>
+    </div>
+    <div x-show="addonSuccessMsg" x-cloak
+         class="rounded-lg border border-sky-700/60 bg-sky-950/40 px-4 py-3 text-sm text-sky-100">
+      <span x-text="addonSuccessMsg"></span>
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {% for p in plans %}
+        {% if p.slug != 'test_plan' %}
+          <div class="relative flex flex-col rounded-2xl border border-sky-800/40 bg-sky-900/10 p-5">
+            <span class="absolute -top-3 right-4 rounded-full bg-sky-600 px-2.5 py-0.5 text-[10px] font-bold text-white tracking-wide">ADD-ON</span>
+            <p class="text-base font-semibold text-white">{{ p.name }}</p>
+            <p class="text-xs text-slate-500">{{ p.subtitle }}</p>
+            <p class="mt-2 text-2xl font-bold text-white">{{ p.price }}<span class="text-sm font-normal text-slate-400">/{{ p.period }}</span></p>
+            <p class="mt-3 text-sm text-slate-400">
+              <span class="font-semibold text-sky-300">+{{ p.sites }} extra site{{ 's' if p.sites != '1' }}</span>
+            </p>
+            <p class="mt-1 text-xs text-slate-500">{{ p.specs }}</p>
+            <div class="mt-4 flex-1 flex items-end">
+              <button
+                @click="payAddon('{{ p.slug }}', '{{ p.price }}', '{{ p.name }}')"
+                :disabled="addonLoading"
+                class="w-full rounded-lg bg-sky-700 hover:bg-sky-600 text-white px-4 py-2.5 text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span x-show="addonLoading && addonActivePlan === '{{ p.slug }}'" x-cloak>Processing…</span>
+                <span x-show="!(addonLoading && addonActivePlan === '{{ p.slug }}')">Add {{ p.sites }} site{{ 's' if p.sites != '1' }} — {{ p.price }}/yr</span>
+              </button>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
   {# ── Coupon redemption form ── #}
   <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
     <h2 class="text-base font-semibold text-white">Have a Coupon Code?</h2>
@@ -120,6 +185,10 @@ function razorpayCheckout() {
     activePlan: '',
     errorMsg: '',
     successMsg: '',
+    addonLoading: false,
+    addonActivePlan: '',
+    addonErrorMsg: '',
+    addonSuccessMsg: '',
     csrfToken: document.querySelector('meta[name="csrf-token"]').content,
 
     async pay(planSlug, planPrice, planName) {
@@ -203,6 +272,81 @@ function razorpayCheckout() {
       } catch(e) {
         this.errorMsg = 'Network error. Please check your connection and try again.';
         this.loading = false;
+      }
+    },
+
+    async payAddon(planSlug, planPrice, planName) {
+      this.addonErrorMsg = '';
+      this.addonSuccessMsg = '';
+      this.addonLoading = true;
+      this.addonActivePlan = planSlug;
+
+      try {
+        const orderRes = await fetch('{{ url("billing:create_order") }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrfToken },
+          body: JSON.stringify({ plan_slug: planSlug }),
+        });
+        const orderData = await orderRes.json();
+        if (!orderRes.ok) {
+          this.addonErrorMsg = orderData.error || 'Failed to initiate payment. Please try again.';
+          this.addonLoading = false;
+          return;
+        }
+
+        const self = this;
+        const options = {
+          key: '{{ razorpay_key_id }}',
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: 'StudentCloud Deploy',
+          description: planName + ' Add-on — 1 Year',
+          order_id: orderData.order_id,
+          theme: { color: '#0284c7' },
+          handler: async function(response) {
+            try {
+              const verifyRes = await fetch('{{ url("billing:verify_addon") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': self.csrfToken },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                  plan_slug: planSlug,
+                }),
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.status === 'success') {
+                self.addonSuccessMsg = '🎉 Add-on activated! +' + verifyData.extra_sites + ' site(s) added until ' + verifyData.expires + '. Refreshing…';
+                setTimeout(function() { window.location.reload(); }, 2000);
+              } else {
+                self.addonErrorMsg = verifyData.error || 'Payment verified but add-on activation failed. Contact support.';
+              }
+            } catch(e) {
+              self.addonErrorMsg = 'Network error during verification. Contact support with your payment ID: ' + response.razorpay_payment_id;
+            }
+            self.addonLoading = false;
+          },
+          modal: {
+            ondismiss: function() {
+              self.addonLoading = false;
+              self.addonActivePlan = '';
+            },
+          },
+          prefill: { email: '{{ request.user.email }}' },
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function(response) {
+          self.addonErrorMsg = 'Payment failed: ' + (response.error.description || 'Please try again.');
+          self.addonLoading = false;
+          self.addonActivePlan = '';
+        });
+        rzp.open();
+
+      } catch(e) {
+        this.addonErrorMsg = 'Network error. Please check your connection and try again.';
+        this.addonLoading = false;
       }
     },
   };

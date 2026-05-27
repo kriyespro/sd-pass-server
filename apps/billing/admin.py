@@ -4,7 +4,7 @@ from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import PLAN_LABELS, PLAN_LIMITS, CouponCode, Subscription, _generate_coupon_code
+from .models import PLAN_LABELS, PLAN_LIMITS, CouponCode, PlanAddon, Subscription, _generate_coupon_code
 
 
 def _make_set_plan_action(plan_slug, years=1):
@@ -247,3 +247,22 @@ class CouponCodeAdmin(admin.ModelAdmin):
     @admin.display(boolean=True, description='Redeemable')
     def is_redeemable(self, obj):
         return obj.is_redeemable
+
+
+@admin.register(PlanAddon)
+class PlanAddonAdmin(admin.ModelAdmin):
+    list_display = ('user_email', 'plan_slug', 'status', 'extra_projects_display', 'current_period_end', 'created_at')
+    list_filter = ('plan_slug', 'status')
+    search_fields = ('user__email', 'razorpay_payment_id', 'razorpay_order_id')
+    raw_id_fields = ('user',)
+    readonly_fields = ('created_at', 'razorpay_payment_id', 'razorpay_order_id')
+    ordering = ('-created_at',)
+
+    @admin.display(description='Email', ordering='user__email')
+    def user_email(self, obj):
+        return obj.user.email
+
+    @admin.display(description='Extra sites')
+    def extra_projects_display(self, obj):
+        n = obj.extra_projects
+        return 'Unlimited' if n >= 999 else f'+{n}'

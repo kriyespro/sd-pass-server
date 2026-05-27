@@ -17,7 +17,7 @@ from django.views.generic import FormView
 
 logger = logging.getLogger(__name__)
 
-from .models import PLAN_LABELS, PLAN_LIMITS, PLAN_PRICES, Subscription
+from .models import PLAN_LABELS, PLAN_LIMITS, PLAN_PRICES, PlanAddon, Subscription
 from .services import get_or_create_subscription, redeem_coupon
 
 
@@ -56,6 +56,13 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
         ctx['plan_limits'] = PLAN_LIMITS
         ctx['plan_prices'] = PLAN_PRICES
         ctx['razorpay_key_id'] = settings.RAZORPAY_KEY_ID
+        ctx['active_addons'] = list(
+            PlanAddon.objects.filter(
+                user=self.request.user,
+                status=PlanAddon.Status.ACTIVE,
+                current_period_end__gt=timezone.now(),
+            ).order_by('-created_at')
+        )
         ctx['plans'] = [
             {
                 'slug': 'test_plan',
@@ -198,14 +205,7 @@ def verify_payment(request):
     if plan_slug not in PLAN_PRICES:
         return JsonResponse({'error': 'Invalid plan'}, status=400)
 
-    msg = f'{order_id}|{payment_id}'.encode()
-    expected = hmac.new(
-        settings.RAZORPAY_KEY_SECRET.encode(),
-        msg,
-        hashlib.sha256,
-    ).hexdigest()
-
-    if not hmac.compare_digest(expected, signature):
+    if not _verify_razorpay_signature(order_id, payment_id, signature):
         logger.warning('Razorpay signature mismatch for user %s order %s', request.user.id, order_id)
         return JsonResponse({'error': 'Payment verification failed'}, status=400)
 
@@ -219,3 +219,59 @@ def verify_payment(request):
     label = PLAN_LABELS.get(plan_slug, plan_slug)
     logger.info('Payment verified — user %s upgraded to %s', request.user.id, plan_slug)
     return JsonResponse({'status': 'success', 'plan': plan_slug, 'label': label})
+
+
+def _verify_razorpay_signature(order_id: str, payment_id: str, signature: str) -> bool:
+    msg = f'{order_id}|{payment_id}'.encode()
+    expected = hmac.new(
+        settings.RAZORPAY_KEY_SECRET.encode(),
+        msg,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+@login_required
+@require_POST
+def verify_addon_payment(request):
+    """Verify Razorpay payment and create a PlanAddon (does NOT replace base subscription)."""
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    payment_id = data.get('razorpay_payment_id', '')
+    order_id = data.get('razorpay_order_id', '')
+    signature = data.get('razorpay_signature', '')
+    plan_slug = data.get('plan_slug', '')
+
+    if not all([payment_id, order_id, signature, plan_slug]):
+        return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+    if plan_slug not in PLAN_PRICES:
+        return JsonResponse({'error': 'Invalid plan'}, status=400)
+
+    if not _verify_razorpay_signature(order_id, payment_id, signature):
+        logger.warning('Razorpay addon signature mismatch for user %s order %s', request.user.id, order_id)
+        return JsonResponse({'error': 'Payment verification failed'}, status=400)
+
+    plan_days = 9 if plan_slug == 'test_plan' else 365
+    addon = PlanAddon.objects.create(
+        user=request.user,
+        plan_slug=plan_slug,
+        status=PlanAddon.Status.ACTIVE,
+        current_period_end=timezone.now() + timezone.timedelta(days=plan_days),
+        razorpay_payment_id=payment_id,
+        razorpay_order_id=order_id,
+    )
+
+    label = PLAN_LABELS.get(plan_slug, plan_slug)
+    extra = PLAN_LIMITS.get(plan_slug, 0)
+    logger.info('Addon payment verified — user %s bought %s (+%s sites)', request.user.id, plan_slug, extra)
+    return JsonResponse({
+        'status': 'success',
+        'plan': plan_slug,
+        'label': label,
+        'extra_sites': extra,
+        'expires': addon.current_period_end.strftime('%d %b %Y'),
+    })

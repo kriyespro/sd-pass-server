@@ -130,6 +130,53 @@ class Subscription(models.Model):
         return PLAN_LABELS.get(self.plan_slug, self.plan_slug)
 
 
+class PlanAddon(models.Model):
+    """Additional plan purchase stacked on top of a user's base subscription."""
+
+    class Status(models.TextChoices):
+        ACTIVE    = 'active',    'Active'
+        EXPIRED   = 'expired',   'Expired'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='plan_addons',
+    )
+    plan_slug = models.CharField(
+        max_length=32,
+        choices=Subscription.Plan.choices,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    current_period_end = models.DateTimeField()
+    razorpay_payment_id = models.CharField(max_length=255, blank=True)
+    razorpay_order_id = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.email} · addon · {self.plan_slug}'
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == self.Status.ACTIVE and self.current_period_end > timezone.now()
+
+    @property
+    def extra_projects(self) -> int:
+        return PLAN_LIMITS.get(self.plan_slug, 0)
+
+    @property
+    def plan_label(self) -> str:
+        return PLAN_LABELS.get(self.plan_slug, self.plan_slug)
+
+
 def _generate_coupon_code() -> str:
     """Generate a readable 16-char coupon code like STUD-ABCD-1234-EFGH."""
     chars = string.ascii_uppercase + string.digits

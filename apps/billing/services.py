@@ -6,7 +6,7 @@ from django.db.models import Value
 from django.db.models.functions import Replace, Upper
 from django.utils import timezone
 
-from .models import FREE_TRIAL_DAYS, PLAN_LIMITS, CouponCode, Subscription
+from .models import FREE_TRIAL_DAYS, PLAN_LIMITS, CouponCode, PlanAddon, Subscription
 
 
 def user_can_use_subfolder(user) -> bool:
@@ -26,12 +26,24 @@ def user_project_limit(user) -> int:
             return override
     except Exception:
         pass
+
+    base = PLAN_LIMITS['free']
     try:
         sub = user.subscription
-        return sub.max_projects
+        base = sub.max_projects
     except Subscription.DoesNotExist:
         pass
-    return PLAN_LIMITS['free']
+
+    # Sum extra slots from active add-on purchases.
+    addon_extra = sum(
+        a.extra_projects
+        for a in PlanAddon.objects.filter(
+            user=user,
+            status=PlanAddon.Status.ACTIVE,
+            current_period_end__gt=timezone.now(),
+        )
+    )
+    return base + addon_extra
 
 
 def get_or_create_subscription(user) -> Subscription:

@@ -12,10 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY runner.py .
 
-# Non-root user — student code runs as this user
-RUN useradd -m -u 1001 runner
-USER runner
-
 EXPOSE 6000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s \

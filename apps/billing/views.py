@@ -97,44 +97,56 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
             {
                 'slug': 'wordpress_pro',
                 'name': 'WordPress Pro',
-                'subtitle': 'India · 1 Website',
+                'subtitle': 'India · 1 Website · 1 Flask App',
                 'sites': '1',
                 'price': '₹3,699',
                 'period': 'year',
-                'specs': '2 GB RAM · 2 vCPU · 30 GB SSD',
+                'specs': '2 GB RAM · 2 vCPU · 30 GB SSD · Flask + SQLite',
+                'flask': 1,
                 'highlight': False,
             },
             {
                 'slug': 'business_cloud',
                 'name': 'Business Cloud',
-                'subtitle': 'India · 5 Websites',
+                'subtitle': 'India · 5 Static or 1 Flask + 4 Static',
                 'sites': '5',
                 'price': '₹5,999',
                 'period': 'year',
-                'specs': '4 GB RAM · 2 vCPU · 60 GB SSD',
+                'specs': '4 GB RAM · 2 vCPU · 60 GB SSD · Flask + SQLite',
+                'flask': 1,
                 'highlight': True,
             },
             {
                 'slug': 'agency_turbo',
                 'name': 'Agency Turbo',
-                'subtitle': 'USA · 10 Websites',
+                'subtitle': 'India · 10 Sites · 3 Flask Apps',
                 'sites': '10',
                 'price': '₹8,499',
                 'period': 'year',
-                'specs': '6 GB RAM · 4 vCPU · 80 GB NVMe SSD',
+                'specs': '6 GB RAM · 4 vCPU · 80 GB NVMe SSD · HTML · CSS · Tailwind · JS · SQLite · Flask',
+                'flask': 3,
                 'highlight': False,
             },
             {
                 'slug': 'performance_max',
                 'name': 'Performance Max',
-                'subtitle': 'USA · Unlimited Websites',
+                'subtitle': 'USA · Unlimited Sites · 5 Flask Apps',
                 'sites': 'Unlimited',
                 'price': '₹11,999',
                 'period': 'year',
-                'specs': '6 GB RAM · 4 vCPU · 120 GB NVMe SSD',
+                'specs': '6 GB RAM · 4 vCPU · 120 GB NVMe SSD · HTML · CSS · Tailwind · JS · SQLite · Flask',
+                'flask': 5,
                 'highlight': False,
             },
         ]
+        ctx['flask_addon'] = {
+            'slug': 'flask_addon',
+            'name': 'Flask Add-on',
+            'subtitle': 'Add 1 Flask app slot to any eligible plan',
+            'price': '₹1,499',
+            'period': 'year',
+            'specs': 'Python · Flask · SQLite · Requires WordPress Pro or higher base plan',
+        }
         return ctx
 
     def form_valid(self, form):
@@ -266,13 +278,16 @@ def verify_addon_payment(request):
         razorpay_order_id=order_id,
     )
 
+    from .models import FLASK_LIMITS
     label = PLAN_LABELS.get(plan_slug, plan_slug)
-    extra = PLAN_LIMITS.get(plan_slug, 0)
-    logger.info('Addon payment verified — user %s bought %s (+%s sites)', request.user.id, plan_slug, extra)
+    extra_sites = PLAN_LIMITS.get(plan_slug, 0)
+    extra_flask = FLASK_LIMITS.get(plan_slug, 0)
+    logger.info('Addon payment verified — user %s bought %s (+%s sites +%s flask)', request.user.id, plan_slug, extra_sites, extra_flask)
     return JsonResponse({
         'status': 'success',
         'plan': plan_slug,
         'label': label,
-        'extra_sites': extra,
+        'extra_sites': extra_sites,
+        'extra_flask': extra_flask,
         'expires': addon.current_period_end.strftime('%d %b %Y'),
     })

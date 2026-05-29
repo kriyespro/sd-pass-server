@@ -252,6 +252,9 @@ STUDENT_SITE_PUBLIC_SCHEME = env(
 if STUDENT_SITE_PUBLIC_SCHEME not in ('http', 'https'):
     STUDENT_SITE_PUBLIC_SCHEME = 'http'
 
+FLASK_RUNNER_URL   = env('FLASK_RUNNER_URL',   default='http://flask-runner:6000')
+FLASK_RUNNER_TOKEN = env('FLASK_RUNNER_TOKEN', default='')
+
 CLOUDFLARE_API_TOKEN = env('CLOUDFLARE_API_TOKEN', default='')
 CLOUDFLARE_ZONE_ID = env('CLOUDFLARE_ZONE_ID', default='')
 PLATFORM_PUBLIC_IP = env('PLATFORM_PUBLIC_IP', default='')

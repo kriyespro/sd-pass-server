@@ -27,3 +27,6 @@ def _project_clear_host_cache(sender, instance, **kwargs):
 @receiver(post_delete, sender=Project)
 def _project_deleted_clear_host_cache(sender, instance, **kwargs):
     invalidate_custom_host_cache(instance.custom_hostname)
+    if instance.flask_port:
+        from apps.deployments.flask_runtime import runner_stop
+        runner_stop(instance.pk)

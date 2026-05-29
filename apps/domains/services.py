@@ -25,6 +25,20 @@ def write_project_router_file(project) -> tuple[Path, str]:
     verified = bool(getattr(project, 'custom_hostname_verified', False))
     if raw and raw.lower() != fqdn.lower() and verified:
         extra_hosts.append(raw.lower())
+    from apps.projects.models import ProjectType
+    flask_port = getattr(project, 'flask_port', None)
+    is_flask = (
+        getattr(project, 'project_type', None) == ProjectType.FLASK
+        and flask_port is not None
+    )
+    flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
+    # Strip management port — use the app's allocated port instead
+    flask_runner_host = flask_runner_base.rsplit(':', 1)[0] if ':' in flask_runner_base else flask_runner_base
+    upstream = (
+        f'{flask_runner_host}:{flask_port}'
+        if is_flask
+        else settings.TRAEFIK_UPSTREAM_URL
+    )
     content = render_to_string(
         'traefik/project_route.yml.jinja',
         {
@@ -34,7 +48,7 @@ def write_project_router_file(project) -> tuple[Path, str]:
             'extra_hosts': extra_hosts,
             'entry_points': settings.TRAEFIK_ENTRYPOINTS,
             'cert_resolver': settings.TRAEFIK_CERT_RESOLVER,
-            'upstream_url': settings.TRAEFIK_UPSTREAM_URL,
+            'upstream_url': upstream,
             'use_tls': getattr(settings, 'TRAEFIK_TLS_ON_PROJECT_ROUTES', False),
             'custom_domain_tls': getattr(settings, 'TRAEFIK_CUSTOM_DOMAIN_TLS', True),
             'custom_domain_entrypoints': getattr(settings, 'TRAEFIK_CUSTOM_DOMAIN_ENTRYPOINTS', ['websecure']),

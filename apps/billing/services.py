@@ -6,7 +6,7 @@ from django.db.models import Value
 from django.db.models.functions import Replace, Upper
 from django.utils import timezone
 
-from .models import FREE_TRIAL_DAYS, NEW_USER_TRIAL_DAYS, PLAN_LIMITS, CouponCode, PlanAddon, Subscription
+from .models import FLASK_LIMITS, FREE_TRIAL_DAYS, NEW_USER_TRIAL_DAYS, PLAN_LIMITS, CouponCode, PlanAddon, Subscription
 
 
 def user_can_use_subfolder(user) -> bool:
@@ -37,6 +37,33 @@ def user_project_limit(user) -> int:
     # Sum extra slots from active add-on purchases.
     addon_extra = sum(
         a.extra_projects
+        for a in PlanAddon.objects.filter(
+            user=user,
+            status=PlanAddon.Status.ACTIVE,
+            current_period_end__gt=timezone.now(),
+        )
+    )
+    return base + addon_extra
+
+
+def user_flask_limit(user) -> int:
+    """Return how many Flask app projects this user is allowed."""
+    try:
+        override = user.quota_config.max_projects
+        if override is not None:
+            return override
+    except Exception:
+        pass
+
+    base = 0
+    try:
+        sub = user.subscription
+        base = sub.max_flask_projects
+    except Subscription.DoesNotExist:
+        pass
+
+    addon_extra = sum(
+        a.extra_flask_projects
         for a in PlanAddon.objects.filter(
             user=user,
             status=PlanAddon.Status.ACTIVE,

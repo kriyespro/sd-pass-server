@@ -73,11 +73,26 @@ def deploy_after_scan(scan_result: dict) -> dict:
                 LogKind.SYSTEM,
                 f'Static site step: {extract_msg}',
             )
+    elif proj.project_type == ProjectType.FLASK:
+        from apps.deployments.flask_deploy import deploy_flask_project
+        from apps.domains.services import write_project_router_file
+
+        extract_ok, extract_msg = deploy_flask_project(proj, Path(upload.file.path))
+        if extract_ok:
+            proj.refresh_from_db()
+            try:
+                write_project_router_file(proj)
+            except OSError as exc:
+                append_project_log(proj, LogKind.SYSTEM, f'Traefik route update after Flask deploy failed: {exc}')
+            append_project_log(proj, LogKind.BUILD, f'Flask app deployed: {extract_msg}')
+        else:
+            append_project_log(proj, LogKind.SYSTEM, f'Flask deploy failed: {extract_msg}')
+
     else:
         append_project_log(
             proj,
             LogKind.BUILD,
-            'Static hosting skipped — set project type to “Static” for HTML/CSS/JS ZIP sites.',
+            'Deployment recorded — set project type to “Static” or “Flask” for automatic hosting.',
         )
 
     env_plain = decrypted_env_for_project(proj)
@@ -123,6 +138,9 @@ def deploy_after_scan(scan_result: dict) -> dict:
         body = f'Your static files are published. Open {site_url}'
         if extract_msg == 'extracted_no_index_html':
             body += ' (add index.html at the ' + ('subfolder root' if subfolder else 'ZIP root') + ' for the page to load).'
+    elif proj.project_type == ProjectType.FLASK and extract_ok:
+        link_url = site_url
+        body = f'Your Flask app is live at {site_url} — first request may take a few seconds while gunicorn starts.'
     else:
         link_url = reverse('projects:logs', kwargs={'slug': proj.slug})
         body = 'Your upload passed the scan. See project logs for details.'

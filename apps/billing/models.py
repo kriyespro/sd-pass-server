@@ -9,13 +9,27 @@ from django.utils import timezone
 
 PLAN_LIMITS = {
     'free':            1,
-    'test_plan':        1,
+    'test_plan':       1,
     'launch_lite':     1,
     'starter_cloud':   1,
     'wordpress_pro':   1,
     'business_cloud':  5,
     'agency_turbo':    10,
     'performance_max': 999,
+    'flask_addon':     0,
+}
+
+# Max Flask apps per plan. Static-only plans = 0. flask_addon adds +1 Flask slot.
+FLASK_LIMITS = {
+    'free':            0,
+    'test_plan':       0,
+    'launch_lite':     0,
+    'starter_cloud':   0,
+    'wordpress_pro':   1,
+    'business_cloud':  1,
+    'agency_turbo':    3,
+    'performance_max': 5,
+    'flask_addon':     1,
 }
 
 FREE_TRIAL_DAYS = 7
@@ -23,23 +37,25 @@ NEW_USER_TRIAL_DAYS = 2
 
 PLAN_PRICES = {
     'test_plan':        Decimal('299.00'),
-    'launch_lite':     Decimal('1499.00'),
-    'starter_cloud':   Decimal('2099.00'),
-    'wordpress_pro':   Decimal('3699.00'),
-    'business_cloud':  Decimal('5999.00'),
-    'agency_turbo':    Decimal('8499.00'),
-    'performance_max': Decimal('11999.00'),
+    'launch_lite':      Decimal('1499.00'),
+    'starter_cloud':    Decimal('2099.00'),
+    'wordpress_pro':    Decimal('3699.00'),
+    'business_cloud':   Decimal('5999.00'),
+    'agency_turbo':     Decimal('8499.00'),
+    'performance_max':  Decimal('11999.00'),
+    'flask_addon':      Decimal('1499.00'),
 }
 
 PLAN_LABELS = {
     'free':            'Free — 1 website',
-    'test_plan':        'Starter Trial — 1 website · ₹299 · 30 days',
+    'test_plan':       'Starter Trial — 1 website · ₹299 · 30 days',
     'launch_lite':     'Launch Lite — 1 website · ₹1,499/year',
     'starter_cloud':   'Starter Cloud — 1 website · ₹2,099/year',
-    'wordpress_pro':   'WordPress Pro — 1 website · ₹3,699/year',
-    'business_cloud':  'Business Cloud — 5 websites · ₹5,999/year',
-    'agency_turbo':    'Agency Turbo — 10 websites · ₹8,499/year',
-    'performance_max': 'Performance Max — Unlimited websites · ₹11,999/year',
+    'wordpress_pro':   'WordPress Pro — 1 website + 1 Flask app · ₹3,699/year',
+    'business_cloud':  'Business Cloud — 5 websites · 1 Flask app · ₹5,999/year',
+    'agency_turbo':    'Agency Turbo — 10 websites · 3 Flask apps · ₹8,499/year',
+    'performance_max': 'Performance Max — Unlimited websites · 5 Flask apps · ₹11,999/year',
+    'flask_addon':     'Flask Add-on — +1 Flask app slot · ₹1,499/year',
 }
 
 
@@ -53,6 +69,7 @@ class Subscription(models.Model):
         BUSINESS_CLOUD  = 'business_cloud',  'Business Cloud'
         AGENCY_TURBO    = 'agency_turbo',    'Agency Turbo'
         PERFORMANCE_MAX = 'performance_max', 'Performance Max'
+        FLASK_ADDON     = 'flask_addon',     'Flask Add-on'
 
     class Status(models.TextChoices):
         ACTIVE    = 'active',    'Active'
@@ -127,6 +144,14 @@ class Subscription(models.Model):
         return PLAN_LIMITS.get(self.plan_slug, PLAN_LIMITS['free'])
 
     @property
+    def max_flask_projects(self) -> int:
+        if self.trial_expired:
+            return 0
+        if not self.is_active:
+            return 0
+        return FLASK_LIMITS.get(self.plan_slug, 0)
+
+    @property
     def plan_label(self) -> str:
         return PLAN_LABELS.get(self.plan_slug, self.plan_slug)
 
@@ -172,6 +197,10 @@ class PlanAddon(models.Model):
     @property
     def extra_projects(self) -> int:
         return PLAN_LIMITS.get(self.plan_slug, 0)
+
+    @property
+    def extra_flask_projects(self) -> int:
+        return FLASK_LIMITS.get(self.plan_slug, 0)
 
     @property
     def plan_label(self) -> str:

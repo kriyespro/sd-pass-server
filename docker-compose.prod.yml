@@ -30,6 +30,21 @@ services:
   redis:
     image: redis:7-alpine
 
+  flask-runner:
+    build:
+      context: ./flask_runner
+      dockerfile: Dockerfile
+    environment:
+      STUDENT_SITE_ROOT: /app/data/sites
+      FLASK_RUNNER_TOKEN: ${FLASK_RUNNER_TOKEN:-}
+      GUNICORN_TIMEOUT: '30'
+      PIP_TIMEOUT: '180'
+    volumes:
+      - sites_data:/app/data/sites
+    restart: unless-stopped
+    depends_on:
+      - web
+
   traefik:
     image: traefik:v3.2
     command:

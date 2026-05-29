@@ -74,6 +74,13 @@ class Project(models.Model):
         default='',
         help_text='Most-recently deployed subfolder path (e.g. "myweb"). Empty = site root.',
     )
+    flask_port = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        unique=True,
+        db_index=True,
+        help_text='Port on the flask-runner container (7000-7999). Null = not a running Flask project.',
+    )
 
     class Meta:
         ordering = ['-created_at']

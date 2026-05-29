@@ -4,7 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 
-from apps.billing.services import user_project_limit
+from apps.billing.services import user_flask_limit, user_project_limit
 
 from .models import Project, ProjectType
 from .subdomain import allocate_unique_subdomain, subdomain_is_available, suggest_subdomain_base
@@ -70,7 +70,7 @@ class ProjectCustomHostnameForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ('name', 'subdomain', 'description')
+        fields = ('name', 'project_type', 'subdomain', 'description')
 
     def __init__(self, *args, user=None, **kwargs):
         self.user = user
@@ -88,6 +88,18 @@ class ProjectForm(forms.ModelForm):
             self.fields['description'].widget.attrs['placeholder'] = 'Short description (optional)'
         if 'name' in self.fields:
             self.fields['name'].widget.attrs['placeholder'] = 'My Portfolio Site'
+        if 'project_type' in self.fields:
+            flask_limit = user_flask_limit(user) if user else 0
+            type_choices = [
+                (ProjectType.STATIC, 'Static Website (HTML / CSS / JS / Tailwind)'),
+                (ProjectType.FLASK,  f'Flask App (Python · SQLite){" — upgrade required" if flask_limit == 0 else ""}'),
+            ]
+            self.fields['project_type'].choices = type_choices
+            self.fields['project_type'].initial = ProjectType.STATIC
+            self.fields['project_type'].help_text = (
+                'Static sites are fast and free to host. '
+                'Flask apps (Python) require WordPress Pro plan or higher.'
+            )
         for _name, field in self.fields.items():
             field.widget.attrs.setdefault('class', _FIELD_CLASS)
 
@@ -111,6 +123,8 @@ class ProjectForm(forms.ModelForm):
         data = super().clean()
         if self.user is None:
             return data
+
+        # Total project limit
         limit = user_project_limit(self.user)
         count = Project.objects.filter(owner=self.user, is_deleted=False).count()
         if count >= limit:
@@ -118,4 +132,23 @@ class ProjectForm(forms.ModelForm):
                 f'You have reached your project limit ({limit} website{"s" if limit != 1 else ""}). '
                 'Upgrade your plan with a coupon code to add more.'
             )
+
+        # Flask-specific limit
+        if data.get('project_type') == ProjectType.FLASK:
+            flask_limit = user_flask_limit(self.user)
+            if flask_limit == 0:
+                raise forms.ValidationError(
+                    'Flask app support requires WordPress Pro (₹3,699/year) or higher. '
+                    'Upgrade your plan or add a Flask Add-on.'
+                )
+            flask_count = Project.objects.filter(
+                owner=self.user, is_deleted=False, project_type=ProjectType.FLASK,
+            ).count()
+            if flask_count >= flask_limit:
+                raise forms.ValidationError(
+                    f'You have reached your Flask app limit '
+                    f'({flask_limit} app{"s" if flask_limit != 1 else ""}). '
+                    'Upgrade your plan or purchase a Flask Add-on.'
+                )
+
         return data

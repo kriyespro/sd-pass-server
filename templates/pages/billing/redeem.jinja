@@ -54,12 +54,18 @@
         <p class="mt-2 text-2xl font-bold text-white">{{ p.price }}<span class="text-sm font-normal text-slate-400">/{{ p.period }}</span></p>
         <p class="mt-3 text-sm text-slate-400">
           <span class="font-semibold text-emerald-300">{{ p.sites }} website{{ 's' if p.sites != '1' }}</span>
+          {% if p.get('flask', 0) > 0 %}
+            <span class="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
+              🐍 {{ p.flask }} Flask app{{ 's' if p.flask != 1 }}
+            </span>
+          {% endif %}
         </p>
         <p class="mt-1 text-xs text-slate-500">{{ p.specs }}</p>
         <ul class="mt-3 space-y-1 text-xs text-slate-400">
           <li>✓ Static site hosting</li>
           <li>✓ Custom domain support</li>
           <li>✓ 1-year validity</li>
+          {% if p.get('flask', 0) > 0 %}<li>✓ Flask + SQLite app hosting</li>{% endif %}
         </ul>
         <div class="mt-4 flex-1 flex items-end">
           {% if subscription.plan_slug == p.slug and subscription.is_active and subscription.is_paid %}
@@ -98,7 +104,11 @@
             <li class="flex items-center justify-between text-sm">
               <span class="text-sky-100">{{ addon.plan_label }}
                 <span class="text-slate-500">·</span>
-                <span class="text-emerald-300">+{{ addon.extra_projects }} site{{ 's' if addon.extra_projects != 1 }}</span>
+                {% if addon.extra_flask_projects > 0 %}
+                  <span class="text-amber-300">+{{ addon.extra_flask_projects }} Flask app{{ 's' if addon.extra_flask_projects != 1 }}</span>
+                {% else %}
+                  <span class="text-emerald-300">+{{ addon.extra_projects }} site{{ 's' if addon.extra_projects != 1 }}</span>
+                {% endif %}
               </span>
               <span class="text-xs text-slate-400">until {{ addon.current_period_end.strftime('%d %b %Y') }}</span>
             </li>
@@ -143,6 +153,42 @@
       {% endfor %}
     </div>
   </div>
+
+  {# ── Flask Add-on ── #}
+  {% if flask_addon %}
+  <div class="space-y-4">
+    <div>
+      <h2 class="text-xl font-semibold text-white">🐍 Flask App Add-on</h2>
+      <p class="mt-1 text-sm text-slate-400">
+        Add a Flask app slot to your existing plan. Requires WordPress Pro or higher base plan.
+        Flask runtime coming soon — lock in your slot now.
+      </p>
+    </div>
+    <div class="relative flex flex-col rounded-2xl border border-amber-700/40 bg-amber-900/10 p-5 max-w-sm">
+      <span class="absolute -top-3 right-4 rounded-full bg-amber-600 px-2.5 py-0.5 text-[10px] font-bold text-white tracking-wide">FLASK ADD-ON</span>
+      <p class="text-base font-semibold text-white">{{ flask_addon.name }}</p>
+      <p class="text-xs text-slate-400 mt-0.5">{{ flask_addon.subtitle }}</p>
+      <p class="mt-2 text-2xl font-bold text-white">{{ flask_addon.price }}<span class="text-sm font-normal text-slate-400">/{{ flask_addon.period }}</span></p>
+      <p class="mt-3 text-sm text-amber-300 font-semibold">+1 Flask app slot</p>
+      <p class="mt-1 text-xs text-slate-500">{{ flask_addon.specs }}</p>
+      <ul class="mt-3 space-y-1 text-xs text-slate-400">
+        <li>✓ Python · Flask · SQLite</li>
+        <li>✓ HTML · CSS · Tailwind · JS</li>
+        <li>✓ 1-year validity</li>
+        <li>✓ Stacks on top of base plan</li>
+      </ul>
+      <div class="mt-4">
+        <button
+          @click="payAddon('{{ flask_addon.slug }}', '{{ flask_addon.price }}', '{{ flask_addon.name }}')"
+          :disabled="addonLoading"
+          class="w-full rounded-lg bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+          <span x-show="addonLoading && addonActivePlan === '{{ flask_addon.slug }}'" x-cloak>Processing…</span>
+          <span x-show="!(addonLoading && addonActivePlan === '{{ flask_addon.slug }}')">Add Flask Slot — {{ flask_addon.price }}/yr</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   {# ── Coupon redemption form ── #}
   <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -317,7 +363,10 @@ function razorpayCheckout() {
               });
               const verifyData = await verifyRes.json();
               if (verifyRes.ok && verifyData.status === 'success') {
-                self.addonSuccessMsg = '🎉 Add-on activated! +' + verifyData.extra_sites + ' site(s) added until ' + verifyData.expires + '. Refreshing…';
+                const what = verifyData.extra_flask > 0
+                  ? '+' + verifyData.extra_flask + ' Flask app slot(s)'
+                  : '+' + verifyData.extra_sites + ' site(s)';
+                self.addonSuccessMsg = '🎉 Add-on activated! ' + what + ' added until ' + verifyData.expires + '. Refreshing…';
                 setTimeout(function() { window.location.reload(); }, 2000);
               } else {
                 self.addonErrorMsg = verifyData.error || 'Payment verified but add-on activation failed. Contact support.';

@@ -9,7 +9,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView
 
-from apps.billing.services import user_can_use_subfolder
+from apps.billing.services import user_can_use_subfolder, user_flask_limit
 from apps.deployments.services import MAX_STATIC_FILES_PER_POST, _validate_subfolder, save_static_files
 from apps.logs.models import LogKind
 from apps.logs.services import append_project_log
@@ -101,6 +101,16 @@ class ZipUploadView(LoginRequiredMixin, CreateView):
         ctx['upload_max_mb'] = settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
         ctx['is_static_project'] = self.project.project_type == ProjectType.STATIC
         ctx['is_flask_project']  = self.project.project_type == ProjectType.FLASK
+        if ctx['is_flask_project']:
+            flask_limit = user_flask_limit(self.request.user)
+            flask_used  = Project.objects.filter(
+                owner=self.request.user,
+                is_deleted=False,
+                project_type=ProjectType.FLASK,
+            ).count()
+            ctx['flask_enabled']     = flask_limit > 0
+            ctx['flask_quota_total'] = flask_limit
+            ctx['flask_quota_used']  = flask_used
         ctx.update(_site_url_hints(self.project))
         return ctx
 

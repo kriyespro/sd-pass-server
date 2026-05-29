@@ -67,11 +67,11 @@ class RedeemCouponView(LoginRequiredMixin, FormView):
             {
                 'slug': 'test_plan',
                 'name': 'Starter Trial',
-                'subtitle': 'India · 1 Website · Custom Domain · 9 Days',
+                'subtitle': 'India · 1 Website · Custom Domain · 30 Days',
                 'sites': '1',
-                'price': '₹99',
-                'period': '9 days',
-                'specs': '1 website · Custom domain · Upgrade anytime · Suspends after 9 days',
+                'price': '₹299',
+                'period': '30 days',
+                'specs': '1 website · Custom domain · Upgrade anytime · Suspends after 30 days',
                 'highlight': False,
             },
             {
@@ -209,11 +209,12 @@ def verify_payment(request):
         logger.warning('Razorpay signature mismatch for user %s order %s', request.user.id, order_id)
         return JsonResponse({'error': 'Payment verification failed'}, status=400)
 
-    plan_days = 9 if plan_slug == 'test_plan' else 365
+    plan_days = 30 if plan_slug == 'test_plan' else 365
     sub = get_or_create_subscription(request.user)
     sub.plan_slug = plan_slug
     sub.status = Subscription.Status.ACTIVE
     sub.current_period_end = timezone.now() + timezone.timedelta(days=plan_days)
+    sub.trial_ends_at = None
     sub.save()
 
     label = PLAN_LABELS.get(plan_slug, plan_slug)
@@ -255,7 +256,7 @@ def verify_addon_payment(request):
         logger.warning('Razorpay addon signature mismatch for user %s order %s', request.user.id, order_id)
         return JsonResponse({'error': 'Payment verification failed'}, status=400)
 
-    plan_days = 9 if plan_slug == 'test_plan' else 365
+    plan_days = 30 if plan_slug == 'test_plan' else 365
     addon = PlanAddon.objects.create(
         user=request.user,
         plan_slug=plan_slug,

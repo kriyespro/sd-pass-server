@@ -15,7 +15,30 @@ def suspend_expired_trials() -> dict:
     now = timezone.now()
     suspended_ids = []
 
-    # Suspend expired 9-day test_plan (₹99 trial) users.
+    # Suspend expired 2-day launch_lite free trials (trial_ends_at is set = trial, not paid).
+    expired_launch_trials = Subscription.objects.filter(
+        plan_slug=Subscription.Plan.LAUNCH_LITE,
+        status=Subscription.Status.ACTIVE,
+        trial_ends_at__isnull=False,
+        trial_ends_at__lt=now,
+    ).select_related('user')
+
+    for sub in expired_launch_trials:
+        sub.status = Subscription.Status.SUSPENDED
+        sub.save(update_fields=['status', 'updated_at'])
+        suspended_ids.append(sub.user_id)
+        create_notification(
+            user_id=sub.user_id,
+            title='Your 2-day free trial has ended',
+            body=(
+                'Your free trial has expired and your account has been suspended. '
+                'Purchase a plan to restore access.'
+            ),
+            level=NotificationLevel.WARNING,
+            link_url=reverse('billing:redeem'),
+        )
+
+    # Suspend expired 30-day test_plan (₹299 trial) users.
     expired_trials = Subscription.objects.filter(
         plan_slug=Subscription.Plan.TEST_PLAN,
         status=Subscription.Status.ACTIVE,
@@ -28,9 +51,9 @@ def suspend_expired_trials() -> dict:
         suspended_ids.append(sub.user_id)
         create_notification(
             user_id=sub.user_id,
-            title='Your 9-day trial has ended',
+            title='Your 30-day trial has ended',
             body=(
-                'Your ₹99 trial has expired and your account has been suspended. '
+                'Your ₹299 trial has expired and your account has been suspended. '
                 'Purchase a plan to restore access.'
             ),
             level=NotificationLevel.WARNING,
@@ -52,7 +75,7 @@ def suspend_expired_trials() -> dict:
             title='Free plan discontinued',
             body=(
                 'The free plan is no longer available. '
-                'Start with our ₹99 trial to restore access.'
+                'Start with our ₹299 trial to restore access.'
             ),
             level=NotificationLevel.WARNING,
             link_url=reverse('billing:redeem'),

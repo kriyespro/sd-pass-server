@@ -19,9 +19,10 @@ PLAN_LIMITS = {
 }
 
 FREE_TRIAL_DAYS = 7
+NEW_USER_TRIAL_DAYS = 2
 
 PLAN_PRICES = {
-    'test_plan':        Decimal('99.00'),
+    'test_plan':        Decimal('299.00'),
     'launch_lite':     Decimal('1499.00'),
     'starter_cloud':   Decimal('2099.00'),
     'wordpress_pro':   Decimal('3699.00'),
@@ -32,7 +33,7 @@ PLAN_PRICES = {
 
 PLAN_LABELS = {
     'free':            'Free — 1 website',
-    'test_plan':        'Starter Trial — 1 website · ₹99 · 9 days',
+    'test_plan':        'Starter Trial — 1 website · ₹299 · 30 days',
     'launch_lite':     'Launch Lite — 1 website · ₹1,499/year',
     'starter_cloud':   'Starter Cloud — 1 website · ₹2,099/year',
     'wordpress_pro':   'WordPress Pro — 1 website · ₹3,699/year',

@@ -6,7 +6,7 @@ from django.db.models import Value
 from django.db.models.functions import Replace, Upper
 from django.utils import timezone
 
-from .models import FREE_TRIAL_DAYS, PLAN_LIMITS, CouponCode, PlanAddon, Subscription
+from .models import FREE_TRIAL_DAYS, NEW_USER_TRIAL_DAYS, PLAN_LIMITS, CouponCode, PlanAddon, Subscription
 
 
 def user_can_use_subfolder(user) -> bool:
@@ -47,12 +47,16 @@ def user_project_limit(user) -> int:
 
 
 def get_or_create_subscription(user) -> Subscription:
+    from django.utils import timezone
+    now = timezone.now()
+    trial_end = now + timezone.timedelta(days=NEW_USER_TRIAL_DAYS)
     sub, created = Subscription.objects.get_or_create(
         user=user,
         defaults={
-            'plan_slug': Subscription.Plan.FREE,
-            'status': Subscription.Status.SUSPENDED,
-            'trial_ends_at': None,
+            'plan_slug': Subscription.Plan.LAUNCH_LITE,
+            'status': Subscription.Status.ACTIVE,
+            'current_period_end': trial_end,
+            'trial_ends_at': trial_end,
         },
     )
     return sub
@@ -104,6 +108,7 @@ def redeem_coupon(user, code: str) -> tuple[bool, str]:
         sub.plan_slug = coupon.plan
         sub.status = Subscription.Status.ACTIVE
         sub.current_period_end = period_end
+        sub.trial_ends_at = None
         sub.save()
 
         coupon.used_by = user

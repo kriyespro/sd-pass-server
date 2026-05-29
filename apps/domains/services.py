@@ -36,6 +36,8 @@ def write_project_router_file(project) -> tuple[Path, str]:
             'cert_resolver': settings.TRAEFIK_CERT_RESOLVER,
             'upstream_url': settings.TRAEFIK_UPSTREAM_URL,
             'use_tls': getattr(settings, 'TRAEFIK_TLS_ON_PROJECT_ROUTES', False),
+            'custom_domain_tls': getattr(settings, 'TRAEFIK_CUSTOM_DOMAIN_TLS', True),
+            'custom_domain_entrypoints': getattr(settings, 'TRAEFIK_CUSTOM_DOMAIN_ENTRYPOINTS', ['websecure']),
         },
     )
     out_dir = settings.TRAEFIK_DYNAMIC_DIR

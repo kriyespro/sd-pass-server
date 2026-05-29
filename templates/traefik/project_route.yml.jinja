@@ -11,6 +11,23 @@ http:
         certResolver: {{ cert_resolver }}
 {% endif %}
 {% for extra in extra_hosts %}
+{% if custom_domain_tls %}
+    {{ router_name }}cust{{ loop.index }}http:
+      rule: "Host(`{{ extra }}`)"
+      entryPoints:
+        - web
+      service: {{ service_name }}
+      middlewares:
+        - {{ router_name }}-https-redirect
+    {{ router_name }}cust{{ loop.index }}:
+      rule: "Host(`{{ extra }}`)"
+      entryPoints:{% for ep in custom_domain_entrypoints %}
+        - {{ ep }}
+{% endfor %}
+      service: {{ service_name }}
+      tls:
+        certResolver: {{ cert_resolver }}
+{% else %}
     {{ router_name }}cust{{ loop.index }}:
       rule: "Host(`{{ extra }}`)"
       entryPoints:{% for ep in entry_points %}
@@ -21,7 +38,15 @@ http:
       tls:
         certResolver: {{ cert_resolver }}
 {% endif %}
+{% endif %}
 {% endfor %}
+{% if custom_domain_tls and extra_hosts %}
+  middlewares:
+    {{ router_name }}-https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+{% endif %}
   services:
     {{ service_name }}:
       loadBalancer:

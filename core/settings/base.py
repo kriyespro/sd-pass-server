@@ -227,6 +227,13 @@ TRAEFIK_TLS_ON_PROJECT_ROUTES = env.bool(
     'TRAEFIK_TLS_ON_PROJECT_ROUTES',
     default=False,
 )
+# Custom student domains always get their own Let's Encrypt cert via Traefik ACME.
+# Set TRAEFIK_CUSTOM_DOMAIN_TLS=false only if you handle SSL externally for custom domains.
+TRAEFIK_CUSTOM_DOMAIN_TLS = env.bool('TRAEFIK_CUSTOM_DOMAIN_TLS', default=True)
+TRAEFIK_CUSTOM_DOMAIN_ENTRYPOINTS = env.list(
+    'TRAEFIK_CUSTOM_DOMAIN_ENTRYPOINTS',
+    default=['websecure'],
+)
 TRAEFIK_UPSTREAM_URL = env(
     'TRAEFIK_UPSTREAM_URL',
     default='http://127.0.0.1:8000',

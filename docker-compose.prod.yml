@@ -3,10 +3,10 @@
 # Commands: always pass --env-file .env.prod OR symlink/copy secrets into a file named `.env`
 # in this directory (Compose auto-loads `.env` for ${VAR} substitution — needed for `down`).
 #
-# Traefik host port defaults to 9080 so host nginx can keep :80. Override with TRAEFIK_HTTP_PUBLISH.
+# Traefik HTTP port defaults to 9080; HTTPS (websecure) port defaults to 9443.
+# nginx stream-proxies unknown SNI (custom student domains) on :443 to Traefik :9443 for ACME certs.
 # Gunicorn is published as WEB_HTTP_BIND:WEB_HTTP_PUBLISH -> container :8000 (default 0.0.0.0:9898).
-# With nginx + TLS on host port 9898: set WEB_HTTP_BIND=127.0.0.1 and WEB_HTTP_PUBLISH=9988, then nginx
-# proxies https://...:9898 -> http://127.0.0.1:9988. See deploy/nginx-studentcloud.example.conf.
+# Set ACME_EMAIL to your admin address for Let's Encrypt registration.
 services:
   db:
     image: postgres:16-alpine
@@ -34,13 +34,19 @@ services:
     image: traefik:v3.2
     command:
       - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
       - --providers.file.directory=/dynamic
       - --providers.file.watch=true
       - --log.level=INFO
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-webmaster@localhost}
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
     ports:
       - '${TRAEFIK_HTTP_PUBLISH:-9080}:80'
+      - '${TRAEFIK_HTTPS_PUBLISH:-9443}:443'
     volumes:
       - traefik_dynamic:/dynamic:ro
+      - traefik_acme:/acme
     depends_on:
       - web
 
@@ -113,3 +119,4 @@ volumes:
   uploads_data: {}
   platform_backups_data: {}
   traefik_dynamic: {}
+  traefik_acme: {}

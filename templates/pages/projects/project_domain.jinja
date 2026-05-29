@@ -119,8 +119,15 @@
         </p>
       </li>
       <li>
-        <p class="font-medium text-slate-100">Set Cloudflare SSL/TLS → Overview → <strong>Full</strong> mode.</p>
-        <p class="mt-1 text-slate-500">This encrypts both browser ↔ Cloudflare and Cloudflare ↔ our server.</p>
+        <p class="font-medium text-slate-100">
+          If using Cloudflare proxy (orange cloud): set SSL/TLS → Overview → <strong>Full</strong> mode
+          (not Flexible, not Full Strict).
+        </p>
+        <p class="mt-1 text-slate-500">
+          With grey cloud (direct DNS), HTTPS works automatically via Let's Encrypt — no Cloudflare needed.
+          Flexible mode will cause a redirect loop. Full Strict requires the origin cert to match your domain
+          exactly — use grey cloud or Full (not strict) instead.
+        </p>
       </li>
       <li>
         <p class="font-medium text-slate-100">Come back here and click <strong>Check verification</strong> below.</p>
@@ -146,6 +153,12 @@
           Your site is live at
           <a href="https://{{ project.custom_hostname }}/" target="_blank"
              class="font-mono underline hover:text-emerald-200">https://{{ project.custom_hostname }}/</a>
+        </p>
+        <p class="mt-2 text-xs text-emerald-400/70">
+          🔒 HTTPS is provisioned automatically via Let's Encrypt. The certificate may take up to 60 seconds
+          to appear on the first visit after verification. If you see a security warning, wait a moment and
+          hard-refresh (Ctrl+Shift+R). Cloudflare proxy must be <strong>disabled (grey cloud)</strong> or
+          set to <strong>SSL/TLS → Full</strong> mode for HTTPS to work.
         </p>
       {% else %}
         <p class="mt-2 text-amber-200/80">

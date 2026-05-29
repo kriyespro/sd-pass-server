@@ -36,4 +36,9 @@ urlpatterns = [
         views.ProjectSubfolderDeleteView.as_view(),
         name='subfolder_delete',
     ),
+    path(
+        '<slug:slug>/change-type/',
+        views.ProjectChangeTypeView.as_view(),
+        name='change_type',
+    ),
 ]

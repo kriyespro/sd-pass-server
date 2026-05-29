@@ -16,7 +16,7 @@ from apps.billing.services import user_project_limit
 from apps.domains.services import write_project_router_file
 
 from .forms import ProjectCustomHostnameForm, ProjectForm
-from .models import Project, ProjectSubfolder
+from .models import Project, ProjectSubfolder, ProjectType
 from .services import soft_delete_project
 from .services import enqueue_on_project_created
 
@@ -339,3 +339,59 @@ class ProjectSubfolderDeleteView(LoginRequiredMixin, View):
         sf.delete()
         messages.success(request, f'Subfolder "{path_label}" removed from {project.name}.')
         return HttpResponseRedirect(reverse('projects:dashboard'))
+
+
+class ProjectChangeTypeView(LoginRequiredMixin, View):
+    """Let the project owner change their project type (Static ↔ Flask)."""
+
+    http_method_names = ['post']
+
+    _ALLOWED = {ProjectType.STATIC, ProjectType.FLASK}
+
+    def post(self, request, *args, **kwargs):
+        from apps.billing.services import user_flask_limit
+        from apps.domains.services import write_project_router_file
+
+        project = get_object_or_404(
+            Project,
+            slug=kwargs['slug'],
+            owner=request.user,
+            is_deleted=False,
+        )
+        new_type = request.POST.get('project_type', '').strip()
+        if new_type not in self._ALLOWED:
+            messages.error(request, 'Invalid project type.')
+            return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))
+
+        if new_type == ProjectType.FLASK:
+            flask_limit = user_flask_limit(request.user)
+            if flask_limit == 0:
+                messages.error(
+                    request,
+                    'Flask app support requires WordPress Pro (₹3,699/year) or higher. '
+                    'Upgrade your plan to use Flask.',
+                )
+                return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))
+            from apps.projects.models import Project as P
+            current_flask = P.objects.filter(
+                owner=request.user, is_deleted=False, project_type=ProjectType.FLASK,
+            ).exclude(pk=project.pk).count()
+            if current_flask >= flask_limit:
+                messages.error(
+                    request,
+                    f'Flask app limit reached ({flask_limit} app'
+                    f'{"s" if flask_limit != 1 else ""}). '
+                    'Upgrade or add a Flask Add-on.',
+                )
+                return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))
+
+        project.project_type = new_type
+        project.save(update_fields=['project_type'])
+        try:
+            write_project_router_file(project)
+        except OSError:
+            pass
+
+        label = 'Flask App' if new_type == ProjectType.FLASK else 'Static Website'
+        messages.success(request, f'Project type changed to {label}.')
+        return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))

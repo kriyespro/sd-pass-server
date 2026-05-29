@@ -1,5 +1,8 @@
 from core.celery import app
 
+# compress_task lives in a separate file — import here so Celery autodiscovery registers it
+from apps.deployments.compress_task import compress_site_images as _compress_site_images  # noqa: F401
+
 
 @app.task(name='deployments.after_upload_scan')
 def deploy_after_scan(scan_result: dict) -> dict:

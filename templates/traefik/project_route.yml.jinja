@@ -17,8 +17,6 @@ http:
       entryPoints:
         - web
       service: {{ service_name }}
-      middlewares:
-        - {{ router_name }}-https-redirect
     {{ router_name }}cust{{ loop.index }}:
       rule: "Host(`{{ extra }}`)"
       entryPoints:{% for ep in custom_domain_entrypoints %}
@@ -40,13 +38,6 @@ http:
 {% endif %}
 {% endif %}
 {% endfor %}
-{% if custom_domain_tls and extra_hosts %}
-  middlewares:
-    {{ router_name }}-https-redirect:
-      redirectScheme:
-        scheme: https
-        permanent: true
-{% endif %}
   services:
     {{ service_name }}:
       loadBalancer:

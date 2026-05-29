@@ -100,6 +100,7 @@ class ZipUploadView(LoginRequiredMixin, CreateView):
         )
         ctx['upload_max_mb'] = settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
         ctx['is_static_project'] = self.project.project_type == ProjectType.STATIC
+        ctx['is_flask_project']  = self.project.project_type == ProjectType.FLASK
         ctx.update(_site_url_hints(self.project))
         return ctx
 

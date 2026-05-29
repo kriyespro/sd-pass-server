@@ -7,15 +7,84 @@
     · <span class="text-slate-300">{{ project.name }}</span>
   </p>
   <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-    <h1 class="text-xl font-semibold text-white">Upload project ZIP</h1>
+    <h1 class="text-xl font-semibold text-white">
+      {% if is_flask_project %}🐍 Deploy Flask App{% else %}Upload project ZIP{% endif %}
+    </h1>
     <p class="mt-2 text-sm text-slate-400">
-      Max {{ upload_max_mb }} MB. Only <code class="text-emerald-300">.zip</code>. After upload, a Celery worker runs security checks then a deploy stub (no Docker from the web process).
+      Max {{ upload_max_mb }} MB · <code class="text-emerald-300">.zip</code> only ·
+      {% if is_flask_project %}
+        First deploy takes 1–3 minutes (installing packages). Subsequent deploys are faster.
+      {% else %}
+        After upload, a security scan runs then files are published.
+      {% endif %}
     </p>
+
     {% if is_static_project %}
       <p class="mt-2 text-sm text-sky-300/90">
         Or upload several HTML/CSS/JS files at once (no ZIP):
         <a href="{{ url('projects:upload_static_files', slug=project.slug) }}" class="font-semibold text-sky-300 underline hover:text-sky-200">multi-file upload</a>
       </p>
+    {% endif %}
+
+    {% if is_flask_project %}
+    {# ── Flask deploy instructions ── #}
+    <div class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-5 space-y-4 text-sm">
+      <p class="font-semibold text-amber-200">How to package your Flask app</p>
+
+      <div class="space-y-2 text-slate-300">
+        <p class="font-medium text-slate-100">1. Required file — <code class="text-amber-300">app.py</code></p>
+        <p class="text-slate-400 text-xs">Must be at the ZIP root. Must contain <code class="text-amber-300">app = Flask(__name__)</code></p>
+        <pre class="mt-1 rounded-lg bg-slate-900 px-4 py-3 text-xs text-emerald-300 overflow-x-auto">from flask import Flask, render_template
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')</pre>
+      </div>
+
+      <div class="space-y-2 text-slate-300">
+        <p class="font-medium text-slate-100">2. Optional — <code class="text-amber-300">requirements.txt</code></p>
+        <p class="text-slate-400 text-xs">List any extra packages. <code>flask</code> and <code>gunicorn</code> are always installed automatically.</p>
+        <pre class="mt-1 rounded-lg bg-slate-900 px-4 py-3 text-xs text-emerald-300 overflow-x-auto">flask-sqlalchemy
+python-dotenv</pre>
+      </div>
+
+      <div class="space-y-2 text-slate-300">
+        <p class="font-medium text-slate-100">3. Recommended ZIP structure</p>
+        <pre class="mt-1 rounded-lg bg-slate-900 px-4 py-3 text-xs text-slate-300 overflow-x-auto">myapp.zip
+├── app.py               ← required entry point
+├── requirements.txt     ← optional
+├── database.db          ← SQLite (optional)
+├── templates/
+│   ├── index.html
+│   └── base.html
+└── static/
+    ├── style.css
+    ├── script.js
+    └── images/
+        └── logo.png</pre>
+      </div>
+
+      <div class="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 space-y-1.5 text-xs text-slate-400">
+        <p class="font-semibold text-slate-300">✅ Allowed file types</p>
+        <p><span class="text-amber-300">.py</span> Python · <span class="text-sky-300">.html .htm</span> Templates · <span class="text-emerald-300">.css .js</span> Static · <span class="text-slate-300">.sqlite .db</span> SQLite</p>
+        <p><span class="text-slate-300">.png .jpg .jpeg .gif .webp .svg .ico</span> Images · <span class="text-slate-300">.woff .woff2 .ttf</span> Fonts</p>
+        <p><span class="text-slate-300">.txt .json .csv .yaml .toml .cfg .ini .env</span> Config / data</p>
+        <p class="text-rose-400 mt-1">❌ Not allowed: .exe · .sh · .bat · .php — and no <code>.venv/</code> folder in the ZIP (we create it for you)</p>
+      </div>
+
+      <div class="rounded-lg border border-sky-700/40 bg-sky-950/20 px-4 py-3 text-xs text-sky-300 space-y-1">
+        <p class="font-semibold text-sky-200">💡 Tips</p>
+        <ul class="space-y-1 list-disc pl-4 text-slate-300">
+          <li>Entry point must be <code class="text-amber-300">app.py</code> with variable <code class="text-amber-300">app = Flask(__name__)</code></li>
+          <li>For SQLite use a relative path: <code class="text-emerald-300">db = sqlite3.connect('database.db')</code></li>
+          <li>Templates folder must be named <code class="text-emerald-300">templates/</code></li>
+          <li>Static files folder must be named <code class="text-emerald-300">static/</code></li>
+          <li>Do NOT include <code class="text-rose-300">.venv/</code> or <code class="text-rose-300">__pycache__/</code> in the ZIP</li>
+          <li>First visit after deploy may take 3–5 seconds while gunicorn warms up</li>
+        </ul>
+      </div>
+    </div>
     {% endif %}
     <div x-data="uploadForm({ redirectFallback: '{{ url('projects:dashboard') }}' })">
     {% include "partials/uploads/_upload_progress_overlay.jinja" %}
@@ -33,6 +102,7 @@
           {% for err in form.file.errors %}<p class="mt-1 text-sm text-rose-300">{{ err }}</p>{% endfor %}
         {% endif %}
       </div>
+      {% if not is_flask_project %}
       <div x-data="{ subfolder: '' }">
         <label class="block text-sm font-medium text-slate-200" for="subfolder-input">
           Upload into subfolder <span class="text-slate-500 font-normal">(optional)</span>
@@ -68,7 +138,12 @@
           </p>
         {% endif %}
       </div>
-      <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50" :disabled="uploading">Upload &amp; queue scan</button>
+      {% endif %}
+      <button type="submit"
+        class="rounded-lg {% if is_flask_project %}bg-amber-500 hover:bg-amber-400{% else %}bg-emerald-500 hover:bg-emerald-400{% endif %} px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+        :disabled="uploading">
+        {% if is_flask_project %}🐍 Upload &amp; Deploy Flask App{% else %}Upload &amp; queue scan{% endif %}
+      </button>
     </form>
     </div>
   </div>

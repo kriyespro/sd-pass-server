@@ -44,7 +44,7 @@ services:
       GUNICORN_TIMEOUT: '30'
       PIP_TIMEOUT: '180'
     volumes:
-      - sites_data:/app/data/sites
+      - ./data/sites:/app/data/sites
     restart: unless-stopped
     depends_on:
       - web
@@ -57,7 +57,6 @@ services:
              python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
-      - sites_data:/app/data/sites
     ports:
       - "8001:8000"
     environment:
@@ -79,7 +78,6 @@ services:
     command: celery -A core.celery worker -l INFO
     volumes:
       - .:/app
-      - sites_data:/app/data/sites
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.dev
       SECRET_KEY: dev-docker-change-me
@@ -99,7 +97,6 @@ services:
     command: celery -A core.celery beat -l INFO
     volumes:
       - .:/app
-      - sites_data:/app/data/sites
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.dev
       SECRET_KEY: dev-docker-change-me
@@ -116,4 +113,3 @@ services:
 
 volumes:
   pgdata:
-  sites_data:

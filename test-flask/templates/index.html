@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <p class="page-subtitle">Welcome to StudentCloud CRM</p>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card stat-blue">
+    <div class="stat-icon">👥</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.contacts }}</div>
+      <div class="stat-label">Total Contacts</div>
+    </div>
+  </div>
+  <div class="stat-card stat-amber">
+    <div class="stat-icon">🎯</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.leads }}</div>
+      <div class="stat-label">Total Leads</div>
+    </div>
+  </div>
+  <div class="stat-card stat-purple">
+    <div class="stat-icon">💼</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.deals }}</div>
+      <div class="stat-label">Total Deals</div>
+    </div>
+  </div>
+  <div class="stat-card stat-green">
+    <div class="stat-icon">💰</div>
+    <div class="stat-body">
+      <div class="stat-value">${{ "{:,.0f}".format(stats.revenue) }}</div>
+      <div class="stat-label">Revenue Won</div>
+    </div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon">🔔</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.new_leads }}</div>
+      <div class="stat-label">New Leads</div>
+    </div>
+  </div>
+  <div class="stat-card stat-indigo">
+    <div class="stat-icon">📊</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.open_deals }}</div>
+      <div class="stat-label">Open Deals</div>
+    </div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-head">
+      <h2>Recent Leads</h2>
+      <a href="{{ url_for('leads') }}" class="card-link">View all →</a>
+    </div>
+    {% if recent_leads %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Name</th><th>Source</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for l in recent_leads %}
+        <tr>
+          <td><strong>{{ l.name }}</strong></td>
+          <td>{{ l.source or '—' }}</td>
+          <td><span class="badge badge-{{ l.status | lower }}">{{ l.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No leads yet. <a href="{{ url_for('leads') }}">Add one →</a></p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Recent Deals</h2>
+      <a href="{{ url_for('deals') }}" class="card-link">View all →</a>
+    </div>
+    {% if recent_deals %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Title</th><th>Value</th><th>Stage</th></tr>
+      </thead>
+      <tbody>
+        {% for d in recent_deals %}
+        <tr>
+          <td><strong>{{ d.title }}</strong></td>
+          <td>${{ "{:,.0f}".format(d.value) }}</td>
+          <td><span class="badge badge-{{ d.stage | lower }}">{{ d.stage }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No deals yet. <a href="{{ url_for('deals') }}">Add one →</a></p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card quick-actions">
+  <h2>Quick Actions</h2>
+  <div class="action-row">
+    <a href="{{ url_for('contacts') }}" class="action-btn">+ Add Contact</a>
+    <a href="{{ url_for('leads') }}" class="action-btn">+ Add Lead</a>
+    <a href="{{ url_for('deals') }}" class="action-btn">+ Add Deal</a>
+  </div>
+</div>
+{% endblock %}

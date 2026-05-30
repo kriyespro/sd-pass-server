@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Contacts</h1>
+  <p class="page-subtitle">{{ contacts | length }} total contacts</p>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-head"><h2>Add Contact</h2></div>
+    <form method="post" action="{{ url_for('contacts') }}">
+      <div class="form-group">
+        <label>Name *</label>
+        <input type="text" name="name" placeholder="Full name" required maxlength="100">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="email@example.com" maxlength="150">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" name="phone" placeholder="+1 234 567 8900" maxlength="30">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Company</label>
+        <input type="text" name="company" placeholder="Company name" maxlength="100">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" placeholder="Any notes..." rows="3" maxlength="500"></textarea>
+      </div>
+      <button type="submit" class="btn-primary">Add Contact</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>All Contacts</h2></div>
+    {% if contacts %}
+    <div class="contact-list">
+      {% for c in contacts %}
+      <div class="contact-item">
+        <div class="contact-avatar">{{ c.name[0].upper() }}</div>
+        <div class="contact-info">
+          <div class="contact-name">{{ c.name }}</div>
+          {% if c.company %}<div class="contact-meta">{{ c.company }}</div>{% endif %}
+          {% if c.email %}<div class="contact-meta">{{ c.email }}</div>{% endif %}
+          {% if c.phone %}<div class="contact-meta">{{ c.phone }}</div>{% endif %}
+          {% if c.notes %}<div class="contact-notes">{{ c.notes }}</div>{% endif %}
+        </div>
+        <div class="contact-actions">
+          <span class="contact-date">{{ c.created_at[:10] }}</span>
+          <form method="post" action="{{ url_for('delete_contact', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Delete this contact?')">
+            <button type="submit" class="btn-delete">✕</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No contacts yet. Add your first contact.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

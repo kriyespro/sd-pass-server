@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Get In Touch — SD Leads</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --card: #1a1a26;
+      --border: rgba(255,255,255,0.08);
+      --accent: #7c5cfc;
+      --accent2: #e056fd;
+      --text: #f0f0f8;
+      --muted: #8888aa;
+      --success: #22c55e;
+      --radius: 16px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND BLOBS ── */
+    .blobs {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    }
+    .blob {
+      position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.18;
+      animation: float 8s ease-in-out infinite;
+    }
+    .blob-1 { width: 600px; height: 600px; background: var(--accent);  top: -150px; left: -100px; animation-delay: 0s; }
+    .blob-2 { width: 500px; height: 500px; background: var(--accent2); bottom: -100px; right: -80px; animation-delay: 3s; }
+    .blob-3 { width: 300px; height: 300px; background: #3b82f6; top: 40%; left: 50%; animation-delay: 6s; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%       { transform: translateY(-30px) scale(1.05); }
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.2rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      background: rgba(10,10,15,0.6);
+    }
+    .nav-logo {
+      font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-admin {
+      font-size: 0.82rem; color: var(--muted);
+      text-decoration: none; padding: 0.45rem 1rem;
+      border: 1px solid var(--border); border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .nav-admin:hover { color: var(--text); border-color: var(--accent); background: rgba(124,92,252,0.1); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 6rem 1.5rem 2rem;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: rgba(124,92,252,0.15); border: 1px solid rgba(124,92,252,0.3);
+      border-radius: 999px; padding: 0.35rem 1rem;
+      font-size: 0.75rem; font-weight: 600; color: var(--accent);
+      margin-bottom: 1.5rem; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .badge span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 800; line-height: 1.12;
+      letter-spacing: -1.5px; margin-bottom: 1.2rem;
+    }
+    h1 span {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 1.1rem; color: var(--muted); max-width: 540px;
+      margin: 0 auto 3rem; line-height: 1.7;
+    }
+
+    /* ── FORM CARD ── */
+    .form-wrap {
+      position: relative; z-index: 1;
+      max-width: 560px; margin: 0 auto 5rem;
+      padding: 0 1.5rem;
+    }
+    .form-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+      transition: transform 0.3s;
+    }
+    .form-card:hover { transform: translateY(-4px); }
+
+    .form-title {
+      font-size: 1.3rem; font-weight: 700; margin-bottom: 0.4rem;
+    }
+    .form-sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.8rem; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1rem; }
+    .form-group label { font-size: 0.78rem; font-weight: 600; color: var(--muted); letter-spacing: 0.4px; text-transform: uppercase; }
+    .form-group input,
+    .form-group textarea {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      width: 100%;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,92,252,0.15);
+    }
+    .form-group textarea { resize: vertical; min-height: 100px; }
+
+    .btn-submit {
+      width: 100%; padding: 0.9rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border: none; border-radius: 12px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.3px;
+      transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 30px rgba(124,92,252,0.4);
+      margin-top: 0.5rem;
+      position: relative; overflow: hidden;
+    }
+    .btn-submit::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background 0.2s;
+    }
+    .btn-submit:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 12px 40px rgba(124,92,252,0.5); }
+    .btn-submit:active { transform: translateY(0); }
+
+    /* ── SUCCESS BANNER ── */
+    .success-banner {
+      display: flex; align-items: center; gap: 0.8rem;
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 12px; padding: 1rem 1.2rem;
+      margin-bottom: 1.5rem;
+      animation: slideDown 0.4s ease;
+    }
+    @keyframes slideDown { from { opacity:0; transform: translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+    .success-icon { font-size: 1.4rem; }
+    .success-text { font-size: 0.9rem; color: var(--success); font-weight: 600; }
+    .success-text small { display: block; font-weight: 400; color: rgba(34,197,94,0.7); font-size: 0.78rem; margin-top: 2px; }
+
+    /* ── TRUST ROW ── */
+    .trust-row {
+      display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;
+      position: relative; z-index: 1;
+      padding: 0 1.5rem 4rem;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.82rem; color: var(--muted);
+    }
+    .trust-item span { font-size: 1rem; }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      text-align: center; padding: 1.5rem;
+      font-size: 0.78rem; color: var(--muted);
+    }
+
+    @media (max-width: 480px) {
+      .form-row { grid-template-columns: 1fr; }
+      nav { padding: 1rem 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">⚡ SD Leads</div>
+    <a href="/admin/login" class="nav-admin">Admin →</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="badge"><span></span> Now Accepting Inquiries</div>
+    <h1>Let's Build Something <span>Amazing Together</span></h1>
+    <p class="hero-sub">Drop your details below and our team will reach out within 24 hours. No spam — just real conversations.</p>
+  </section>
+
+  <!-- FORM -->
+  <div class="form-wrap">
+    <div class="form-card">
+      <div class="form-title">📬 Send Us a Message</div>
+      <div class="form-sub">Fill in your details and we'll be in touch shortly.</div>
+
+      {% if success %}
+      <div class="success-banner">
+        <div class="success-icon">✅</div>
+        <div class="success-text">
+          Message received!
+          <small>We'll get back to you within 24 hours.</small>
+        </div>
+      </div>
+      {% endif %}
+
+      <form action="/submit-lead" method="POST" id="leadForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Full Name *</label>
+            <input type="text" id="name" name="name" placeholder="John Doe" required />
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="+91 98765 43210" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="email">Email Address *</label>
+          <input type="email" id="email" name="email" placeholder="john@company.com" required />
+        </div>
+        <div class="form-group">
+          <label for="message">Your Message</label>
+          <textarea id="message" name="message" placeholder="Tell us about your project or inquiry..."></textarea>
+        </div>
+        <button type="submit" class="btn-submit" id="submitBtn">
+          🚀 Send Message
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- TRUST -->
+  <div class="trust-row">
+    <div class="trust-item"><span>🔒</span> 100% Secure & Private</div>
+    <div class="trust-item"><span>⚡</span> Response in 24 hours</div>
+    <div class="trust-item"><span>🚫</span> Zero Spam, Ever</div>
+  </div>
+
+  <footer>© 2026 SD Leads · Built with ❤️</footer>
+
+  <script>
+    // Button loading state
+    document.getElementById('leadForm').addEventListener('submit', function() {
+      const btn = document.getElementById('submitBtn');
+      btn.textContent = '⏳ Sending...';
+      btn.style.opacity = '0.7';
+      btn.disabled = true;
+    });
+
+    // Auto-dismiss success banner
+    const banner = document.querySelector('.success-banner');
+    if (banner) {
+      setTimeout(() => {
+        banner.style.transition = 'opacity 0.5s';
+        banner.style.opacity = '0';
+        setTimeout(() => banner.remove(), 500);
+      }, 5000);
+    }
+  </script>
+</body>
+</html>

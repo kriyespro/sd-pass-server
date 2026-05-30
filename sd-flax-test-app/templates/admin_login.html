@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — SD Leads</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --card: #1a1a26;
+      --border: rgba(255,255,255,0.08);
+      --accent: #7c5cfc;
+      --accent2: #e056fd;
+      --text: #f0f0f8;
+      --muted: #8888aa;
+      --danger: #f87171;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      overflow: hidden;
+    }
+
+    .blobs { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.15; }
+    .blob-1 { width: 500px; height: 500px; background: var(--accent); top: -100px; left: -100px; }
+    .blob-2 { width: 400px; height: 400px; background: var(--accent2); bottom: -80px; right: -80px; }
+
+    .login-card {
+      position: relative; z-index: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 2.8rem 2.4rem;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+      animation: slideUp 0.4s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; margin-bottom: 1.5rem;
+      box-shadow: 0 8px 30px rgba(124,92,252,0.4);
+    }
+    .login-title { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.3rem; }
+    .login-sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 2rem; }
+
+    .error-box {
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 10px; padding: 0.8rem 1rem;
+      font-size: 0.85rem; color: var(--danger);
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 1.2rem;
+      animation: shake 0.3s ease;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-6px); }
+      60%      { transform: translateX(6px); }
+    }
+
+    .form-group { margin-bottom: 1.1rem; }
+    .form-group label {
+      display: block; font-size: 0.75rem; font-weight: 600;
+      color: var(--muted); margin-bottom: 0.45rem;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .input-wrap { position: relative; }
+    .input-wrap .icon {
+      position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%);
+      font-size: 1rem; color: var(--muted);
+    }
+    .form-group input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.78rem 1rem 0.78rem 2.6rem;
+      color: var(--text); font-family: inherit; font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,92,252,0.15);
+    }
+
+    .eye-toggle {
+      position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1rem; padding: 0;
+      transition: color 0.2s;
+    }
+    .eye-toggle:hover { color: var(--text); }
+
+    .btn-login {
+      width: 100%; margin-top: 0.6rem;
+      padding: 0.88rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border: none; border-radius: 12px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.2px;
+      box-shadow: 0 8px 30px rgba(124,92,252,0.4);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .back-link {
+      display: block; text-align: center; margin-top: 1.4rem;
+      font-size: 0.82rem; color: var(--muted); text-decoration: none;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    .hint-box {
+      margin-top: 1.6rem;
+      background: rgba(124,92,252,0.08);
+      border: 1px solid rgba(124,92,252,0.2);
+      border-radius: 10px; padding: 0.8rem 1rem;
+      font-size: 0.78rem; color: var(--muted); line-height: 1.6;
+    }
+    .hint-box strong { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="login-card">
+    <div class="login-icon">🔐</div>
+    <div class="login-title">Admin Access</div>
+    <div class="login-sub">Sign in to view and manage your leads.</div>
+
+    {% if error %}
+    <div class="error-box">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/admin/login" id="loginForm">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <div class="input-wrap">
+          <span class="icon">👤</span>
+          <input type="text" id="username" name="username" placeholder="admin" required autocomplete="username" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <span class="icon">🔑</span>
+          <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+          <button type="button" class="eye-toggle" onclick="togglePwd()" id="eyeBtn">👁</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login">Sign In to Dashboard →</button>
+    </form>
+
+    <a href="/" class="back-link">← Back to homepage</a>
+
+    <div class="hint-box">
+      <strong>Demo Credentials</strong><br />
+      Username: <strong>admin</strong> &nbsp;|&nbsp; Password: <strong>durga123@</strong>
+    </div>
+  </div>
+
+  <script>
+    function togglePwd() {
+      const pwd = document.getElementById('password');
+      const btn = document.getElementById('eyeBtn');
+      if (pwd.type === 'password') {
+        pwd.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        pwd.type = 'password';
+        btn.textContent = '👁';
+      }
+    }
+  </script>
+</body>
+</html>

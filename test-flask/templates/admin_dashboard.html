@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Admin Dashboard</h1>
+    <p class="page-subtitle">Full data overview · <a href="{{ url_for('admin_logout') }}" class="logout-link">Logout</a></p>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card stat-blue">
+    <div class="stat-icon">👥</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.contacts }}</div>
+      <div class="stat-label">Contacts</div>
+    </div>
+  </div>
+  <div class="stat-card stat-amber">
+    <div class="stat-icon">🎯</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.leads }}</div>
+      <div class="stat-label">Leads</div>
+    </div>
+  </div>
+  <div class="stat-card stat-purple">
+    <div class="stat-icon">💼</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.deals }}</div>
+      <div class="stat-label">Deals</div>
+    </div>
+  </div>
+  <div class="stat-card stat-green">
+    <div class="stat-icon">💰</div>
+    <div class="stat-body">
+      <div class="stat-value">${{ "{:,.0f}".format(stats.total_revenue) }}</div>
+      <div class="stat-label">Revenue Won</div>
+    </div>
+  </div>
+  <div class="stat-card stat-indigo">
+    <div class="stat-icon">📊</div>
+    <div class="stat-body">
+      <div class="stat-value">${{ "{:,.0f}".format(stats.pipeline_value) }}</div>
+      <div class="stat-label">Pipeline Value</div>
+    </div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon">❌</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ stats.lost_deals }}</div>
+      <div class="stat-label">Lost Deals</div>
+    </div>
+  </div>
+</div>
+
+<!-- Contacts Table -->
+<div class="card admin-section">
+  <div class="card-head">
+    <h2>All Contacts <span class="badge-count">{{ contacts | length }}</span></h2>
+  </div>
+  {% if contacts %}
+  <div class="table-wrap">
+    <table class="data-table admin-table">
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Company</th><th>Notes</th><th>Created</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for c in contacts %}
+        <tr>
+          <td class="id-col">{{ c.id }}</td>
+          <td><strong>{{ c.name }}</strong></td>
+          <td>{{ c.email or '—' }}</td>
+          <td>{{ c.phone or '—' }}</td>
+          <td>{{ c.company or '—' }}</td>
+          <td class="notes-col">{{ c.notes or '—' }}</td>
+          <td>{{ c.created_at[:10] }}</td>
+          <td>
+            <form method="post" action="{{ url_for('delete_contact', cid=c.id) }}" onsubmit="return confirm('Delete contact?')">
+              <button type="submit" class="btn-delete">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">No contacts.</p>
+  {% endif %}
+</div>
+
+<!-- Leads Table -->
+<div class="card admin-section">
+  <div class="card-head">
+    <h2>All Leads <span class="badge-count">{{ leads | length }}</span></h2>
+  </div>
+  {% if leads %}
+  <div class="table-wrap">
+    <table class="data-table admin-table">
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Source</th><th>Status</th><th>Notes</th><th>Created</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for l in leads %}
+        <tr>
+          <td class="id-col">{{ l.id }}</td>
+          <td><strong>{{ l.name }}</strong></td>
+          <td>{{ l.email or '—' }}</td>
+          <td>{{ l.phone or '—' }}</td>
+          <td>{{ l.source or '—' }}</td>
+          <td><span class="badge badge-{{ l.status | lower }}">{{ l.status }}</span></td>
+          <td class="notes-col">{{ l.notes or '—' }}</td>
+          <td>{{ l.created_at[:10] }}</td>
+          <td>
+            <form method="post" action="{{ url_for('delete_lead', lid=l.id) }}" onsubmit="return confirm('Delete lead?')">
+              <button type="submit" class="btn-delete">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">No leads.</p>
+  {% endif %}
+</div>
+
+<!-- Deals Table -->
+<div class="card admin-section">
+  <div class="card-head">
+    <h2>All Deals <span class="badge-count">{{ deals | length }}</span></h2>
+  </div>
+  {% if deals %}
+  <div class="table-wrap">
+    <table class="data-table admin-table">
+      <thead>
+        <tr><th>#</th><th>Title</th><th>Contact</th><th>Value</th><th>Stage</th><th>Notes</th><th>Created</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for d in deals %}
+        <tr>
+          <td class="id-col">{{ d.id }}</td>
+          <td><strong>{{ d.title }}</strong></td>
+          <td>{{ d.contact_name or '—' }}</td>
+          <td>${{ "{:,.0f}".format(d.value) }}</td>
+          <td><span class="badge badge-{{ d.stage | lower }}">{{ d.stage }}</span></td>
+          <td class="notes-col">{{ d.notes or '—' }}</td>
+          <td>{{ d.created_at[:10] }}</td>
+          <td>
+            <form method="post" action="{{ url_for('delete_deal', did=d.id) }}" onsubmit="return confirm('Delete deal?')">
+              <button type="submit" class="btn-delete">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">No deals.</p>
+  {% endif %}
+</div>
+{% endblock %}

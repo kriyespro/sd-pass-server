@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leads Dashboard — SD Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --card: #1a1a26;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.12);
+      --accent: #7c5cfc;
+      --accent2: #e056fd;
+      --text: #f0f0f8;
+      --muted: #8888aa;
+      --success: #22c55e;
+      --danger: #f87171;
+      --warning: #fbbf24;
+      --sidebar-w: 240px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 1.6rem 1.4rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 1.2rem; font-weight: 800; letter-spacing: -0.4px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .sidebar-logo small {
+      display: block; font-size: 0.65rem; font-weight: 500;
+      color: var(--muted); -webkit-text-fill-color: var(--muted);
+      margin-top: 2px; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .sidebar-nav { flex: 1; padding: 1rem 0.8rem; }
+    .nav-label {
+      font-size: 0.63rem; color: var(--muted); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; padding: 0.6rem 0.6rem 0.3rem;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.65rem 0.8rem; border-radius: 10px;
+      font-size: 0.875rem; font-weight: 500; color: var(--muted);
+      text-decoration: none; cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: rgba(124,92,252,0.1); color: var(--text); }
+    .nav-item.active { background: rgba(124,92,252,0.18); color: var(--accent); }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 1rem 0.8rem;
+      border-top: 1px solid var(--border);
+    }
+    .logout-btn {
+      display: flex; align-items: center; gap: 0.7rem;
+      width: 100%; padding: 0.65rem 0.8rem; border-radius: 10px;
+      font-size: 0.875rem; font-weight: 500; color: var(--danger);
+      background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.15);
+      text-decoration: none; transition: all 0.15s; cursor: pointer;
+    }
+    .logout-btn:hover { background: rgba(248,113,113,0.15); }
+
+    /* ── MAIN ── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1; display: flex; flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.2rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,15,0.8);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-title { font-size: 1.1rem; font-weight: 700; }
+    .topbar-title span { color: var(--muted); font-weight: 400; font-size: 0.85rem; margin-left: 0.5rem; }
+    .topbar-actions { display: flex; align-items: center; gap: 0.8rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1rem; border-radius: 9px;
+      font-family: inherit; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; transition: all 0.15s;
+      border: none;
+    }
+    .btn-ghost {
+      background: var(--surface); border: 1px solid var(--border2); color: var(--text);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; box-shadow: 0 4px 16px rgba(124,92,252,0.3);
+    }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-danger { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.2); color: var(--danger); }
+    .btn-danger:hover { background: rgba(248,113,113,0.2); }
+
+    /* ── CONTENT ── */
+    .content { padding: 2rem; flex: 1; }
+
+    /* ── STAT CARDS ── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.2rem; margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.4rem;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); border-color: var(--border2); }
+    .stat-label {
+      font-size: 0.72rem; color: var(--muted); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.6rem;
+    }
+    .stat-value { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 0.3rem; }
+    .stat-value.purple { background: linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .stat-value.green { color: var(--success); }
+    .stat-meta { font-size: 0.75rem; color: var(--muted); }
+
+    /* ── SEARCH BAR ── */
+    .table-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.8rem;
+    }
+    .search-wrap { position: relative; }
+    .search-wrap input {
+      background: var(--card); border: 1px solid var(--border2);
+      border-radius: 10px; padding: 0.6rem 1rem 0.6rem 2.4rem;
+      color: var(--text); font-family: inherit; font-size: 0.875rem;
+      outline: none; min-width: 260px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,252,0.12); }
+    .search-wrap .search-icon {
+      position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+      font-size: 0.9rem; color: var(--muted);
+    }
+
+    /* ── TABLE ── */
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: rgba(124,92,252,0.06); border-bottom: 1px solid var(--border2); }
+    th {
+      padding: 0.9rem 1.2rem;
+      text-align: left; font-size: 0.72rem; font-weight: 700;
+      color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px;
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    td { padding: 0.95rem 1.2rem; font-size: 0.87rem; vertical-align: middle; }
+
+    .td-id { color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+    .td-name { font-weight: 600; }
+    .td-email { color: var(--accent); }
+    .td-phone { color: var(--muted); font-size: 0.82rem; }
+    .td-msg {
+      max-width: 200px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      color: var(--muted); font-size: 0.82rem;
+    }
+    .td-date { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+    .source-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+      background: rgba(124,92,252,0.15); color: var(--accent);
+      border: 1px solid rgba(124,92,252,0.25);
+    }
+
+    .delete-btn {
+      padding: 0.35rem 0.7rem; font-size: 0.75rem;
+      background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2);
+      color: var(--danger); border-radius: 7px;
+      cursor: pointer; font-family: inherit; font-weight: 600;
+      transition: all 0.15s;
+    }
+    .delete-btn:hover { background: rgba(248,113,113,0.2); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center; padding: 4rem 2rem;
+      color: var(--muted);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.1rem; color: var(--text); margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.85rem; }
+
+    /* ── PAGINATION ── */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.2rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.82rem; color: var(--muted);
+      flex-wrap: wrap; gap: 0.6rem;
+    }
+    .page-links { display: flex; gap: 0.3rem; }
+    .page-link {
+      padding: 0.35rem 0.7rem; border-radius: 7px;
+      background: var(--surface); border: 1px solid var(--border2);
+      color: var(--muted); text-decoration: none;
+      transition: all 0.15s; font-size: 0.8rem;
+    }
+    .page-link:hover { border-color: var(--accent); color: var(--accent); }
+    .page-link.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .page-link.disabled { opacity: 0.3; pointer-events: none; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999;
+      background: var(--card); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 0.9rem 1.2rem;
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.85rem; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      animation: toastIn 0.3s ease;
+      max-width: 320px;
+    }
+    @keyframes toastIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      ⚡ SD Leads
+      <small>Admin Panel</small>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Main</div>
+      <a class="nav-item active" href="/admin">
+        <span class="icon">📋</span> All Leads
+      </a>
+      <a class="nav-item" href="/admin/export">
+        <span class="icon">📤</span> Export CSV
+      </a>
+      <div class="nav-label" style="margin-top:1rem">Site</div>
+      <a class="nav-item" href="/" target="_blank">
+        <span class="icon">🌐</span> View Landing Page
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/admin/logout" class="logout-btn">
+        <span>🚪</span> Logout
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-title">
+        Leads Dashboard
+        <span>Manage all incoming leads</span>
+      </div>
+      <div class="topbar-actions">
+        <a href="/admin/export" class="btn btn-ghost">📤 Export CSV</a>
+        <a href="/" target="_blank" class="btn btn-primary">🌐 Landing Page</a>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- STAT CARDS -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Leads</div>
+          <div class="stat-value purple">{{ total_leads }}</div>
+          <div class="stat-meta">All time submissions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Today's Leads</div>
+          <div class="stat-value green">{{ today_leads }}</div>
+          <div class="stat-meta">Received today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Showing</div>
+          <div class="stat-value" style="color:var(--warning)">{{ count_row }}</div>
+          <div class="stat-meta">{% if search %}Search results{% else %}All records{% endif %}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Pages</div>
+          <div class="stat-value" style="color:var(--muted)">{{ total_pages or 1 }}</div>
+          <div class="stat-meta">Page {{ page }} of {{ total_pages or 1 }}</div>
+        </div>
+      </div>
+
+      <!-- TABLE HEADER -->
+      <div class="table-header">
+        <form method="GET" action="/admin" style="display:flex;gap:0.6rem;align-items:center;">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" name="q" placeholder="Search name, email, phone…"
+                   value="{{ search }}" id="searchInput" />
+          </div>
+          <button type="submit" class="btn btn-ghost">Search</button>
+          {% if search %}
+          <a href="/admin" class="btn btn-ghost" style="color:var(--danger)">✕ Clear</a>
+          {% endif %}
+        </form>
+        <div style="font-size:0.8rem;color:var(--muted)">
+          {% if search %}Results for "{{ search }}"{% else %}Sorted by newest first{% endif %}
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-card">
+        <div class="table-wrap">
+          {% if leads %}
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Message</th>
+                <th>Source</th>
+                <th>Received At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lead in leads %}
+              <tr>
+                <td class="td-id">#{{ lead['id'] }}</td>
+                <td class="td-name">{{ lead['name'] }}</td>
+                <td class="td-email">
+                  <a href="mailto:{{ lead['email'] }}" style="color:inherit;text-decoration:none;"
+                     onmouseover="this.style.textDecoration='underline'"
+                     onmouseout="this.style.textDecoration='none'">
+                    {{ lead['email'] }}
+                  </a>
+                </td>
+                <td class="td-phone">{{ lead['phone'] or '—' }}</td>
+                <td class="td-msg" title="{{ lead['message'] }}">{{ lead['message'] or '—' }}</td>
+                <td><span class="source-badge">{{ lead['source'] }}</span></td>
+                <td class="td-date">{{ lead['created_at'] }}</td>
+                <td>
+                  <form method="POST" action="/admin/delete/{{ lead['id'] }}"
+                        onsubmit="return confirm('Delete this lead?')">
+                    <button type="submit" class="delete-btn">🗑 Delete</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h3>No leads found</h3>
+            <p>{% if search %}No results for "{{ search }}". Try a different search.{% else %}No leads yet. Share your landing page to start collecting.{% endif %}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- PAGINATION -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+          <div>Showing page {{ page }} of {{ total_pages }} ({{ count_row }} records)</div>
+          <div class="page-links">
+            <a href="?page={{ page - 1 }}&q={{ search }}"
+               class="page-link {% if page <= 1 %}disabled{% endif %}">← Prev</a>
+            {% for p in range(1, total_pages + 1) %}
+              <a href="?page={{ p }}&q={{ search }}"
+                 class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+            {% endfor %}
+            <a href="?page={{ page + 1 }}&q={{ search }}"
+               class="page-link {% if page >= total_pages %}disabled{% endif %}">Next →</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+
+  <script>
+    // Live search on Enter
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') this.closest('form').submit();
+    });
+
+    // Highlight search term in table
+    (function() {
+      const q = "{{ search }}";
+      if (!q) return;
+      document.querySelectorAll('td').forEach(td => {
+        if (td.innerHTML.toLowerCase().includes(q.toLowerCase())) {
+          td.innerHTML = td.innerHTML.replace(
+            new RegExp(q, 'gi'),
+            m => `<mark style="background:rgba(124,92,252,0.3);color:inherit;border-radius:3px;padding:0 2px">${m}</mark>`
+          );
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

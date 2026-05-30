@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Deals{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Deals</h1>
+  <p class="page-subtitle">{{ deals | length }} deals{% if stage_filter %} · stage: {{ stage_filter }}{% endif %}</p>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Stage:</span>
+  <a href="{{ url_for('deals') }}" class="filter-btn {% if not stage_filter %}active{% endif %}">All</a>
+  <a href="{{ url_for('deals', stage='Prospecting') }}" class="filter-btn {% if stage_filter == 'Prospecting' %}active{% endif %}">Prospecting</a>
+  <a href="{{ url_for('deals', stage='Proposal') }}" class="filter-btn {% if stage_filter == 'Proposal' %}active{% endif %}">Proposal</a>
+  <a href="{{ url_for('deals', stage='Negotiation') }}" class="filter-btn {% if stage_filter == 'Negotiation' %}active{% endif %}">Negotiation</a>
+  <a href="{{ url_for('deals', stage='Won') }}" class="filter-btn {% if stage_filter == 'Won' %}active{% endif %}">Won</a>
+  <a href="{{ url_for('deals', stage='Lost') }}" class="filter-btn {% if stage_filter == 'Lost' %}active{% endif %}">Lost</a>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-head"><h2>Add Deal</h2></div>
+    <form method="post" action="{{ url_for('deals') }}">
+      <div class="form-group">
+        <label>Deal Title *</label>
+        <input type="text" name="title" placeholder="e.g. Enterprise License Q3" required maxlength="150">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Contact Name</label>
+          <input type="text" name="contact_name" placeholder="Associated contact" maxlength="100">
+        </div>
+        <div class="form-group">
+          <label>Value ($)</label>
+          <input type="number" name="value" placeholder="0" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Stage</label>
+        <select name="stage">
+          <option>Prospecting</option>
+          <option>Proposal</option>
+          <option>Negotiation</option>
+          <option>Won</option>
+          <option>Lost</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" placeholder="Any notes..." rows="3" maxlength="500"></textarea>
+      </div>
+      <button type="submit" class="btn-primary">Add Deal</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Deals</h2></div>
+    {% if deals %}
+    <div class="deal-list">
+      {% for d in deals %}
+      <div class="deal-item">
+        <div class="deal-top">
+          <div class="deal-title">{{ d.title }}</div>
+          <div class="deal-value">${{ "{:,.0f}".format(d.value) }}</div>
+        </div>
+        {% if d.contact_name %}<div class="deal-contact">Contact: {{ d.contact_name }}</div>{% endif %}
+        {% if d.notes %}<div class="deal-notes">{{ d.notes }}</div>{% endif %}
+        <div class="deal-actions">
+          <span class="badge badge-{{ d.stage | lower }}">{{ d.stage }}</span>
+          <form method="post" action="{{ url_for('update_deal_stage', did=d.id) }}" class="inline-form">
+            <select name="stage" onchange="this.form.submit()">
+              <option {% if d.stage=='Prospecting' %}selected{% endif %}>Prospecting</option>
+              <option {% if d.stage=='Proposal' %}selected{% endif %}>Proposal</option>
+              <option {% if d.stage=='Negotiation' %}selected{% endif %}>Negotiation</option>
+              <option {% if d.stage=='Won' %}selected{% endif %}>Won</option>
+              <option {% if d.stage=='Lost' %}selected{% endif %}>Lost</option>
+            </select>
+          </form>
+          <form method="post" action="{{ url_for('delete_deal', did=d.id) }}" style="display:inline" onsubmit="return confirm('Delete this deal?')">
+            <button type="submit" class="btn-delete">✕</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No deals{% if stage_filter %} in stage "{{ stage_filter }}"{% endif %}.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

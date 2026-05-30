@@ -34,6 +34,21 @@ services:
     depends_on:
       - web
 
+  flask-runner:
+    build:
+      context: ./flask_runner
+      dockerfile: Dockerfile
+    environment:
+      STUDENT_SITE_ROOT: /app/data/sites
+      FLASK_RUNNER_TOKEN: ''
+      GUNICORN_TIMEOUT: '30'
+      PIP_TIMEOUT: '180'
+    volumes:
+      - sites_data:/app/data/sites
+    restart: unless-stopped
+    depends_on:
+      - web
+
   web:
     build: .
     command: >
@@ -42,6 +57,7 @@ services:
              python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
+      - sites_data:/app/data/sites
     ports:
       - "8000:8000"
     environment:
@@ -63,6 +79,7 @@ services:
     command: celery -A core.celery worker -l INFO
     volumes:
       - .:/app
+      - sites_data:/app/data/sites
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.dev
       SECRET_KEY: dev-docker-change-me
@@ -82,6 +99,7 @@ services:
     command: celery -A core.celery beat -l INFO
     volumes:
       - .:/app
+      - sites_data:/app/data/sites
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.dev
       SECRET_KEY: dev-docker-change-me
@@ -98,3 +116,4 @@ services:
 
 volumes:
   pgdata:
+  sites_data:

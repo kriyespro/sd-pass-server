@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}CRM{% endblock %} — StudentCloud CRM</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="brand-icon">◆</span>
+      <span class="brand-name">StudentCRM</span>
+    </div>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
+      <a href="{{ url_for('contacts') }}" class="nav-link {% if request.endpoint == 'contacts' %}active{% endif %}">Contacts</a>
+      <a href="{{ url_for('leads') }}" class="nav-link {% if request.endpoint == 'leads' %}active{% endif %}">Leads</a>
+      <a href="{{ url_for('deals') }}" class="nav-link {% if request.endpoint == 'deals' %}active{% endif %}">Deals</a>
+      {% if session.get('admin_logged_in') %}
+      <a href="{{ url_for('admin_dashboard') }}" class="nav-link nav-admin {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">Admin</a>
+      <a href="{{ url_for('admin_logout') }}" class="nav-link nav-logout">Logout</a>
+      {% else %}
+      <a href="{{ url_for('admin_login') }}" class="nav-link nav-admin">Admin</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

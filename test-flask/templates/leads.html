@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Leads</h1>
+  <p class="page-subtitle">{{ leads | length }} leads{% if status_filter %} · filtered by {{ status_filter }}{% endif %}</p>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Filter:</span>
+  <a href="{{ url_for('leads') }}" class="filter-btn {% if not status_filter %}active{% endif %}">All</a>
+  <a href="{{ url_for('leads', status='New') }}" class="filter-btn {% if status_filter == 'New' %}active{% endif %}">New</a>
+  <a href="{{ url_for('leads', status='Contacted') }}" class="filter-btn {% if status_filter == 'Contacted' %}active{% endif %}">Contacted</a>
+  <a href="{{ url_for('leads', status='Qualified') }}" class="filter-btn {% if status_filter == 'Qualified' %}active{% endif %}">Qualified</a>
+  <a href="{{ url_for('leads', status='Lost') }}" class="filter-btn {% if status_filter == 'Lost' %}active{% endif %}">Lost</a>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-head"><h2>Add Lead</h2></div>
+    <form method="post" action="{{ url_for('leads') }}">
+      <div class="form-group">
+        <label>Name *</label>
+        <input type="text" name="name" placeholder="Lead name" required maxlength="100">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="email@example.com" maxlength="150">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" name="phone" placeholder="+1 234 567 8900" maxlength="30">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Source</label>
+        <select name="source">
+          <option value="">Select source</option>
+          <option>Website</option>
+          <option>Referral</option>
+          <option>LinkedIn</option>
+          <option>Cold Outreach</option>
+          <option>Event</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" placeholder="Any notes..." rows="3" maxlength="500"></textarea>
+      </div>
+      <button type="submit" class="btn-primary">Add Lead</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Leads</h2></div>
+    {% if leads %}
+    <div class="lead-list">
+      {% for l in leads %}
+      <div class="lead-item">
+        <div class="lead-top">
+          <div class="lead-name">{{ l.name }}</div>
+          <span class="badge badge-{{ l.status | lower }}">{{ l.status }}</span>
+        </div>
+        {% if l.email or l.phone %}
+        <div class="lead-meta">
+          {% if l.email %}<span>{{ l.email }}</span>{% endif %}
+          {% if l.phone %}<span>{{ l.phone }}</span>{% endif %}
+        </div>
+        {% endif %}
+        {% if l.source %}<div class="lead-source">Source: {{ l.source }}</div>{% endif %}
+        {% if l.notes %}<div class="lead-notes">{{ l.notes }}</div>{% endif %}
+        <div class="lead-actions">
+          <form method="post" action="{{ url_for('update_lead_status', lid=l.id) }}" class="inline-form">
+            <select name="status" onchange="this.form.submit()">
+              <option {% if l.status=='New' %}selected{% endif %}>New</option>
+              <option {% if l.status=='Contacted' %}selected{% endif %}>Contacted</option>
+              <option {% if l.status=='Qualified' %}selected{% endif %}>Qualified</option>
+              <option {% if l.status=='Lost' %}selected{% endif %}>Lost</option>
+            </select>
+          </form>
+          <form method="post" action="{{ url_for('delete_lead', lid=l.id) }}" style="display:inline" onsubmit="return confirm('Delete this lead?')">
+            <button type="submit" class="btn-delete">✕</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No leads{% if status_filter %} with status "{{ status_filter }}"{% endif %}.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

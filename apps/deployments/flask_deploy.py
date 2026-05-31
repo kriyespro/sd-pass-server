@@ -36,14 +36,28 @@ MAX_FLASK_ZIP_SIZE = 50 * 1024 * 1024   # 50 MB
 MAX_FLASK_FILES    = 500
 
 
+def _is_ignored_entry(name: str) -> bool:
+    """Return True for __pycache__, .pyc/.pyo, macOS metadata — safe to skip silently."""
+    parts = name.replace('\\', '/').split('/')
+    return (
+        '__pycache__' in parts
+        or parts[0] == '__MACOSX'
+        or any(p.startswith('._') for p in parts)
+        or Path(name).suffix.lower() in ('.pyc', '.pyo')
+    )
+
+
 def _validate_flask_zip(zip_path: Path) -> tuple[bool, str]:
     try:
         with zipfile.ZipFile(zip_path, 'r') as zf:
             entries = [i for i in zf.infolist() if not i.is_dir()]
-            if len(entries) > MAX_FLASK_FILES:
-                return False, f'ZIP contains {len(entries)} files (max {MAX_FLASK_FILES})'
+            real_entries = [i for i in entries if not _is_ignored_entry(
+                (i.filename or '').replace('\\', '/').strip()
+            )]
+            if len(real_entries) > MAX_FLASK_FILES:
+                return False, f'ZIP contains {len(real_entries)} files (max {MAX_FLASK_FILES})'
             total = 0
-            for info in entries:
+            for info in real_entries:
                 name = (info.filename or '').replace('\\', '/').strip()
                 if not name or name.startswith('/') or '..' in name.split('/'):
                     return False, f'Unsafe ZIP entry: {name!r}'
@@ -83,9 +97,7 @@ def _extract_flask_zip(zip_path: Path, dest: Path) -> None:
             name = (info.filename or '').replace('\\', '/').strip()
             if not name:
                 continue
-            # Skip macOS metadata
-            parts_raw = name.split('/')
-            if parts_raw[0] == '__MACOSX' or any(p.startswith('._') for p in parts_raw):
+            if _is_ignored_entry(name):
                 continue
             if strip_prefix and name.startswith(strip_prefix):
                 name = name[len(strip_prefix):]

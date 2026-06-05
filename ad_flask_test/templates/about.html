@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+
+{% block content %}
+<h1>About This App</h1>
+<p>Advanced Flask test app running on SD PaaS.</p>
+
+<h2>Features Tested</h2>
+<ul>
+  <li>Multiple routes (GET + POST)</li>
+  <li>Jinja2 template inheritance</li>
+  <li>SQLite database (persistent storage)</li>
+  <li>Form submission &amp; validation</li>
+  <li>JSON REST API (<a href="/api/messages">/api/messages</a>, <a href="/api/stats">/api/stats</a>)</li>
+  <li>Custom 404 &amp; 400 error pages</li>
+  <li>Static files (CSS)</li>
+  <li>Visit counter</li>
+</ul>
+
+<h2>Tech Stack</h2>
+<ul>
+  <li>Python 3 + Flask</li>
+  <li>Gunicorn (WSGI server)</li>
+  <li>SQLite (no external DB needed)</li>
+</ul>
+
+<p><a href="/">← Back to Guestbook</a></p>
+{% endblock %}

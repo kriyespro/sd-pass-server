@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Guestbook{% endblock %}
+
+{% block content %}
+<h1>Guestbook</h1>
+<p class="visits">Total visits: <strong>{{ visits }}</strong></p>
+
+<section class="form-section">
+  <h2>Leave a Message</h2>
+  <form action="/post" method="post">
+    <input type="text" name="name" placeholder="Your name" maxlength="50" required>
+    <textarea name="message" placeholder="Your message..." maxlength="500" required></textarea>
+    <button type="submit">Post</button>
+  </form>
+</section>
+
+<section class="messages">
+  <h2>Recent Messages</h2>
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="message-card">
+      <div class="msg-header">
+        <strong>{{ msg.name }}</strong>
+        <span class="time">{{ msg.created_at }}</span>
+      </div>
+      <p>{{ msg.message }}</p>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">No messages yet. Be the first!</p>
+  {% endif %}
+</section>
+{% endblock %}

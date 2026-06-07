@@ -53,7 +53,7 @@ class Command(BaseCommand):
                         title='Free plan discontinued',
                         body=(
                             'The free plan is no longer available. '
-                            'Start with our ₹99 trial to restore access.'
+                            'Start with our ₹299 / 30-day plan to restore access.'
                         ),
                         level=NotificationLevel.WARNING,
                         link_url=link,

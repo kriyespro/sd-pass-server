@@ -1,0 +1,92 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div id="branding">
+  <h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+</div>
+{% endblock %}
+
+{% block userlinks %}
+  {% if user.is_staff %}
+    <a href="/admin/">Mission Control</a> /
+  {% endif %}
+  {% if site_url %}
+    <a href="{{ site_url }}">{% translate 'View site' %}</a> /
+  {% endif %}
+  {% if user.has_usable_password %}
+    <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a> /
+  {% endif %}
+  <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+    {% csrf_token %}
+    <button type="submit">{% translate 'Log out' %}</button>
+  </form>
+  {% include "admin/color_theme_toggle.html" %}
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  #user-tools .sdpaas-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.65rem;
+    border: 1px solid var(--hairline-color, #ccc);
+    border-radius: 999px;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  #user-tools .sdpaas-theme-toggle:hover {
+    opacity: 0.85;
+  }
+  #user-tools .theme-toggle {
+    cursor: pointer;
+    vertical-align: middle;
+  }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+(function () {
+  function setTheme(mode) {
+    if (mode !== 'light' && mode !== 'dark' && mode !== 'auto') mode = 'auto';
+    document.documentElement.dataset.theme = mode;
+    localStorage.setItem('theme', mode);
+    var label = document.getElementById('sdpaas-theme-label');
+    if (label) label.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+  }
+  function cycleTheme() {
+    var current = localStorage.getItem('theme') || 'auto';
+    var order = ['auto', 'light', 'dark'];
+    var idx = order.indexOf(current);
+    setTheme(order[(idx + 1) % order.length]);
+  }
+  function bindToggles() {
+    document.querySelectorAll('.theme-toggle, .sdpaas-theme-toggle').forEach(function (btn) {
+      btn.type = 'button';
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        cycleTheme();
+      });
+    });
+    setTheme(localStorage.getItem('theme') || 'auto');
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindToggles);
+  } else {
+    bindToggles();
+  }
+  window.addEventListener('load', bindToggles);
+})();
+</script>
+{% endblock %}

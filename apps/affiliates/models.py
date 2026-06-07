@@ -27,7 +27,7 @@ class AffiliateApplication(models.Model):
     )
     message = models.TextField(
         max_length=1000,
-        help_text='Why do you want to become an affiliate? How will you promote StudentCloud?',
+        help_text='Why do you want to become an affiliate? How will you promote Krizn?',
     )
     status = models.CharField(
         max_length=20,

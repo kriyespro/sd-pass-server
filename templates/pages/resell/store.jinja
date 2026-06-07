@@ -1,5 +1,5 @@
 {% extends "base.jinja" %}
-{% block title %}Resell Store — StudentCloud{% endblock %}
+{% block title %}Resell Store — Krizn{% endblock %}
 
 {% block content %}
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -122,7 +122,7 @@ function resellStore() {
         key: '{{ razorpay_key_id }}',
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'StudentCloud Resell Store',
+        name: 'Krizn Store',
         description: 'Order — ' + self.cartCount + ' item(s)',
         order_id: orderData.order_id,
         theme: { color: '#10b981' },

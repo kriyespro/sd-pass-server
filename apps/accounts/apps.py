@@ -17,7 +17,7 @@ class AccountsConfig(AppConfig):
             from django.contrib.sites.models import Site
 
             domain = getattr(settings, 'SITE_DOMAIN', '') or 'localhost:8000'
-            name = getattr(settings, 'SITE_NAME', 'StudentCloud Deploy')
+            name = getattr(settings, 'SITE_NAME', 'Krizn')
             Site.objects.update_or_create(
                 pk=settings.SITE_ID,
                 defaults={'domain': domain, 'name': name},

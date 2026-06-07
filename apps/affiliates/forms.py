@@ -12,7 +12,7 @@ class AffiliateApplicationForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'placeholder': 'you@example.com'}),
             'website': forms.URLInput(attrs={'placeholder': 'https://yourchannel.com'}),
             'audience_size': forms.TextInput(attrs={'placeholder': 'e.g. 5000 or 10k'}),
-            'message': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Tell us how you plan to promote StudentCloud…'}),
+            'message': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Tell us how you plan to promote Krizn…'}),
         }
 
     def clean_email(self):

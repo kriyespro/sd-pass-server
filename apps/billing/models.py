@@ -32,7 +32,7 @@ FLASK_LIMITS = {
     'flask_addon':     1,
 }
 
-FREE_TRIAL_DAYS = 7
+FREE_TRIAL_DAYS = 2
 NEW_USER_TRIAL_DAYS = 2
 
 PLAN_PRICES = {
@@ -47,7 +47,7 @@ PLAN_PRICES = {
 }
 
 PLAN_LABELS = {
-    'free':            'Free — 1 website',
+    'free':            'Free — 1 website · 2-day trial',
     'test_plan':       'Starter Trial — 1 website · ₹299 · 30 days',
     'launch_lite':     'Launch Lite — 1 website · ₹1,499/year',
     'starter_cloud':   'Starter Cloud — 1 website · ₹2,099/year',
@@ -128,7 +128,7 @@ class Subscription(models.Model):
 
     @property
     def trial_expired(self) -> bool:
-        """True for free-plan accounts whose 7-day trial window has closed."""
+        """True for free-plan accounts whose trial window has closed."""
         if self.plan_slug != self.Plan.FREE:
             return False
         if self.trial_ends_at is None:

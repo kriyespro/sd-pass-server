@@ -216,7 +216,7 @@ _TRIAL_EXPIRED = """<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Plan Expired — StudentCloud</title>
+  <title>Plan Expired — Krizn</title>
   <style>
     *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
     body{{
@@ -301,24 +301,24 @@ _TRIAL_EXPIRED = """<!DOCTYPE html>
       <strong>and our fuel bill just went up!</strong>
     </p>
     <p class="msg">
-      To keep this site online and StudentCloud blazing fast for everyone,
+      To keep this site online and Krizn blazing fast for everyone,
       the owner needs to activate a paid plan.
-      It starts at just ₹99 for a full 9-day trial.
+      Plans start at ₹299 for 30 days of full access.
     </p>
     <p class="msg">Thanks for your patience and support — it truly means a lot to us. 🙏</p>
     <div class="divider"></div>
     <div class="price-pill">
-      <span class="amount">₹99</span>
-      <span class="period">/ 9 days · full access</span>
+      <span class="amount">₹299</span>
+      <span class="period">/ 30 days · full access</span>
     </div>
     <br>
     <a class="btn" href="{upgrade_url}">
-      🚀 Login &amp; Restore this site — ₹99
+      🚀 Login &amp; Restore this site — ₹299
     </a>
     <p class="footer" style="margin-top:.75rem;color:#64748b;font-size:.72rem;">
-      Are you the site owner? Log in to your StudentCloud account and activate a plan to bring this site back online.
+      Are you the site owner? Log in to your Krizn account and activate a plan to bring this site back online.
     </p>
-    <p class="footer">StudentCloud Deploy · Affordable Cloud Hosting for Students</p>
+    <p class="footer">Krizn · Affordable Cloud Hosting for Students</p>
   </div>
 </body>
 </html>"""

@@ -1,5 +1,5 @@
 {% extends "base.jinja" %}
-{% block title %}Upgrade Plan — StudentCloud Deploy{% endblock %}
+{% block title %}Upgrade Plan — Krizn{% endblock %}
 {% block content %}
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
@@ -265,7 +265,7 @@ function razorpayCheckout() {
           key: '{{ razorpay_key_id }}',
           amount: orderData.amount,
           currency: orderData.currency,
-          name: 'StudentCloud Deploy',
+          name: '{{ site_name }}',
           description: planName + ' — 1 Year',
           order_id: orderData.order_id,
           theme: { color: '#10b981' },
@@ -345,7 +345,7 @@ function razorpayCheckout() {
           key: '{{ razorpay_key_id }}',
           amount: orderData.amount,
           currency: orderData.currency,
-          name: 'StudentCloud Deploy',
+          name: '{{ site_name }}',
           description: planName + ' Add-on — 1 Year',
           order_id: orderData.order_id,
           theme: { color: '#0284c7' },

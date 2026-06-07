@@ -24,6 +24,14 @@ def google_auth(request):
     }
 
 
+def site_branding(request):
+    from django.conf import settings
+
+    return {
+        'site_name': getattr(settings, 'SITE_NAME', 'Krizn'),
+    }
+
+
 def studentcloud_nav(request):
     """
     Jinja2 context: unread notifications + trainer menu visibility.

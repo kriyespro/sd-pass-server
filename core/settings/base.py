@@ -1,5 +1,5 @@
 """
-Shared Django settings for StudentCloud Deploy.
+Shared Django settings for Krizn (StudentCloud Deploy codebase).
 """
 import os
 from datetime import timedelta
@@ -102,7 +102,7 @@ AXES_ENABLE_ADMIN = True
 
 SITE_ID = 1
 SITE_DOMAIN = env('SITE_DOMAIN', default='localhost:8000')
-SITE_NAME = env('SITE_NAME', default='StudentCloud Deploy')
+SITE_NAME = env('SITE_NAME', default='Krizn')
 
 GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 GOOGLE_OAUTH_CLIENT_SECRET = env('GOOGLE_OAUTH_CLIENT_SECRET', default='')
@@ -454,13 +454,14 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.csrf',
                 'core.context_processors.google_auth',
+                'core.context_processors.site_branding',
                 'core.context_processors.studentcloud_nav',
             ],
         },
     },
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

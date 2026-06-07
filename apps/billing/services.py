@@ -80,7 +80,7 @@ def get_or_create_subscription(user) -> Subscription:
     sub, created = Subscription.objects.get_or_create(
         user=user,
         defaults={
-            'plan_slug': Subscription.Plan.LAUNCH_LITE,
+            'plan_slug': Subscription.Plan.FREE,
             'status': Subscription.Status.ACTIVE,
             'current_period_end': trial_end,
             'trial_ends_at': trial_end,

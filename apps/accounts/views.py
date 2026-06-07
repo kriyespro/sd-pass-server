@@ -4,9 +4,21 @@ from django.contrib.auth import login
 from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, TemplateView
 
 from .forms import EmailAuthenticationForm, UserRegistrationForm
+
+
+def _redirect_after_login(request):
+    next_url = request.GET.get('next') or request.POST.get('next')
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+    return redirect(settings.LOGIN_REDIRECT_URL)
 
 
 class AuthGatewayView(TemplateView):
@@ -16,11 +28,12 @@ class AuthGatewayView(TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            return redirect(settings.LOGIN_REDIRECT_URL)
+            return _redirect_after_login(request)
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        ctx['next_url'] = self.request.GET.get('next', '')
         mode = self.kwargs.get('mode', 'login')
         ctx['is_register'] = mode == 'register'
         if getattr(settings, 'SHOW_MANUAL_AUTH', False):

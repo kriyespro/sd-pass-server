@@ -1,12 +1,13 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
-from django.views.generic import CreateView, TemplateView
+from django.views import View
+from django.views.generic import TemplateView
 
 from apps.resell.models import ResellProduct
 
 from .forms import AffiliateApplicationForm
-from .models import AffiliateApplication, PRODUCT_COMMISSION_RATE, SERVER_COMMISSION_RATE
+from .models import PRODUCT_COMMISSION_RATE, SERVER_COMMISSION_RATE
 from .services import (
     affiliate_product_url,
     affiliate_store_url,
@@ -15,44 +16,58 @@ from .services import (
 )
 
 
-class AffiliateHubView(LoginRequiredMixin, CreateView):
-    form_class = AffiliateApplicationForm
+class AffiliateHubView(View):
+    """Public program page; apply form requires login."""
+
     template_name = 'pages/affiliates/apply.jinja'
-    success_url = reverse_lazy('affiliates:success')
-    login_url = reverse_lazy('accounts:login')
 
-    def dispatch(self, request, *args, **kwargs):
-        affiliate = get_active_affiliate(request.user)
-        if affiliate:
-            return redirect('affiliates:dashboard')
-        return super().dispatch(request, *args, **kwargs)
+    def get(self, request):
+        if request.user.is_authenticated:
+            affiliate = get_active_affiliate(request.user)
+            if affiliate:
+                return redirect('affiliates:dashboard')
+        return render(request, self.template_name, self._context(request))
 
-    def get_initial(self):
-        user = self.request.user
-        initial = super().get_initial()
-        name = user.get_full_name().strip() or user.email.split('@')[0]
-        initial.setdefault('name', name)
-        initial.setdefault('email', user.email)
-        return initial
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return redirect_to_login(
+                reverse('affiliates:apply'),
+                login_url=str(reverse_lazy('accounts:login')),
+            )
+        form = AffiliateApplicationForm(request.POST)
+        if form.is_valid():
+            application = form.save(commit=False)
+            application.user = request.user
+            application.email = request.user.email
+            application.save()
+            return redirect('affiliates:success')
+        return render(request, self.template_name, self._context(request, form=form))
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['application'] = get_application_for_user(self.request.user)
-        ctx['product_commission_pct'] = int(PRODUCT_COMMISSION_RATE * 100)
-        ctx['server_commission_pct'] = int(SERVER_COMMISSION_RATE * 100)
-        return ctx
+    def _context(self, request, form=None):
+        user = request.user
+        initial = {}
+        if user.is_authenticated:
+            name = user.get_full_name().strip() or user.email.split('@')[0]
+            initial = {'name': name, 'email': user.email}
+        return {
+            'form': form or AffiliateApplicationForm(initial=initial),
+            'application': get_application_for_user(user) if user.is_authenticated else None,
+            'can_apply': user.is_authenticated,
+            'login_url': f"{reverse('accounts:login')}?next={reverse('affiliates:apply')}",
+            'product_commission_pct': int(PRODUCT_COMMISSION_RATE * 100),
+            'server_commission_pct': int(SERVER_COMMISSION_RATE * 100),
+        }
 
-    def form_valid(self, form):
-        form.instance.user = self.request.user
-        form.instance.email = self.request.user.email
-        return super().form_valid(form)
 
-
-class AffiliateDashboardView(LoginRequiredMixin, TemplateView):
+class AffiliateDashboardView(TemplateView):
     template_name = 'pages/affiliates/dashboard.jinja'
-    login_url = reverse_lazy('accounts:login')
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect_to_login(
+                reverse('affiliates:dashboard'),
+                login_url=str(reverse_lazy('accounts:login')),
+            )
         if not get_active_affiliate(request.user):
             return redirect('affiliates:apply')
         return super().dispatch(request, *args, **kwargs)
@@ -80,7 +95,10 @@ class AffiliateDashboardView(LoginRequiredMixin, TemplateView):
 
 def affiliate_success(request):
     if not request.user.is_authenticated:
-        return redirect('accounts:login')
+        return redirect_to_login(
+            reverse('affiliates:success'),
+            login_url=str(reverse_lazy('accounts:login')),
+        )
     return render(
         request,
         'pages/affiliates/success.jinja',

@@ -39,12 +39,18 @@
   </div>
 
   {% if not can_apply|default(false) %}
-  <div class="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-6 text-center">
-    <p class="text-sm text-slate-300">Log in to submit your affiliate application and get shareable product links.</p>
-    <a href="{{ login_url }}"
-       class="mt-4 inline-flex rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
-      Log in to apply →
-    </a>
+  <div class="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-6">
+    <p class="text-center text-sm text-slate-300">Sign in to submit your affiliate application and get shareable product links.</p>
+    {% if google_login_url %}
+    <div class="mx-auto mt-5 max-w-md">
+      {% with button_label = 'Sign in with Google to apply', next_url = url('affiliates:apply') %}
+        {% include "components/_google_sign_in_button.jinja" %}
+      {% endwith %}
+    </div>
+    {% endif %}
+    <p class="mt-4 text-center text-xs text-slate-500">
+      Or <a href="{{ login_url }}" class="text-emerald-400 hover:text-emerald-300">log in another way</a>
+    </p>
   </div>
   {% elif not application or application.status == 'rejected' %}
   <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">

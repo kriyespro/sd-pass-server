@@ -1,23 +1,37 @@
 from allauth.account.adapter import DefaultAccountAdapter
+from allauth.account.utils import get_next_redirect_url
 from allauth.core.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.billing.services import get_or_create_subscription
+
+
+def _login_redirect_url(request):
+    next_url = get_next_redirect_url(request)
+    if next_url:
+        return next_url
+    return reverse(settings.LOGIN_REDIRECT_URL)
 
 
 class AccountAdapter(DefaultAccountAdapter):
     """Block email/password signup forms only — does not affect Google OAuth."""
 
     def is_open_for_signup(self, request):
-        from django.conf import settings
-
         return getattr(settings, 'SHOW_MANUAL_AUTH', False)
+
+    def get_login_redirect_url(self, request):
+        return _login_redirect_url(request)
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
+    def get_login_redirect_url(self, request):
+        return _login_redirect_url(request)
+
     def is_open_for_signup(self, request, sociallogin):
         """Google sign-up / first-time Google login must stay open."""
         user = sociallogin.user

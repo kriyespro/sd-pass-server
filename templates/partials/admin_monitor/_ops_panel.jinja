@@ -101,8 +101,7 @@
             <th class="px-3 py-2 font-semibold uppercase">Contents</th>
             <th class="px-3 py-2 font-semibold uppercase">Size</th>
             <th class="px-3 py-2 font-semibold uppercase">Status</th>
-            <th class="px-3 py-2 text-center font-semibold uppercase">ZIP</th>
-            <th class="px-3 py-2 text-center font-semibold uppercase">Del</th>
+            <th class="px-3 py-2 text-center font-semibold uppercase">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800 text-slate-300">
@@ -121,42 +120,44 @@
                   {{ 'bg-emerald-900/50 text-emerald-300' if b.status == 'done' else ('bg-amber-900/50 text-amber-300' if b.status in ('pending','running') else 'bg-rose-900/50 text-rose-300') }}">
                   {{ b.get_status_display() }}
                 </span>
+                {% if b.status == 'done' and not b.file_on_disk %}
+                  <p class="mt-0.5 text-[10px] text-amber-400" title="ZIP not on web container — rebuild web+worker">File missing on server</p>
+                {% endif %}
                 {% if b.status == 'failed' and b.error_message %}
                   <p class="mt-0.5 max-w-[14rem] truncate text-[10px] text-rose-400/90" title="{{ b.error_message }}">{{ b.error_message }}</p>
                 {% endif %}
               </td>
               <td class="px-3 py-2 text-center">
-                {% if b.status == 'done' and b.storage_path %}
-                  <a
-                    href="{{ url('admin_monitor:download_platform_backup', backup_id=b.pk) }}"
-                    class="inline-flex h-6 w-6 items-center justify-center rounded border border-slate-700 bg-slate-800 text-[10px] font-bold text-emerald-300 hover:border-emerald-500/50"
-                    title="Download backup ZIP"
-                  >↓</a>
-                {% else %}
-                  <span class="text-slate-600">—</span>
-                {% endif %}
-              </td>
-              <td class="px-3 py-2 text-center">
-                {% if b.status in ('pending', 'running') %}
-                  <span class="text-slate-600" title="Wait until backup finishes">—</span>
-                {% else %}
-                  <form
-                    method="post"
-                    action="{{ url('admin_monitor:delete_platform_backup', backup_id=b.pk) }}"
-                    onsubmit="return confirm('Delete backup #{{ b.pk }}? This removes the ZIP file permanently.');"
-                  >
-                    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-                    <button
-                      type="submit"
-                      class="inline-flex h-6 w-6 items-center justify-center rounded border border-rose-800/60 bg-rose-950/40 text-[10px] font-bold text-rose-300 hover:border-rose-500/50 hover:bg-rose-900/30"
-                      title="Delete backup"
-                    >×</button>
-                  </form>
-                {% endif %}
+                <div class="flex flex-wrap items-center justify-center gap-1">
+                  {% if b.status == 'done' and b.file_on_disk %}
+                    <a
+                      href="{{ url('admin_monitor:download_platform_backup', backup_id=b.pk) }}"
+                      class="inline-flex items-center rounded border border-emerald-700/50 bg-emerald-950/40 px-2 py-1 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-900/40"
+                    >Download</a>
+                  {% elif b.status == 'done' %}
+                    <span class="text-[10px] text-amber-500">No file</span>
+                  {% else %}
+                    <span class="text-slate-600">—</span>
+                  {% endif %}
+                  {% if b.status not in ('pending', 'running') %}
+                    <form
+                      method="post"
+                      action="{{ url('admin_monitor:delete_platform_backup', backup_id=b.pk) }}"
+                      class="inline"
+                      onsubmit="return confirm('Delete backup #{{ b.pk }}? This removes the ZIP permanently.');"
+                    >
+                      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                      <button
+                        type="submit"
+                        class="inline-flex items-center rounded border border-rose-800/60 bg-rose-950/40 px-2 py-1 text-[10px] font-semibold text-rose-300 hover:bg-rose-900/40"
+                      >Delete</button>
+                    </form>
+                  {% endif %}
+                </div>
               </td>
             </tr>
           {% else %}
-            <tr><td colspan="7" class="py-8 text-center text-slate-500">No backups yet. Use a button above.</td></tr>
+            <tr><td colspan="6" class="py-8 text-center text-slate-500">No backups yet. Use a button above.</td></tr>
           {% endfor %}
         </tbody>
       </table>

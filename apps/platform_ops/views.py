@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import FileResponse, Http404, HttpResponseRedirect
+from django.http import HttpResponseRedirect, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.views import View
@@ -63,8 +63,21 @@ class CreatePlatformBackupView(StaffOnlyMixin, View):
             backup_type=backup_type,
             created_by=request.user,
         )
-        create_platform_backup_task.delay(backup.pk)
-        messages.success(request, f'Backup started ({backup.get_backup_type_display()}).')
+        try:
+            create_platform_backup_task.delay(backup.pk)
+            messages.success(
+                request,
+                f'Backup queued ({backup.get_backup_type_display()}). '
+                'Refresh in 1–2 min — ensure Celery worker is running.',
+            )
+        except Exception as exc:
+            backup.status = PlatformBackup.Status.FAILED
+            backup.error_message = f'Could not queue worker: {exc}'[:2000]
+            backup.save(update_fields=['status', 'error_message'])
+            messages.error(
+                request,
+                'Backup could not start — run: docker compose up -d worker',
+            )
         return HttpResponseRedirect(reverse('admin_monitor:dashboard'))
 
 
@@ -75,17 +88,25 @@ class DownloadPlatformBackupView(StaffOnlyMixin, View):
             pk=backup_id,
             status=PlatformBackup.Status.DONE,
         )
-        try:
-            from apps.platform_ops.services.backup import resolve_backup_path
+        from apps.platform_ops.services.backup import iter_backup_file, resolve_backup_path
 
+        try:
             path = resolve_backup_path(backup)
         except (ValueError, FileNotFoundError):
-            raise Http404('Backup file not found.')
-        return FileResponse(
-            path.open('rb'),
-            as_attachment=True,
-            filename=path.name,
+            messages.error(
+                request,
+                f'Backup #{backup_id} ZIP missing on this server. '
+                'Rebuild web+worker and check platform_backups volume.',
+            )
+            return HttpResponseRedirect(reverse('admin_monitor:dashboard'))
+
+        response = StreamingHttpResponse(
+            iter_backup_file(path),
+            content_type='application/zip',
         )
+        response['Content-Disposition'] = f'attachment; filename="{path.name}"'
+        response['Content-Length'] = path.stat().st_size
+        return response
 
 
 class DeletePlatformBackupView(StaffOnlyMixin, View):

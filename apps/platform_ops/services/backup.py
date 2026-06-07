@@ -170,6 +170,25 @@ def resolve_backup_path(backup: PlatformBackup) -> Path:
     return path
 
 
+def backup_file_exists(backup: PlatformBackup) -> bool:
+    if not backup.storage_path:
+        return False
+    try:
+        resolve_backup_path(backup)
+        return True
+    except (ValueError, FileNotFoundError):
+        return False
+
+
+def iter_backup_file(path: Path, chunk_size: int = 1024 * 1024):
+    with path.open('rb') as handle:
+        while True:
+            chunk = handle.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+
+
 def delete_platform_backup(*, backup_id: int) -> None:
     """Remove backup ZIP from disk (if any) and delete the DB row."""
     backup = PlatformBackup.objects.get(pk=backup_id)

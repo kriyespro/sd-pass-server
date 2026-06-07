@@ -364,9 +364,12 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
             (PlatformBackup.BackupType.DATABASE, 'Database only'),
             (PlatformBackup.BackupType.SITES, 'Sites only'),
         ]
+        from apps.platform_ops.services.backup import backup_file_exists
+
         platform_backups = list(PlatformBackup.objects.all()[:25])
         for backup in platform_backups:
             backup.size_human = format_bytes(backup.size_bytes)
+            backup.file_on_disk = backup_file_exists(backup)
         ctx['platform_backups'] = platform_backups
 
         return ctx

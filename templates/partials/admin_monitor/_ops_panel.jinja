@@ -1,6 +1,6 @@
 {# Asset compression + platform backups — Mission Control #}
-<div class="grid gap-4 xl:grid-cols-2">
-  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+<div class="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+  <div class="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/60 px-4 py-3">
       <div>
         <h2 class="text-sm font-semibold text-slate-200">Asset compression</h2>
@@ -75,12 +75,12 @@
     </div>
   </div>
 
-  <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+  <div class="min-w-0 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
     <div class="border-b border-slate-800 bg-slate-950/60 px-4 py-3">
       <h2 class="text-sm font-semibold text-slate-200">Platform backups</h2>
       <p class="mt-0.5 text-xs text-slate-500">Manual ZIP: database dump + student site files</p>
     </div>
-    <div class="flex flex-wrap gap-2 border-b border-slate-800 px-4 py-3">
+    <div class="flex flex-wrap gap-2 border-b border-slate-800 px-4 py-2.5">
       {% for btype, label in backup_type_choices %}
         <form method="post" action="{{ url('admin_monitor:create_platform_backup') }}">
           <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
@@ -93,71 +93,72 @@
       {% endfor %}
     </div>
     <div class="max-h-64 overflow-auto">
-      <table class="min-w-full text-left text-xs">
+      <table class="w-full table-fixed text-left text-[10px]">
+        <colgroup>
+          <col class="w-[4.25rem]">
+          <col class="w-[2.5rem]">
+          <col class="w-[3rem]">
+          <col class="w-[2.5rem]">
+          <col class="w-[3rem]">
+        </colgroup>
         <thead class="sticky top-0 bg-slate-950/95 text-slate-500">
           <tr>
-            <th class="px-3 py-2 font-semibold uppercase">When</th>
-            <th class="px-3 py-2 font-semibold uppercase">Type</th>
-            <th class="px-3 py-2 font-semibold uppercase">Contents</th>
-            <th class="px-3 py-2 font-semibold uppercase">Size</th>
-            <th class="px-3 py-2 font-semibold uppercase">Status</th>
-            <th class="px-3 py-2 text-center font-semibold uppercase">Actions</th>
+            <th class="px-2 py-1.5 font-semibold uppercase">When</th>
+            <th class="px-1 py-1.5 font-semibold uppercase">Type</th>
+            <th class="px-1 py-1.5 font-semibold uppercase">Size</th>
+            <th class="px-1 py-1.5 font-semibold uppercase">Status</th>
+            <th class="px-1 py-1.5"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800 text-slate-300">
           {% for b in platform_backups %}
             <tr class="hover:bg-slate-900/80">
-              <td class="px-3 py-2 font-mono text-[11px]">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-              <td class="px-3 py-2">{{ b.get_backup_type_display() }}</td>
-              <td class="px-3 py-2 text-[11px] text-slate-400">
-                {% if b.includes_database %}DB{% endif %}
-                {% if b.includes_database and b.includes_sites %} + {% endif %}
-                {% if b.includes_sites %}Sites{% endif %}
+              <td class="px-2 py-2 align-top">
+                <p class="font-mono leading-tight text-slate-200">{{ b.created_at.strftime('%Y-%m-%d') }}</p>
+                <p class="font-mono leading-tight text-slate-500">{{ b.created_at.strftime('%H:%M') }}</p>
               </td>
-              <td class="px-3 py-2">{{ b.size_human }}</td>
-              <td class="px-3 py-2">
-                <span class="rounded-full px-2 py-0.5 text-[10px]
-                  {{ 'bg-emerald-900/50 text-emerald-300' if b.status == 'done' else ('bg-amber-900/50 text-amber-300' if b.status in ('pending','running') else 'bg-rose-900/50 text-rose-300') }}">
-                  {{ b.get_status_display() }}
-                </span>
-                {% if b.status == 'done' and not b.file_on_disk %}
-                  <p class="mt-0.5 text-[10px] text-amber-400" title="ZIP not on web container — rebuild web+worker">File missing on server</p>
-                {% endif %}
-                {% if b.status == 'failed' and b.error_message %}
-                  <p class="mt-0.5 max-w-[14rem] truncate text-[10px] text-rose-400/90" title="{{ b.error_message }}">{{ b.error_message }}</p>
-                {% endif %}
+              <td class="px-1 py-2 align-top text-slate-300">
+                {% if b.backup_type == 'full' %}Full
+                {% elif b.backup_type == 'database' %}DB
+                {% else %}Sites{% endif %}
               </td>
-              <td class="px-3 py-2 text-center">
-                <div class="flex flex-wrap items-center justify-center gap-1">
+              <td class="whitespace-nowrap px-1 py-2 align-top text-slate-200">{{ b.size_human }}</td>
+              <td class="px-1 py-2 align-top">
+                <span
+                  class="inline-block rounded-full px-1.5 py-px text-[9px]
+                  {{ 'bg-emerald-900/50 text-emerald-300' if b.status == 'done' else ('bg-amber-900/50 text-amber-300' if b.status in ('pending','running') else 'bg-rose-900/50 text-rose-300') }}"
+                  {% if b.status == 'done' and not b.file_on_disk %}title="File missing on server"{% elif b.status == 'failed' and b.error_message %}title="{{ b.error_message }}"{% endif %}
+                >{{ b.get_status_display() }}</span>
+              </td>
+              <td class="px-1 py-2 align-top">
+                <div class="inline-flex items-center gap-1">
                   {% if b.status == 'done' and b.file_on_disk %}
                     <a
                       href="{{ url('admin_monitor:download_platform_backup', backup_id=b.pk) }}"
-                      class="inline-flex items-center rounded border border-emerald-700/50 bg-emerald-950/40 px-2 py-1 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-900/40"
-                    >Download</a>
-                  {% elif b.status == 'done' %}
-                    <span class="text-[10px] text-amber-500">No file</span>
-                  {% else %}
-                    <span class="text-slate-600">—</span>
+                      title="Download ZIP"
+                      class="inline-flex h-5 w-5 items-center justify-center rounded border border-emerald-700/50 bg-emerald-950/40 text-[9px] font-semibold leading-none text-emerald-300 hover:bg-emerald-900/40"
+                    >↓</a>
                   {% endif %}
                   {% if b.status not in ('pending', 'running') %}
                     <form
                       method="post"
                       action="{{ url('admin_monitor:delete_platform_backup', backup_id=b.pk) }}"
                       class="inline"
-                      onsubmit="return confirm('Delete backup #{{ b.pk }}? This removes the ZIP permanently.');"
+                      onsubmit="return confirm('Delete backup #{{ b.pk }}?');"
                     >
                       <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
                       <button
                         type="submit"
-                        class="inline-flex items-center rounded border border-rose-800/60 bg-rose-950/40 px-2 py-1 text-[10px] font-semibold text-rose-300 hover:bg-rose-900/40"
-                      >Delete</button>
+                        title="Delete backup"
+                        class="inline-flex h-5 w-5 items-center justify-center rounded border border-rose-800/60 bg-rose-950/40 text-[9px] font-semibold leading-none text-rose-300 hover:bg-rose-900/40"
+                      >×</button>
                     </form>
                   {% endif %}
                 </div>
               </td>
             </tr>
           {% else %}
-            <tr><td colspan="6" class="py-8 text-center text-slate-500">No backups yet. Use a button above.</td></tr>
+            <tr><td colspan="5" class="py-8 text-center text-slate-500">No backups yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

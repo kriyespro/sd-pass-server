@@ -161,13 +161,31 @@ def create_platform_backup(*, backup_id: int) -> PlatformBackup:
 
 
 def resolve_backup_path(backup: PlatformBackup) -> Path:
-    path = Path(backup.storage_path).resolve()
+    if not backup.storage_path:
+        raise FileNotFoundError('No storage path')
+
     root = backup_root().resolve()
-    if not str(path).startswith(str(root)):
-        raise ValueError('Invalid backup path')
-    if not path.is_file():
-        raise FileNotFoundError(path)
-    return path
+    stored = Path(backup.storage_path)
+    candidates = [stored, root / stored.name]
+    if not stored.is_absolute():
+        candidates.insert(0, root / stored)
+
+    seen = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            resolved = candidate.resolve()
+        except OSError as exc:
+            raise FileNotFoundError(stored) from exc
+        if not str(resolved).startswith(str(root)):
+            continue
+        if resolved.is_file():
+            return resolved
+
+    raise FileNotFoundError(stored)
 
 
 def backup_file_exists(backup: PlatformBackup) -> bool:

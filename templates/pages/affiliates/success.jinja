@@ -1,12 +1,16 @@
 {% extends "base.jinja" %}
-{% block title %}Application Received — Krizn Affiliates{% endblock %}
+{% block title %}Application Received — Krizn Affiliate{% endblock %}
 {% block content %}
-<section class="mx-auto max-w-lg py-16 text-center space-y-5">
-  <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-3xl">🎉</div>
-  <h1 class="text-2xl font-bold text-white">Application received!</h1>
-  <p class="text-slate-400">Thanks for applying to the Krizn Affiliate Program. We review every application within <strong class="text-slate-200">48 hours</strong> and will email you at the address you provided.</p>
-  <a href="{{ url('home') }}" class="inline-block mt-4 rounded-lg bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 transition-colors">
-    Back to home
+<section class="mx-auto max-w-lg py-16 text-center">
+  <p class="text-5xl">🎉</p>
+  <h1 class="mt-4 text-2xl font-bold text-white">Application received</h1>
+  <p class="mt-3 text-sm text-slate-400">
+    Thanks{% if application %}, {{ application.name }}{% endif %}! We review applications within 48 hours.
+    Once approved, open <a href="{{ url('affiliates:dashboard') }}" class="text-emerald-400 hover:text-emerald-300">Affiliate Dashboard</a>
+    to copy your product and store links.
+  </p>
+  <a href="{{ url('resell:store') }}" class="mt-8 inline-block rounded-lg border border-slate-700 px-5 py-2.5 text-sm text-slate-300 hover:text-white">
+    Browse Resell Store →
   </a>
 </section>
 {% endblock %}

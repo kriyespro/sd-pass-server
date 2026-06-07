@@ -7,66 +7,72 @@ import logging
 
 import razorpay
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from .models import ResellOrder, ResellProduct
+from .models import ResellOrder, ResellProduct, ResellServerOption
+from .services import (
+    cart_count,
+    cart_summary,
+    clear_cart_state,
+    fulfill_order_server_plans,
+    get_cart_state,
+    product_server_options,
+    save_cart_state,
+    server_options_payload,
+    _allowed_server_for_product,
+)
+from apps.affiliates.services import get_referral_affiliate, record_commissions_for_order
 
 logger = logging.getLogger(__name__)
 
-CART_KEY = 'resell_cart'
+User = get_user_model()
+
+PRODUCT_QUERYSET = ResellProduct.objects.prefetch_related(
+    'images',
+    'supported_servers',
+)
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+def _cart_context(request):
+    state = get_cart_state(request)
+    items, total = cart_summary(state, product_queryset=PRODUCT_QUERYSET)
+    return {
+        'cart_items': items,
+        'cart_total': total,
+        'cart_count': cart_count(state),
+    }
 
-def _get_cart(request) -> dict:
-    return request.session.get(CART_KEY, {})
-
-
-def _save_cart(request, cart: dict):
-    request.session[CART_KEY] = cart
-    request.session.modified = True
-
-
-def _cart_summary(cart: dict) -> tuple[list, float]:
-    """Returns (items_list, total). Fetches products from DB."""
-    if not cart:
-        return [], 0
-    products = {str(p.pk): p for p in ResellProduct.objects.filter(pk__in=cart.keys(), is_active=True)}
-    items = []
-    total = 0
-    for pid, qty in cart.items():
-        p = products.get(pid)
-        if not p:
-            continue
-        subtotal = float(p.price) * qty
-        total += subtotal
-        items.append({
-            'id': p.pk,
-            'name': p.name,
-            'price': float(p.price),
-            'qty': qty,
-            'subtotal': subtotal,
-            'image_url': p.image.url if p.image else '',
-        })
-    return items, total
-
-
-# ── views ─────────────────────────────────────────────────────────────────────
 
 def store(request):
-    products = ResellProduct.objects.filter(is_active=True).order_by('-is_featured', '-created_at')
-    cart = _get_cart(request)
-    cart_items, cart_total = _cart_summary(cart)
-    return render(request, 'pages/resell/store.jinja', {
+    products = PRODUCT_QUERYSET.filter(is_active=True).order_by('-is_featured', '-created_at')
+    ctx = _cart_context(request)
+    ctx.update({
         'products': products,
-        'cart': cart,
-        'cart_items': cart_items,
-        'cart_total': cart_total,
-        'cart_count': sum(cart.values()) if cart else 0,
         'razorpay_key_id': settings.RAZORPAY_KEY_ID,
     })
+    return render(request, 'pages/resell/store.jinja', ctx)
+
+
+def product_detail(request, slug):
+    product = get_object_or_404(PRODUCT_QUERYSET, slug=slug, is_active=True)
+    server_options = product_server_options(product)
+    related = (
+        PRODUCT_QUERYSET.filter(is_active=True)
+        .exclude(pk=product.pk)
+        .order_by('-is_featured', '-created_at')[:3]
+    )
+    ctx = _cart_context(request)
+    ctx.update({
+        'product': product,
+        'server_options': server_options,
+        'server_options_json': server_options_payload(server_options),
+        'related_products': related,
+        'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+    })
+    return render(request, 'pages/resell/product_detail.jinja', ctx)
 
 
 @require_POST
@@ -75,21 +81,33 @@ def cart_add(request):
         data = json.loads(request.body)
         pid = str(int(data['product_id']))
         qty = max(1, int(data.get('qty', 1)))
+        server_option_id = data.get('server_option_id')
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'error': 'Bad request'}, status=400)
 
     product = get_object_or_404(ResellProduct, pk=pid, is_active=True)
-    cart = _get_cart(request)
-    cart[pid] = cart.get(pid, 0) + qty
-    if product.stock > 0:
-        cart[pid] = min(cart[pid], product.stock)
-    _save_cart(request, cart)
+    state = get_cart_state(request)
 
-    _, total = _cart_summary(cart)
+    if product.requires_server:
+        if not server_option_id:
+            return JsonResponse({'error': 'Select a hosting plan first'}, status=400)
+        if not _allowed_server_for_product(product, server_option_id):
+            return JsonResponse({'error': 'Invalid hosting plan for this product'}, status=400)
+        state['servers'][pid] = str(int(server_option_id))
+    else:
+        state['servers'].pop(pid, None)
+
+    state['products'][pid] = state['products'].get(pid, 0) + qty
+    if product.stock > 0:
+        state['products'][pid] = min(state['products'][pid], product.stock)
+
+    save_cart_state(request, state)
+    items, total = cart_summary(state, product_queryset=PRODUCT_QUERYSET)
     return JsonResponse({
         'ok': True,
-        'cart_count': sum(cart.values()),
+        'cart_count': cart_count(state),
         'cart_total': float(total),
+        'cart_items': items,
         'product_name': product.name,
     })
 
@@ -102,11 +120,17 @@ def cart_remove(request):
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'error': 'Bad request'}, status=400)
 
-    cart = _get_cart(request)
-    cart.pop(pid, None)
-    _save_cart(request, cart)
-    _, total = _cart_summary(cart)
-    return JsonResponse({'ok': True, 'cart_count': sum(cart.values()), 'cart_total': float(total)})
+    state = get_cart_state(request)
+    state['products'].pop(pid, None)
+    state['servers'].pop(pid, None)
+    save_cart_state(request, state)
+    items, total = cart_summary(state, product_queryset=PRODUCT_QUERYSET)
+    return JsonResponse({
+        'ok': True,
+        'cart_count': cart_count(state),
+        'cart_total': float(total),
+        'cart_items': items,
+    })
 
 
 @require_POST
@@ -118,14 +142,20 @@ def cart_update(request):
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'error': 'Bad request'}, status=400)
 
-    cart = _get_cart(request)
+    state = get_cart_state(request)
     if qty <= 0:
-        cart.pop(pid, None)
+        state['products'].pop(pid, None)
+        state['servers'].pop(pid, None)
     else:
-        cart[pid] = qty
-    _save_cart(request, cart)
-    _, total = _cart_summary(cart)
-    return JsonResponse({'ok': True, 'cart_count': sum(cart.values()), 'cart_total': float(total)})
+        state['products'][pid] = qty
+    save_cart_state(request, state)
+    items, total = cart_summary(state, product_queryset=PRODUCT_QUERYSET)
+    return JsonResponse({
+        'ok': True,
+        'cart_count': cart_count(state),
+        'cart_total': float(total),
+        'cart_items': items,
+    })
 
 
 @require_POST
@@ -135,8 +165,8 @@ def create_order(request):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    cart = _get_cart(request)
-    if not cart:
+    state = get_cart_state(request)
+    if not state['products']:
         return JsonResponse({'error': 'Cart is empty'}, status=400)
 
     buyer_name = (data.get('buyer_name') or '').strip()
@@ -145,9 +175,16 @@ def create_order(request):
     if not buyer_name or not buyer_email:
         return JsonResponse({'error': 'Name and email are required'}, status=400)
 
-    items, total = _cart_summary(cart)
+    items, total = cart_summary(state, product_queryset=PRODUCT_QUERYSET)
     if not items:
         return JsonResponse({'error': 'No valid products in cart'}, status=400)
+
+    for product in PRODUCT_QUERYSET.filter(pk__in=state['products'].keys(), requires_server=True):
+        if str(product.pk) not in state['servers']:
+            return JsonResponse(
+                {'error': f'Select a hosting plan for "{product.name}"'},
+                status=400,
+            )
 
     amount_paise = int(total * 100)
     if amount_paise < 100:
@@ -164,7 +201,6 @@ def create_order(request):
         logger.exception('Razorpay create_order (resell) failed: %s', exc)
         return JsonResponse({'error': 'Payment service error. Please try again.'}, status=500)
 
-    # Persist a pending order so we can verify it later
     ResellOrder.objects.create(
         buyer_name=buyer_name,
         buyer_email=buyer_email,
@@ -173,6 +209,7 @@ def create_order(request):
         total_amount=total,
         razorpay_order_id=rz_order['id'],
         status=ResellOrder.Status.PENDING,
+        affiliate=get_referral_affiliate(request),
     )
 
     return JsonResponse({
@@ -216,9 +253,13 @@ def verify_payment(request):
     order.status = ResellOrder.Status.PAID
     order.save(update_fields=['razorpay_payment_id', 'razorpay_signature', 'status', 'updated_at'])
 
-    # Clear cart after successful payment
-    request.session.pop(CART_KEY, None)
-    request.session.modified = True
+    user = request.user if request.user.is_authenticated else None
+    if not user:
+        user = User.objects.filter(email__iexact=order.buyer_email).first()
+    fulfill_order_server_plans(order, user)
+    record_commissions_for_order(order)
+
+    clear_cart_state(request)
 
     logger.info('Resell payment verified order=%s buyer=%s amount=%s', order_id, order.buyer_email, order.total_amount)
     return JsonResponse({'status': 'success', 'order_id': order_id})

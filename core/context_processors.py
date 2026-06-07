@@ -40,6 +40,7 @@ def studentcloud_nav(request):
     out = {
         'notification_unread_count': 0,
         'trainer_portal_visible': False,
+        'affiliate_active': False,
     }
     if not getattr(request, 'user', None) or not request.user.is_authenticated:
         return out
@@ -59,6 +60,8 @@ def studentcloud_nav(request):
         user=request.user, read_at__isnull=True
     ).count()
     out['trainer_portal_visible'] = is_trainer(request.user)
+    from apps.affiliates.services import get_active_affiliate
+    out['affiliate_active'] = get_active_affiliate(request.user) is not None
 
     try:
         cache.set(cache_key, out, _NAV_CACHE_TTL)

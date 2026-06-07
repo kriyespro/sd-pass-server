@@ -1,0 +1,181 @@
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+function resellStore(opts) {
+  opts = opts || {};
+  return {
+    cartCount: {{ cart_count }},
+    cartItems: {{ cart_items | tojson }},
+    cartTotal: {{ cart_total }},
+    cartOpen: false,
+    checkoutOpen: false,
+    buyerName: '',
+    buyerEmail: '',
+    buyerPhone: '',
+    loading: false,
+    toastMsg: '',
+    toastType: 'success',
+    toastTimer: null,
+    csrf: document.querySelector('meta[name="csrf-token"]')?.content || '',
+
+    productPrice: Number(opts.productPrice || 0),
+    requiresServer: !!opts.requiresServer,
+    servers: opts.servers || [],
+    selectedServerId: opts.servers && opts.servers.length ? opts.servers[0].id : null,
+
+    hostingPrice() {
+      const server = this.servers.find((s) => s.id === this.selectedServerId);
+      return server ? Number(server.price || 0) : 0;
+    },
+
+    combinedTotal() {
+      return this.productPrice + this.hostingPrice();
+    },
+
+    showToast(msg, type) {
+      this.toastMsg = msg;
+      this.toastType = type || 'success';
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => { this.toastMsg = ''; }, 3500);
+    },
+
+    syncCart(d) {
+      this.cartCount = d.cart_count;
+      this.cartTotal = d.cart_total;
+      if (d.cart_items) this.cartItems = d.cart_items;
+    },
+
+    async addToCart(productId, productName) {
+      if (this.requiresServer && !this.selectedServerId) {
+        this.showToast('Select a hosting plan first', 'error');
+        return;
+      }
+      const body = { product_id: productId, qty: 1 };
+      if (this.selectedServerId) body.server_option_id = this.selectedServerId;
+
+      const res = await fetch('{{ url("resell:cart_add") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        this.syncCart(d);
+        this.showToast('"' + productName + '" added to cart', 'success');
+      } else {
+        this.showToast(d.error || 'Could not add item', 'error');
+      }
+    },
+
+    async removeFromCart(productId) {
+      const res = await fetch('{{ url("resell:cart_remove") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify({ product_id: productId }),
+      });
+      const d = await res.json();
+      if (res.ok) this.syncCart(d);
+    },
+
+    async buyNow(productId, productName) {
+      if (this.requiresServer && !this.selectedServerId) {
+        this.showToast('Select a hosting plan first', 'error');
+        return;
+      }
+      const body = { product_id: productId, qty: 1 };
+      if (this.selectedServerId) body.server_option_id = this.selectedServerId;
+
+      const res = await fetch('{{ url("resell:cart_add") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        this.syncCart(d);
+        this.cartOpen = false;
+        this.checkoutOpen = true;
+        this.showToast('Checkout: product + hosting', 'success');
+      } else {
+        this.showToast(d.error || 'Could not initiate purchase', 'error');
+      }
+    },
+
+    async checkout() {
+      if (!this.buyerName.trim() || !this.buyerEmail.trim()) {
+        this.showToast('Please fill in your name and email', 'error');
+        return;
+      }
+      this.loading = true;
+
+      const orderRes = await fetch('{{ url("resell:create_order") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
+        body: JSON.stringify({
+          buyer_name: this.buyerName,
+          buyer_email: this.buyerEmail,
+          buyer_phone: this.buyerPhone,
+        }),
+      });
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) {
+        this.showToast(orderData.error || 'Order creation failed', 'error');
+        this.loading = false;
+        return;
+      }
+
+      const self = this;
+      const options = {
+        key: '{{ razorpay_key_id }}',
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Krizn Store',
+        description: 'Combined order — ₹' + self.cartTotal.toFixed(2),
+        order_id: orderData.order_id,
+        theme: { color: '#10b981' },
+        prefill: {
+          name: self.buyerName,
+          email: self.buyerEmail,
+          contact: self.buyerPhone,
+        },
+        handler: async function(response) {
+          try {
+            const verifyRes = await fetch('{{ url("resell:verify_payment") }}', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': self.csrf },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.status === 'success') {
+              self.showToast('Payment successful!', 'success');
+              self.cartCount = 0;
+              self.cartItems = [];
+              self.cartTotal = 0;
+              self.checkoutOpen = false;
+              self.cartOpen = false;
+              setTimeout(() => {
+                alert('Payment confirmed!\n\nOrder ID: ' + response.razorpay_order_id);
+              }, 400);
+            } else {
+              self.showToast(verifyData.error || 'Verification failed', 'error');
+            }
+          } catch (e) {
+            self.showToast('Network error — save Payment ID: ' + response.razorpay_payment_id, 'error');
+          }
+          self.loading = false;
+        },
+        modal: { ondismiss: function() { self.loading = false; } },
+      };
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function(response) {
+        self.showToast('Payment failed: ' + (response.error.description || 'Try again.'), 'error');
+        self.loading = false;
+      });
+      rzp.open();
+    },
+  };
+}
+</script>

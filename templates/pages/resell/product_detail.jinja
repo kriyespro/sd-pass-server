@@ -1,0 +1,184 @@
+{% extends "base.jinja" %}
+{% block title %}{{ product.name }} — Krizn Store{% endblock %}
+
+{% block content %}
+{# JSON in x-data="" breaks Alpine — server list uses double quotes. Pass config via script. #}
+<script>
+window.__resellProductConfig = {
+  productPrice: {{ product.price | float }},
+  requiresServer: {{ 'true' if product.requires_server else 'false' }},
+  servers: {{ server_options_json | tojson }}
+};
+</script>
+<div x-data="resellStore(window.__resellProductConfig || {})" class="relative space-y-6">
+  {% include "partials/resell/_store_modals.jinja" %}
+
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+      <a href="{{ url('resell:store') }}" class="hover:text-emerald-300">Store</a>
+      <span>/</span>
+      <span class="text-slate-300">{{ product.name }}</span>
+    </nav>
+    <button
+      type="button"
+      @click="cartOpen = true"
+      class="relative flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:border-emerald-500/50"
+    >
+      🛒 Cart
+      <span
+        x-show="cartCount > 0"
+        class="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-slate-950"
+        x-text="cartCount"
+        style="display:none;"
+      ></span>
+    </button>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-2 lg:gap-8">
+    {% with image_class='aspect-square max-h-[28rem]' %}
+      {% include "partials/resell/_product_gallery.jinja" %}
+    {% endwith %}
+
+    <div class="flex flex-col gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-white sm:text-3xl">{{ product.name }}</h1>
+        {% if product.short_description %}
+          <p class="mt-1.5 text-sm text-slate-400">{{ product.short_description }}</p>
+        {% endif %}
+        <p class="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+          <span>{{ product.get_category_display() }}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{ product.stock_label }}</span>
+          <span aria-hidden="true">·</span>
+          <span>Delivery within 24 hrs (depends on project complexity)</span>
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-baseline gap-3">
+        <span class="text-3xl font-bold text-emerald-300">₹{{ product.price }}</span>
+        {% if product.original_price %}
+          <span class="text-lg text-slate-500 line-through">₹{{ product.original_price }}</span>
+        {% endif %}
+        {% if product.requires_server and server_options %}
+          <span x-show="selectedServerId" class="text-sm text-sky-300">
+            + ₹<span x-text="hostingPrice().toFixed(0)"></span> server
+          </span>
+        {% endif %}
+      </div>
+
+      {% if product.demo_url or product.youtube_url %}
+      <div class="flex flex-wrap gap-2">
+        {% if product.demo_url %}
+        <a
+          href="{{ product.demo_url }}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20"
+        >
+          🌐 Live Demo
+        </a>
+        {% endif %}
+        {% if product.youtube_url %}
+        <a
+          href="{{ product.youtube_url }}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+        >
+          ▶ Video Tutorial
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if product.requires_server and server_options %}
+      <div class="rounded-lg border border-sky-800/40 bg-sky-950/20 p-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-sky-300">Server Plan</p>
+          <p class="text-[11px] font-semibold text-emerald-300">Total ₹<span x-text="combinedTotal().toFixed(0)"></span></p>
+        </div>
+        <p class="text-[10px] text-slate-500">Product + server plan · one Razorpay payment</p>
+        <div class="mt-1.5 overflow-hidden rounded-md border border-slate-800/70 divide-y divide-slate-800/70">
+          {% for server in server_options %}
+          {% set specs = server.hosting_specs %}
+          <label
+            class="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-xs transition-colors"
+            :class="selectedServerId === {{ server.pk }} ? 'bg-sky-950/60 text-white' : 'bg-slate-950/30 text-slate-300 hover:bg-slate-950/50'"
+          >
+            <input type="radio" name="server_plan" value="{{ server.pk }}" x-model.number="selectedServerId" class="shrink-0 text-sky-500"{% if loop.first %} checked{% endif %}>
+            <span class="min-w-0 flex-1 leading-tight">
+              <span class="font-medium text-slate-100">{{ server.name }}</span>
+              <span class="text-[10px] text-slate-500"> · {{ specs.period }} · {{ specs.ram }} · {{ specs.cpu }} · {{ specs.storage }}</span>
+            </span>
+            <span class="shrink-0 font-semibold tabular-nums text-emerald-300">₹{{ server.display_price | float | round(0) | int }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% elif product.requires_server %}
+      <div class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-3 text-sm text-amber-200">
+        Hosting plans are not configured yet. Contact support or check back soon.
+      </div>
+      {% endif %}
+
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          @click='addToCart({{ product.pk }}, {{ product.name | tojson }})'
+          class="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-300 transition-all hover:bg-emerald-500/20 active:scale-[0.98]"
+        >
+          + Add to Cart
+        </button>
+        <button
+          type="button"
+          @click='buyNow({{ product.pk }}, {{ product.name | tojson }})'
+          class="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-slate-950 shadow transition-all hover:bg-emerald-400 active:scale-[0.98]"
+        >
+          Buy Now →
+        </button>
+      </div>
+
+      {% if product.highlight_lines %}
+        <ul class="space-y-1 text-sm text-slate-400">
+          {% for line in product.highlight_lines %}
+            <li class="flex gap-2">
+              <span class="text-emerald-400">✓</span>
+              <span>{{ line }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if product.description %}
+        <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+          <h2 class="text-sm font-semibold text-slate-200">About</h2>
+          <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-400">{{ product.description }}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if related_products %}
+  <section class="space-y-4 border-t border-slate-800 pt-6">
+    <h2 class="text-lg font-semibold text-white">More products</h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {% for p in related_products %}
+      <a href="{{ url('resell:product_detail', slug=p.slug) }}" class="group overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 transition-all hover:border-slate-700">
+        {% with product=p, image_class='h-36' %}
+          {% include "partials/resell/_product_image.jinja" %}
+        {% endwith %}
+        <div class="p-3">
+          <p class="truncate text-sm font-medium text-white">{{ p.name }}</p>
+          <p class="mt-1 text-sm font-semibold text-emerald-300">₹{{ p.price }}</p>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "partials/resell/_store_scripts.jinja" %}
+{% endblock %}

@@ -4,7 +4,11 @@
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <section class="mx-auto max-w-3xl space-y-8" x-data="razorpayCheckout()"
-         x-init="if(window.location.hash === '#addons') { $nextTick(() => document.getElementById('addons-section')?.scrollIntoView({behavior:'smooth'})); }">
+         x-init="
+           if(window.location.hash === '#addons') { $nextTick(() => document.getElementById('addons-section')?.scrollIntoView({behavior:'smooth'})); }
+           const plan = new URLSearchParams(window.location.search).get('plan');
+           if (plan) { $nextTick(() => document.getElementById('plan-' + plan)?.scrollIntoView({behavior:'smooth', block:'center'})); }
+         ">
 
   {# ── Page header ── #}
   <div class="flex items-center justify-between">
@@ -45,7 +49,7 @@
   {# ── Pricing cards ── #}
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {% for p in plans %}
-      <div class="relative flex flex-col rounded-2xl border {{ 'border-emerald-500/60 bg-emerald-500/5 ring-1 ring-emerald-500/30' if p.highlight else 'border-slate-800 bg-slate-900/60' }} p-5">
+      <div id="plan-{{ p.slug }}" class="relative flex flex-col rounded-2xl border {{ 'border-emerald-500/60 bg-emerald-500/5 ring-1 ring-emerald-500/30' if p.highlight else 'border-slate-800 bg-slate-900/60' }} p-5">
         {% if p.highlight %}
           <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-0.5 text-xs font-bold text-slate-950">Most Popular</span>
         {% endif %}

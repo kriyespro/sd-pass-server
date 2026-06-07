@@ -58,6 +58,67 @@ PLAN_LABELS = {
     'flask_addon':     'Flask Add-on — +1 Flask app slot · ₹1,499/year',
 }
 
+# Hosting specs shown on billing + resell product pages (keyed by plan_slug).
+PLAN_HOSTING_SPECS = {
+    'test_plan': {
+        'period': '30 days',
+        'ram': '521 MB',
+        'cpu': 'Shared CPU',
+        'storage': '1 GB SSD',
+    },
+    'launch_lite': {
+        'period': '1 year',
+        'ram': '521 MB',
+        'cpu': 'Shared CPU',
+        'storage': '1 GB SSD',
+    },
+    'starter_cloud': {
+        'period': '1 year',
+        'ram': '1 GB',
+        'cpu': '1 vCPU',
+        'storage': '15 GB NVMe',
+    },
+    'wordpress_pro': {
+        'period': '1 year',
+        'ram': '2 GB',
+        'cpu': '2 vCPU',
+        'storage': '30 GB SSD',
+    },
+    'business_cloud': {
+        'period': '1 year',
+        'ram': '4 GB',
+        'cpu': '2 vCPU',
+        'storage': '60 GB SSD',
+    },
+    'agency_turbo': {
+        'period': '1 year',
+        'ram': '6 GB',
+        'cpu': '4 vCPU',
+        'storage': '80 GB NVMe',
+    },
+    'performance_max': {
+        'period': '1 year',
+        'ram': '6 GB',
+        'cpu': '4 vCPU',
+        'storage': '120 GB NVMe',
+    },
+    'flask_addon': {
+        'period': '1 year',
+        'ram': '—',
+        'cpu': '—',
+        'storage': '+1 Flask slot',
+    },
+}
+
+
+def plan_hosting_specs(plan_slug):
+    return PLAN_HOSTING_SPECS.get(plan_slug, {
+        'period': '1 year',
+        'ram': '—',
+        'cpu': '—',
+        'storage': '—',
+    })
+
 
 class Subscription(models.Model):
     class Plan(models.TextChoices):

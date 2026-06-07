@@ -80,6 +80,7 @@ services:
       - sites_data:/app/data/sites
       - uploads_data:/app/data/uploads
       - platform_backups_data:/app/data/platform_backups
+      - media_data:/app/media
       - traefik_dynamic:/app/data/traefik/dynamic
       # Live templates from host — after git pull, restart web (no rebuild for .jinja-only changes)
       - ./templates:/app/templates:ro
@@ -104,6 +105,7 @@ services:
       - sites_data:/app/data/sites
       - uploads_data:/app/data/uploads
       - platform_backups_data:/app/data/platform_backups
+      - media_data:/app/media
       - traefik_dynamic:/app/data/traefik/dynamic
     depends_on:
       db:
@@ -133,5 +135,6 @@ volumes:
   sites_data: {}
   uploads_data: {}
   platform_backups_data: {}
+  media_data: {}
   traefik_dynamic: {}
   traefik_acme: {}

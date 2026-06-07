@@ -364,7 +364,7 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
             (PlatformBackup.BackupType.DATABASE, 'Database only'),
             (PlatformBackup.BackupType.SITES, 'Sites only'),
         ]
-        platform_backups = list(PlatformBackup.objects.filter(status=PlatformBackup.Status.DONE)[:25])
+        platform_backups = list(PlatformBackup.objects.all()[:25])
         for backup in platform_backups:
             backup.size_human = format_bytes(backup.size_bytes)
         ctx['platform_backups'] = platform_backups
@@ -375,6 +375,7 @@ class SuperuserMonitorView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
 RunAssetOptimizationView = platform_ops_views.RunAssetOptimizationView
 CreatePlatformBackupView = platform_ops_views.CreatePlatformBackupView
 DownloadPlatformBackupView = platform_ops_views.DownloadPlatformBackupView
+DeletePlatformBackupView = platform_ops_views.DeletePlatformBackupView
 
 
 def _website_overview_rows(search: str = ''):

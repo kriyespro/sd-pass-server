@@ -86,3 +86,23 @@ class DownloadPlatformBackupView(StaffOnlyMixin, View):
             as_attachment=True,
             filename=path.name,
         )
+
+
+class DeletePlatformBackupView(StaffOnlyMixin, View):
+    def post(self, request, backup_id: int):
+        backup = get_object_or_404(PlatformBackup, pk=backup_id)
+        if backup.status in (
+            PlatformBackup.Status.PENDING,
+            PlatformBackup.Status.RUNNING,
+        ):
+            messages.warning(request, 'Cannot delete a backup that is still running.')
+            return HttpResponseRedirect(reverse('admin_monitor:dashboard'))
+
+        try:
+            from apps.platform_ops.services.backup import delete_platform_backup
+
+            delete_platform_backup(backup_id=backup.pk)
+            messages.success(request, f'Backup #{backup_id} deleted.')
+        except Exception as exc:
+            messages.error(request, f'Could not delete backup: {exc}')
+        return HttpResponseRedirect(reverse('admin_monitor:dashboard'))

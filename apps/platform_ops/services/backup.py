@@ -168,3 +168,23 @@ def resolve_backup_path(backup: PlatformBackup) -> Path:
     if not path.is_file():
         raise FileNotFoundError(path)
     return path
+
+
+def delete_platform_backup(*, backup_id: int) -> None:
+    """Remove backup ZIP from disk (if any) and delete the DB row."""
+    backup = PlatformBackup.objects.get(pk=backup_id)
+    if backup.status in (
+        PlatformBackup.Status.PENDING,
+        PlatformBackup.Status.RUNNING,
+    ):
+        raise RuntimeError('Cannot delete a backup that is still in progress.')
+
+    if backup.storage_path:
+        try:
+            path = resolve_backup_path(backup)
+            path.unlink(missing_ok=True)
+        except (ValueError, FileNotFoundError):
+            pass
+
+    backup.delete()
+    logger.info('platform_ops: deleted backup #%s', backup_id)

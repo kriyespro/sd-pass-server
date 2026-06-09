@@ -5,6 +5,7 @@ Django/Celery calls this API to deploy, stop, and check app status.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
@@ -29,6 +30,9 @@ API_TOKEN = os.environ.get('FLASK_RUNNER_TOKEN', '')
 GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '30'))
 PIP_TIMEOUT = int(os.environ.get('PIP_TIMEOUT', '180'))
 
+# State file lives one level above SITES_ROOT (still on the same volume).
+_STATE_FILE = SITES_ROOT.parent / 'runner_state.json'
+
 # project_id (int) → subprocess.Popen
 _procs: dict[int, subprocess.Popen] = {}
 _lock = threading.Lock()
@@ -42,6 +46,96 @@ def _auth():
         return None
     if API_TOKEN and request.headers.get('X-Runner-Token') != API_TOKEN:
         return jsonify({'error': 'unauthorized'}), 401
+
+
+# ── state persistence ─────────────────────────────────────────────────────────
+
+def _remove_from_state(project_id: int) -> None:
+    """Remove project_id from the persisted state file."""
+    try:
+        existing: dict[str, int] = json.loads(_STATE_FILE.read_text()) if _STATE_FILE.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        existing = {}
+    existing.pop(str(project_id), None)
+    try:
+        SITES_ROOT.parent.mkdir(parents=True, exist_ok=True)
+        _STATE_FILE.write_text(json.dumps(existing, indent=2))
+    except OSError as exc:
+        log.warning('Could not update runner state: %s', exc)
+
+
+def _save_state_with_port(project_id: int, port: int) -> None:
+    """Persist project_id→port mapping then write live state."""
+    existing: dict[str, int] = {}
+    try:
+        existing = json.loads(_STATE_FILE.read_text()) if _STATE_FILE.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        pass
+    existing[str(project_id)] = port
+    try:
+        SITES_ROOT.parent.mkdir(parents=True, exist_ok=True)
+        _STATE_FILE.write_text(json.dumps(existing, indent=2))
+    except OSError as exc:
+        log.warning('Could not save runner state: %s', exc)
+
+
+def _restore_state() -> None:
+    """On startup, re-launch gunicorn for every project saved in state file."""
+    if not _STATE_FILE.exists():
+        return
+    try:
+        saved: dict[str, int] = json.loads(_STATE_FILE.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        log.warning('Could not read runner state file: %s', exc)
+        return
+
+    if not saved:
+        return
+
+    log.info('Restoring %d Flask app(s) from state file', len(saved))
+    for pid_str, port in saved.items():
+        try:
+            project_id = int(pid_str)
+        except ValueError:
+            continue
+        project_dir = _project_dir(project_id)
+        if not project_dir.exists():
+            log.warning('Restore: project dir missing for %s — skipping', project_id)
+            continue
+        entry = _detect_entry(project_dir)
+        if not entry:
+            log.warning('Restore: no entry point for project %s — skipping', project_id)
+            continue
+
+        ok, err = _setup_venv(project_id)
+        if not ok:
+            log.error('Restore: venv setup failed for project %s: %s', project_id, err)
+            continue
+
+        gunicorn = _venv_bin(project_id, 'gunicorn')
+        env = {**os.environ, 'PYTHONPATH': str(project_dir)}
+        try:
+            proc = subprocess.Popen(
+                [
+                    str(gunicorn),
+                    '-b', f'0.0.0.0:{port}',
+                    '--workers', '1',
+                    '--threads', '2',
+                    '--timeout', str(GUNICORN_TIMEOUT),
+                    '--access-logfile', '-',
+                    '--error-logfile', '-',
+                    entry,
+                ],
+                cwd=str(project_dir),
+                env=env,
+            )
+        except OSError as exc:
+            log.error('Restore: failed to start project %s: %s', project_id, exc)
+            continue
+
+        with _lock:
+            _procs[project_id] = proc
+        log.info('Restored project %s  entry=%s  port=%s  pid=%s', project_id, entry, port, proc.pid)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -78,18 +172,19 @@ def _detect_entry(project_dir: Path) -> str | None:
 def _stop_proc(project_id: int) -> None:
     with _lock:
         proc = _procs.pop(project_id, None)
-    if proc is None:
-        return
-    if proc.poll() is None:
-        try:
-            proc.terminate()
-            proc.wait(timeout=8)
-        except (subprocess.TimeoutExpired, OSError):
+    if proc is not None:
+        if proc.poll() is None:
             try:
-                proc.kill()
-            except OSError:
-                pass
-    log.info('Stopped project %s (was pid %s)', project_id, proc.pid)
+                proc.terminate()
+                proc.wait(timeout=8)
+            except (subprocess.TimeoutExpired, OSError):
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+        log.info('Stopped project %s (was pid %s)', project_id, proc.pid)
+    # Always remove from state file, even if proc wasn't tracked in memory
+    _remove_from_state(project_id)
 
 
 def _setup_venv(project_id: int) -> tuple[bool, str]:
@@ -189,6 +284,9 @@ def deploy(project_id: int):
     with _lock:
         _procs[project_id] = proc
 
+    # Persist port so we can restore after a container restart
+    _save_state_with_port(project_id, port)
+
     log.info('Started project %s  entry=%s  port=%s  pid=%s', project_id, entry, port, proc.pid)
     return jsonify({'status': 'started', 'pid': proc.pid, 'port': port, 'entry': entry})
 
@@ -224,4 +322,5 @@ def list_projects():
 
 if __name__ == '__main__':
     log.info('Flask Runner starting on :6000  sites_root=%s', SITES_ROOT)
+    _restore_state()
     management_app.run(host='0.0.0.0', port=6000, debug=False)

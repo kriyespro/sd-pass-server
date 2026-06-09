@@ -243,7 +243,7 @@ function partnerPage() {
       this.redeemErr = '';
       if (!confirm(`Activate ${label} plan using ₹${price} credit?`)) return;
       try {
-        const res = await fetch('{% url "billing:partner_credit_buy" %}', {
+        const res = await fetch('{{ url("billing:partner_credit_buy") }}', {
           method: 'POST',
           headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
           body: JSON.stringify({plan_slug: slug}),
@@ -270,7 +270,7 @@ function partnerPage() {
       if (!key) { this.redeemErr = 'Payment not configured.'; return; }
 
       // Create Razorpay order with credit pre-applied
-      const orderRes = await fetch('{% url "billing:create_order" %}', {
+      const orderRes = await fetch('{{ url("billing:create_order") }}', {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
         body: JSON.stringify({plan_slug: slug, credit_amount: creditAmount}),
@@ -287,7 +287,7 @@ function partnerPage() {
         name: 'Krizn',
         description: `${label} (₹${creditAmount} credit applied)`,
         handler: async (resp) => {
-          const vRes = await fetch('{% url "billing:verify_payment" %}', {
+          const vRes = await fetch('{{ url("billing:verify_payment") }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify({

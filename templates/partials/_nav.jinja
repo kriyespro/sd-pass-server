@@ -3,11 +3,6 @@
   <nav class="flex flex-wrap items-center gap-3 text-sm font-medium text-slate-300">
     <a href="{{ url('home') }}" class="hover:text-white">Home</a>
     <a href="{{ url('resell:store') }}" class="hover:text-amber-300">🛒 Resell</a>
-    {% if affiliate_active %}
-      <a href="{{ url('affiliates:dashboard') }}" class="hover:text-sky-300">Affiliate</a>
-    {% else %}
-      <a href="{{ url('affiliates:apply') }}" class="hover:text-sky-300">Affiliate</a>
-    {% endif %}
     {% if request.user is defined and request.user.is_authenticated %}
       <a href="{{ url('affiliates:partner') }}" class="hover:text-violet-300">Partner</a>
       <a href="{{ url('projects:dashboard') }}" class="hover:text-white">Server</a>

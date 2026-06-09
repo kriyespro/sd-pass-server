@@ -1,223 +1,192 @@
 {% extends "base.jinja" %}
-{% block title %}Partner Dashboard — Krizn{% endblock %}
+{% block title %}Partner — Krizn{% endblock %}
 
 {% block content %}
-<div x-data="partnerPage()" class="mx-auto max-w-3xl space-y-6 py-4">
+<div x-data="partnerPage()" class="mx-auto max-w-2xl space-y-4 py-3">
 
-  {# ── Header ── #}
-  <div>
-    <h1 class="text-2xl font-bold text-white">Partner Dashboard</h1>
-    <p class="mt-1 text-sm text-slate-400">Share your link → friends buy a plan → you earn credit → redeem on your next plan.</p>
-  </div>
+  {# ── Top bar: tier + stats ── #}
+  <div class="grid grid-cols-3 gap-2">
 
-  {# ── Slab / tier card ── #}
-  <div class="grid gap-3 sm:grid-cols-3">
-    <div class="rounded-2xl border
-      {% if slab_info.label == 'Gold' %}border-amber-500/40 bg-gradient-to-br from-amber-950/60 to-slate-900/80
-      {% elif slab_info.label == 'Silver' %}border-slate-400/40 bg-gradient-to-br from-slate-700/50 to-slate-900/80
-      {% else %}border-orange-800/40 bg-gradient-to-br from-orange-950/40 to-slate-900/80{% endif %}
-      p-5">
-      <p class="text-xs font-semibold uppercase tracking-widest
-        {% if slab_info.label == 'Gold' %}text-amber-400/80
-        {% elif slab_info.label == 'Silver' %}text-slate-300/80
-        {% else %}text-orange-400/80{% endif %}">Your tier</p>
-      <p class="mt-1 text-2xl font-bold text-white">{{ slab_info.label }}</p>
-      <p class="mt-1 text-3xl font-bold
+    {# Tier #}
+    <div class="col-span-1 rounded-xl border
+      {% if slab_info.label == 'Gold' %}border-amber-500/40 bg-amber-950/30
+      {% elif slab_info.label == 'Silver' %}border-slate-500/40 bg-slate-800/40
+      {% else %}border-orange-700/40 bg-orange-950/20{% endif %}
+      px-3 py-2.5">
+      <p class="text-[10px] font-semibold uppercase tracking-wider
+        {% if slab_info.label == 'Gold' %}text-amber-400/70
+        {% elif slab_info.label == 'Silver' %}text-slate-400/70
+        {% else %}text-orange-400/70{% endif %}">Tier</p>
+      <p class="mt-0.5 text-xl font-bold
         {% if slab_info.label == 'Gold' %}text-amber-300
         {% elif slab_info.label == 'Silver' %}text-slate-200
         {% else %}text-orange-300{% endif %}">{{ slab_info.rate_pct }}%</p>
-      <p class="mt-1 text-xs text-slate-500">per referral purchase</p>
-      {% if slab_info.next %}
-      <p class="mt-2 text-xs text-slate-400">
-        {{ slab_info.next.need }} more referral{{ 's' if slab_info.next.need != 1 }} → <span class="font-semibold text-white">{{ slab_info.next.label }} ({{ slab_info.next.rate }}%)</span>
+      <p class="text-[11px] font-medium text-slate-400">{{ slab_info.label }}
+        {% if slab_info.next %}<span class="text-slate-600"> · {{ slab_info.next.need }} to {{ slab_info.next.label }}</span>{% endif %}
       </p>
-      {% else %}
-      <p class="mt-2 text-xs text-amber-400">Max tier reached 🏆</p>
-      {% endif %}
     </div>
 
-    <div class="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/60 to-slate-900/80 p-5">
-      <p class="text-xs font-semibold uppercase tracking-widest text-emerald-400/70">Credit balance</p>
-      <p class="mt-1 text-3xl font-bold text-emerald-300">₹{{ partner.credit_balance | float | round(2) }}</p>
-      <p class="mt-1 text-xs text-slate-500">Redeemable on server plans</p>
-      <p class="mt-2 text-xs text-slate-400">Total earned: <span class="text-white">₹{{ partner.total_earned | float | round(2) }}</span></p>
+    {# Credit balance #}
+    <div class="col-span-1 rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-3 py-2.5">
+      <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">Credit</p>
+      <p class="mt-0.5 text-xl font-bold text-emerald-300">₹{{ partner.credit_balance | float | round(2) }}</p>
+      <p class="text-[11px] text-slate-500">Earned ₹{{ partner.total_earned | float | round(2) }}</p>
     </div>
 
-    <div class="rounded-2xl border border-sky-500/20 bg-slate-900/60 p-5">
-      <p class="text-xs font-semibold uppercase tracking-widest text-sky-400/70">Referrals</p>
-      <p class="mt-1 text-3xl font-bold text-white">{{ slab_info.count }}</p>
-      <p class="mt-1 text-xs text-slate-500">Successful conversions</p>
-      <p class="mt-2 text-xs text-slate-400">Total redeemed: <span class="text-white">₹{{ partner.total_redeemed | float | round(2) }}</span></p>
+    {# Referrals #}
+    <div class="col-span-1 rounded-xl border border-sky-500/20 bg-slate-900/50 px-3 py-2.5">
+      <p class="text-[10px] font-semibold uppercase tracking-wider text-sky-400/70">Referrals</p>
+      <p class="mt-0.5 text-xl font-bold text-white">{{ slab_info.count }}</p>
+      <p class="text-[11px] text-slate-500">Paid ₹{{ partner.total_redeemed | float | round(2) }}</p>
     </div>
   </div>
 
-  {# ── Slab ladder ── #}
-  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-    <h2 class="mb-3 text-sm font-semibold text-white">Commission tiers</h2>
-    <div class="flex flex-wrap gap-3">
-      {% for min_ref, rate, label in [('0–4', 10, 'Bronze'), ('5–9', 15, 'Silver'), ('10+', 20, 'Gold')] %}
-      <div class="flex-1 min-w-[7rem] rounded-xl border
-        {% if slab_info.label == label %}
-          {% if label == 'Gold' %}border-amber-500/60 bg-amber-950/40
-          {% elif label == 'Silver' %}border-slate-400/50 bg-slate-700/30
-          {% else %}border-orange-600/50 bg-orange-950/30{% endif %}
-        {% else %}border-slate-700/50 bg-slate-950/30{% endif %}
-        px-4 py-3 text-center">
-        <p class="text-lg font-bold text-white">{{ rate }}%</p>
-        <p class="text-xs font-semibold
-          {% if label == 'Gold' %}text-amber-400
-          {% elif label == 'Silver' %}text-slate-300
-          {% else %}text-orange-400{% endif %}">{{ label }}</p>
-        <p class="mt-0.5 text-[11px] text-slate-500">{{ min_ref }} referrals</p>
-        {% if slab_info.label == label %}<p class="mt-1 text-[10px] text-emerald-400 font-semibold">● Active</p>{% endif %}
-      </div>
-      {% endfor %}
+  {# ── Commission tier ladder (inline, compact) ── #}
+  <div class="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2">
+    <span class="mr-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Tiers</span>
+    {% for min_ref, rate, label in [('0–4', 10, 'Bronze'), ('5–9', 15, 'Silver'), ('10+', 20, 'Gold')] %}
+    <div class="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1
+      {% if slab_info.label == label %}
+        {% if label == 'Gold' %}bg-amber-950/60 ring-1 ring-amber-500/50
+        {% elif label == 'Silver' %}bg-slate-700/60 ring-1 ring-slate-400/40
+        {% else %}bg-orange-950/40 ring-1 ring-orange-600/40{% endif %}
+      {% else %}bg-slate-800/30{% endif %}">
+      <span class="font-bold text-white text-xs">{{ rate }}%</span>
+      <span class="text-[10px]
+        {% if label == 'Gold' %}text-amber-400
+        {% elif label == 'Silver' %}text-slate-300
+        {% else %}text-orange-400{% endif %}">{{ label }}</span>
+      <span class="text-[10px] text-slate-600">{{ min_ref }}</span>
     </div>
+    {% if not loop.last %}<span class="text-slate-700 text-xs">›</span>{% endif %}
+    {% endfor %}
   </div>
 
   {# ── Share link ── #}
-  <div class="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-5">
-    <h2 class="mb-3 font-semibold text-white">Your referral link</h2>
-    <p class="mb-3 text-xs text-slate-500">Anyone who signs up using this link and buys a plan earns you commission. Link is permanent.</p>
+  <div class="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
+    <div class="mb-2 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-white">Your referral link</h2>
+      <span class="rounded-full border border-slate-700 px-2 py-0.5 font-mono text-[11px] text-slate-400">{{ partner.code }}</span>
+    </div>
 
-    <div class="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3">
-      <p class="min-w-0 flex-1 truncate font-mono text-sm text-slate-300">{{ share_url }}</p>
+    <div class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2">
+      <p class="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-400">{{ share_url }}</p>
       <button type="button"
               @click="copyLink('{{ share_url }}')"
-              class="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 transition hover:bg-emerald-400 active:scale-95">
+              class="shrink-0 rounded-md bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-emerald-400 active:scale-95">
         <span x-show="!copied">Copy</span>
-        <span x-show="copied" x-cloak class="text-slate-950">✓ Copied</span>
+        <span x-show="copied" x-cloak>✓</span>
       </button>
     </div>
 
-    <div class="mt-3 flex flex-wrap gap-2">
-      {# WhatsApp share #}
-      <a href="{{ wa_url }}"
-         target="_blank"
-         rel="noopener noreferrer"
-         class="inline-flex items-center gap-2 rounded-xl border border-emerald-700/50 bg-emerald-950/30 px-4 py-2.5 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-900/40 active:scale-[0.98]">
-        <svg class="h-4 w-4 fill-current" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        Share on WhatsApp
+    <div class="mt-2.5 flex flex-wrap gap-2">
+      <a href="{{ wa_url }}" target="_blank" rel="noopener noreferrer"
+         class="inline-flex items-center gap-1.5 rounded-lg border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-[#25D366] transition hover:bg-[#25D366]/20 active:scale-95">
+        <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
       </a>
-
-      {# Copy code only #}
-      <button type="button"
-              @click="copyLink('{{ partner.code }}')"
-              class="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 active:scale-[0.98]">
-        Code: <span class="font-mono text-white">{{ partner.code }}</span>
+      <button type="button" @click="copyLink('{{ partner.code }}')"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 active:scale-95">
+        Copy code
       </button>
     </div>
   </div>
 
   {# ── Redeem credit ── #}
   {% if partner.credit_balance > 0 %}
-  <div class="rounded-2xl border border-emerald-700/40 bg-emerald-950/20 p-5">
-    <h2 class="mb-1 font-semibold text-white">Redeem credit — ₹{{ partner.credit_balance | float | round(2) }} available</h2>
-    <p class="mb-4 text-xs text-slate-400">Apply your credit to activate a server plan. Remaining credit stays in your balance for the next purchase.</p>
+  <div class="rounded-xl border border-emerald-700/40 bg-emerald-950/15 p-4">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-white">Redeem credit</h2>
+      <span class="text-xs text-emerald-300 font-semibold">₹{{ partner.credit_balance | float | round(2) }} available</span>
+    </div>
 
-    <div class="space-y-2">
+    <div class="space-y-1.5">
       {% for plan in redeemable_plans %}
-      <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3">
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-slate-200">{{ plan.label }}</p>
-          <p class="text-xs text-slate-500">₹{{ plan.price | int }}
-            {% if plan.affordable %}
-            <span class="ml-1 rounded bg-emerald-900/60 px-1.5 py-0.5 text-emerald-400 text-[10px] font-semibold">Full credit cover</span>
-            {% elif plan.partial %}
-            <span class="ml-1 rounded bg-sky-900/50 px-1.5 py-0.5 text-sky-300 text-[10px] font-semibold">Pay ₹{{ (plan.price - partner.credit_balance|float) | round(0) | int }} after credit</span>
+      {% if plan.affordable or plan.partial %}
+      <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-medium text-slate-200">{{ plan.label }}</p>
+          <p class="text-[11px] text-slate-500">₹{{ plan.price | int }}
+            {% if plan.affordable %}<span class="ml-1 text-emerald-400 font-semibold">· Free with credit</span>
+            {% elif plan.partial %}<span class="ml-1 text-sky-400">· Pay ₹{{ (plan.price - (partner.credit_balance | float)) | round(0) | int }} after credit</span>
             {% endif %}
           </p>
         </div>
         {% if plan.affordable %}
         <button type="button"
                 @click="creditBuy('{{ plan.slug }}', {{ plan.price }}, '{{ plan.label }}')"
-                class="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 transition hover:bg-emerald-400 active:scale-95">
-          Activate Free →
+                class="shrink-0 rounded-md bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-emerald-400 active:scale-95">
+          Activate →
         </button>
-        {% elif plan.partial %}
+        {% else %}
         <button type="button"
                 @click="partialCreditBuy('{{ plan.slug }}', {{ plan.price }}, {{ partner.credit_balance | float }}, '{{ plan.label }}')"
-                class="shrink-0 rounded-lg border border-sky-500/50 bg-sky-950/30 px-3 py-1.5 text-xs font-semibold text-sky-300 transition hover:bg-sky-950/50 active:scale-95">
-          Apply Credit + Pay
+                class="shrink-0 rounded-md border border-sky-500/50 bg-sky-950/30 px-2.5 py-1 text-[11px] font-semibold text-sky-300 transition hover:bg-sky-950/50 active:scale-95">
+          Apply + Pay
         </button>
         {% endif %}
       </div>
+      {% endif %}
       {% endfor %}
     </div>
 
-    {# Success / error messages #}
-    <div x-show="redeemMsg" x-cloak class="mt-3 rounded-lg border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200" x-text="redeemMsg"></div>
-    <div x-show="redeemErr" x-cloak class="mt-3 rounded-lg border border-rose-700/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-200" x-text="redeemErr"></div>
+    <div x-show="redeemMsg" x-cloak class="mt-2.5 rounded-lg border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200" x-text="redeemMsg"></div>
+    <div x-show="redeemErr" x-cloak class="mt-2.5 rounded-lg border border-rose-700/50 bg-rose-950/40 px-3 py-2 text-xs text-rose-200" x-text="redeemErr"></div>
   </div>
   {% endif %}
 
   {# ── Referral history ── #}
-  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-    <h2 class="mb-4 font-semibold text-white">Referral history</h2>
+  <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+    <h2 class="mb-3 text-sm font-semibold text-white">Referrals</h2>
     {% if referrals %}
-    <div class="overflow-x-auto">
-      <table class="w-full min-w-[26rem] text-left text-xs">
-        <thead>
-          <tr class="border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            <th class="pb-2.5 pr-4">User</th>
-            <th class="pb-2.5 pr-4">Plan</th>
-            <th class="pb-2.5 pr-4">Status</th>
-            <th class="pb-2.5 text-right">Earned</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800/60">
-          {% for r in referrals %}
-          <tr class="hover:bg-slate-800/30 transition">
-            <td class="py-2.5 pr-4 text-slate-300">{{ r.referred_user.email | truncate(24, true, '…') if r.referred_user else '—' }}</td>
-            <td class="py-2.5 pr-4 text-slate-400">{{ r.plan_slug or '—' }}</td>
-            <td class="py-2.5 pr-4">
-              {% if r.status == 'credited' %}
-              <span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300">Credited</span>
-              {% else %}
-              <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-300">Pending</span>
-              {% endif %}
-            </td>
-            <td class="py-2.5 text-right font-semibold {% if r.commission_amount > 0 %}text-emerald-300{% else %}text-slate-600{% endif %}">
-              {% if r.commission_amount > 0 %}+₹{{ r.commission_amount }}{% else %}—{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <table class="w-full text-left text-xs">
+      <thead>
+        <tr class="border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+          <th class="pb-2 pr-4">User</th>
+          <th class="pb-2 pr-4">Plan</th>
+          <th class="pb-2 pr-4">Status</th>
+          <th class="pb-2 text-right">Earned</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800/50">
+        {% for r in referrals %}
+        <tr class="hover:bg-slate-800/20 transition">
+          <td class="py-2 pr-4 text-slate-300">{{ r.referred_user.email | truncate(22, true, '…') if r.referred_user else '—' }}</td>
+          <td class="py-2 pr-4 text-slate-500">{{ r.plan_slug or '—' }}</td>
+          <td class="py-2 pr-4">
+            {% if r.status == 'credited' %}
+            <span class="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">Paid</span>
+            {% else %}
+            <span class="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">Pending</span>
+            {% endif %}
+          </td>
+          <td class="py-2 text-right font-semibold {% if r.commission_amount > 0 %}text-emerald-300{% else %}text-slate-700{% endif %}">
+            {% if r.commission_amount > 0 %}+₹{{ r.commission_amount }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
-    <div class="rounded-xl border border-dashed border-slate-700/60 p-8 text-center">
-      <p class="text-2xl">🔗</p>
-      <p class="mt-2 text-sm font-medium text-slate-400">No referrals yet</p>
-      <p class="mt-1 text-xs text-slate-600">Share your link above — referrals appear here when someone signs up.</p>
-    </div>
+    <p class="py-4 text-center text-xs text-slate-600">No referrals yet — share your link to get started.</p>
     {% endif %}
   </div>
 
-  {# ── Redemption history ── #}
+  {# ── Redemption history (only if exists) ── #}
   {% if redemptions %}
-  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-    <h2 class="mb-4 font-semibold text-white">Credit redemptions</h2>
-    <div class="overflow-x-auto">
-      <table class="w-full min-w-[20rem] text-left text-xs">
-        <thead>
-          <tr class="border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            <th class="pb-2.5 pr-4">Plan</th>
-            <th class="pb-2.5 pr-4">Date</th>
-            <th class="pb-2.5 text-right">Credit used</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800/60">
-          {% for rd in redemptions %}
-          <tr class="hover:bg-slate-800/30 transition">
-            <td class="py-2.5 pr-4 text-slate-300">{{ rd.plan_slug or '—' }}</td>
-            <td class="py-2.5 pr-4 text-slate-500">{{ rd.created_at.strftime('%d %b %Y') }}</td>
-            <td class="py-2.5 text-right font-semibold text-rose-300">−₹{{ rd.amount_redeemed }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+    <h2 class="mb-3 text-sm font-semibold text-white">Credit used</h2>
+    <table class="w-full text-left text-xs">
+      <tbody class="divide-y divide-slate-800/50">
+        {% for rd in redemptions %}
+        <tr class="hover:bg-slate-800/20 transition">
+          <td class="py-2 pr-4 text-slate-300">{{ rd.plan_slug or '—' }}</td>
+          <td class="py-2 pr-4 text-slate-600">{{ rd.created_at.strftime('%d %b %Y') }}</td>
+          <td class="py-2 text-right font-semibold text-rose-400">−₹{{ rd.amount_redeemed }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
   {% endif %}
 
@@ -240,77 +209,51 @@ function partnerPage() {
     },
 
     async creditBuy(slug, price, label) {
-      this.redeemMsg = '';
-      this.redeemErr = '';
-      if (!confirm(`Activate ${label} plan using ₹${price} credit?`)) return;
+      this.redeemMsg = ''; this.redeemErr = '';
+      if (!confirm(`Activate ${label} using ₹${price} credit?`)) return;
       try {
-        const res = await fetch('{{ url("billing:partner_credit_buy") }}', {
+        const r = await fetch('{{ url("billing:partner_credit_buy") }}', {
           method: 'POST',
           headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf},
           body: JSON.stringify({plan_slug: slug}),
         });
-        const data = await res.json();
-        if (data.status === 'success') {
-          this.redeemMsg = `✓ ${data.label} plan activated! Page will reload…`;
-          setTimeout(() => location.reload(), 1500);
-        } else {
-          this.redeemErr = data.error || 'Something went wrong.';
-        }
-      } catch {
-        this.redeemErr = 'Network error. Try again.';
-      }
+        const d = await r.json();
+        if (d.status === 'success') { this.redeemMsg = `✓ ${d.label} activated!`; setTimeout(() => location.reload(), 1200); }
+        else this.redeemErr = d.error || 'Something went wrong.';
+      } catch { this.redeemErr = 'Network error.'; }
     },
 
     async partialCreditBuy(slug, price, creditBalance, label) {
-      this.redeemMsg = '';
-      this.redeemErr = '';
-      const netAmount = Math.round((price - creditBalance) * 100);
-      const creditAmount = parseFloat(creditBalance.toFixed(2));
-
+      this.redeemMsg = ''; this.redeemErr = '';
       const key = '{{ razorpay_key_id }}';
       if (!key) { this.redeemErr = 'Payment not configured.'; return; }
+      const creditAmount = parseFloat(creditBalance.toFixed(2));
 
-      // Create Razorpay order with credit pre-applied
-      const orderRes = await fetch('{{ url("billing:create_order") }}', {
+      const oRes = await fetch('{{ url("billing:create_order") }}', {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf},
         body: JSON.stringify({plan_slug: slug, credit_amount: creditAmount}),
       });
-      const orderData = await orderRes.json();
-      if (orderData.error) { this.redeemErr = orderData.error; return; }
-      if (orderData.free) { return this.creditBuy(slug, price, label); }
+      const oData = await oRes.json();
+      if (oData.error) { this.redeemErr = oData.error; return; }
+      if (oData.free) { return this.creditBuy(slug, price, label); }
 
-      const rzp = new Razorpay({
-        key: key,
-        order_id: orderData.order_id,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'Krizn',
-        description: `${label} (₹${creditAmount} credit applied)`,
+      new Razorpay({
+        key, order_id: oData.order_id, amount: oData.amount, currency: oData.currency,
+        name: 'Krizn', description: `${label} (₹${creditAmount} credit applied)`,
         handler: async (resp) => {
           const vRes = await fetch('{{ url("billing:verify_payment") }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf},
-            body: JSON.stringify({
-              razorpay_payment_id: resp.razorpay_payment_id,
-              razorpay_order_id: resp.razorpay_order_id,
-              razorpay_signature: resp.razorpay_signature,
-              plan_slug: slug,
-              credit_amount: creditAmount,
-            }),
+            body: JSON.stringify({...resp, plan_slug: slug, credit_amount: creditAmount}),
           });
           const vData = await vRes.json();
-          if (vData.status === 'success') {
-            this.redeemMsg = `✓ ${vData.label} activated! Reloading…`;
-            setTimeout(() => location.reload(), 1500);
-          } else {
-            this.redeemErr = vData.error || 'Verification failed.';
-          }
+          if (vData.status === 'success') { this.redeemMsg = `✓ ${vData.label} activated!`; setTimeout(() => location.reload(), 1200); }
+          else this.redeemErr = vData.error || 'Verification failed.';
         },
         prefill: {email: '{{ request.user.email }}'},
         theme: {color: '#10b981'},
-      });
-      rzp.open();
+      }).open();
     },
   };
 }

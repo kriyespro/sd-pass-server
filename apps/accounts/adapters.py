@@ -99,6 +99,8 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         if was_new:
             get_or_create_subscription(user)
             from apps.onboarding.services import get_or_create_onboarding
+            from apps.affiliates.services import record_partner_referral_signup
 
             get_or_create_onboarding(user)
+            record_partner_referral_signup(request, user)
         return user

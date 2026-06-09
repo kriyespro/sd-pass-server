@@ -58,8 +58,10 @@ class RegisterView(CreateView):
         response = super().form_valid(form)
         login(self.request, self.object)
         from apps.billing.services import get_or_create_subscription
+        from apps.affiliates.services import record_partner_referral_signup
 
         get_or_create_subscription(self.object)
+        record_partner_referral_signup(self.request, self.object)
         return response
 
 

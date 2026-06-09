@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+from decimal import Decimal
 
 import razorpay
 from django import forms
@@ -176,9 +177,26 @@ def create_order(request):
     if plan_slug not in PLAN_PRICES:
         return JsonResponse({'error': 'Invalid plan'}, status=400)
 
-    amount_paise = int(PLAN_PRICES[plan_slug] * 100)
+    plan_price = PLAN_PRICES[plan_slug]
+    credit_to_apply = Decimal(str(data.get('credit_amount', 0) or 0)).quantize(Decimal('0.01'))
+
+    # Validate and cap credit against partner balance
+    if credit_to_apply > 0:
+        from apps.affiliates.services import get_or_create_partner
+        partner = get_or_create_partner(request.user)
+        credit_to_apply = min(credit_to_apply, partner.credit_balance, plan_price).quantize(Decimal('0.01'))
+    else:
+        credit_to_apply = Decimal('0')
+
+    net_amount = max(plan_price - credit_to_apply, Decimal('0'))
+
+    # Full credit cover — no Razorpay needed
+    if net_amount == 0:
+        return JsonResponse({'free': True, 'credit_used': str(credit_to_apply), 'plan_slug': plan_slug})
+
+    amount_paise = int(net_amount * 100)
     if amount_paise < 100:
-        return JsonResponse({'error': 'Amount too small'}, status=400)
+        return JsonResponse({'error': 'Amount too small for payment gateway'}, status=400)
 
     try:
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -195,6 +213,7 @@ def create_order(request):
         'order_id': order['id'],
         'amount': order['amount'],
         'currency': order['currency'],
+        'credit_used': str(credit_to_apply),
     })
 
 
@@ -222,6 +241,53 @@ def verify_payment(request):
         return JsonResponse({'error': 'Payment verification failed'}, status=400)
 
     plan_days = 30 if plan_slug == 'test_plan' else 365
+    plan_price = PLAN_PRICES[plan_slug]
+    sub = get_or_create_subscription(request.user)
+    sub.plan_slug = plan_slug
+    sub.status = Subscription.Status.ACTIVE
+    sub.current_period_end = timezone.now() + timezone.timedelta(days=plan_days)
+    sub.trial_ends_at = None
+    sub.save()
+
+    # Deduct partner credit if used
+    credit_used = Decimal(str(data.get('credit_amount', 0) or 0)).quantize(Decimal('0.01'))
+    if credit_used > 0:
+        from apps.affiliates.services import get_or_create_partner, apply_partner_credit
+        partner = get_or_create_partner(request.user)
+        apply_partner_credit(partner, credit_used, plan_slug)
+
+    # Credit referring partner for this purchase
+    from apps.affiliates.services import credit_partner_for_plan
+    credit_partner_for_plan(request.user, plan_slug, plan_price)
+
+    label = PLAN_LABELS.get(plan_slug, plan_slug)
+    logger.info('Payment verified — user %s upgraded to %s', request.user.id, plan_slug)
+    return JsonResponse({'status': 'success', 'plan': plan_slug, 'label': label})
+
+
+@login_required
+@require_POST
+def partner_credit_buy(request):
+    """Activate a plan entirely with partner credit (no Razorpay payment)."""
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    plan_slug = data.get('plan_slug', '')
+    if plan_slug not in PLAN_PRICES:
+        return JsonResponse({'error': 'Invalid plan'}, status=400)
+
+    plan_price = PLAN_PRICES[plan_slug]
+
+    from apps.affiliates.services import get_or_create_partner, apply_partner_credit
+    partner = get_or_create_partner(request.user)
+    if partner.credit_balance < plan_price:
+        return JsonResponse({'error': 'Insufficient credit balance'}, status=400)
+
+    apply_partner_credit(partner, plan_price, plan_slug)
+
+    plan_days = 30 if plan_slug == 'test_plan' else 365
     sub = get_or_create_subscription(request.user)
     sub.plan_slug = plan_slug
     sub.status = Subscription.Status.ACTIVE
@@ -230,7 +296,7 @@ def verify_payment(request):
     sub.save()
 
     label = PLAN_LABELS.get(plan_slug, plan_slug)
-    logger.info('Payment verified — user %s upgraded to %s', request.user.id, plan_slug)
+    logger.info('Partner credit buy — user %s activated %s for ₹%s credit', request.user.id, plan_slug, plan_price)
     return JsonResponse({'status': 'success', 'plan': plan_slug, 'label': label})
 
 

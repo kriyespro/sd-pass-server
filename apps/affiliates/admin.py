@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 
-from .models import Affiliate, AffiliateApplication, AffiliateCommission
+from .models import Affiliate, AffiliateApplication, AffiliateCommission, Partner, PartnerCreditRedemption, PartnerReferral
 from .services import activate_affiliate_from_application
 
 
@@ -67,4 +67,31 @@ class AffiliateCommissionAdmin(admin.ModelAdmin):
     list_display = ('affiliate', 'item_type', 'item_name', 'commission_amount', 'order', 'created_at')
     list_filter = ('item_type',)
     search_fields = ('affiliate__code', 'item_name', 'order__razorpay_order_id')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(Partner)
+class PartnerAdmin(admin.ModelAdmin):
+    list_display = ('code', 'user', 'credit_balance', 'paid_referral_count', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('code', 'user__email')
+    readonly_fields = ('created_at', 'credit_balance')
+
+    @admin.display(description='Paid referrals')
+    def paid_referral_count(self, obj):
+        return obj.paid_referral_count
+
+
+@admin.register(PartnerReferral)
+class PartnerReferralAdmin(admin.ModelAdmin):
+    list_display = ('partner', 'referred_user', 'plan_slug', 'commission_amount', 'status', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('partner__code', 'referred_user__email', 'plan_slug')
+    readonly_fields = ('created_at', 'credited_at')
+
+
+@admin.register(PartnerCreditRedemption)
+class PartnerCreditRedemptionAdmin(admin.ModelAdmin):
+    list_display = ('partner', 'amount_redeemed', 'plan_slug', 'created_at')
+    search_fields = ('partner__code', 'plan_slug')
     readonly_fields = ('created_at',)

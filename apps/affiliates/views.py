@@ -1,9 +1,14 @@
+import urllib.parse
+
+from django.conf import settings
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView
 
+from apps.billing.models import PLAN_LABELS, PLAN_PRICES
 from apps.resell.models import ResellProduct
 
 from .forms import AffiliateApplicationForm
@@ -13,6 +18,8 @@ from .services import (
     affiliate_store_url,
     get_active_affiliate,
     get_application_for_user,
+    get_or_create_partner,
+    partner_share_url,
 )
 
 
@@ -109,6 +116,43 @@ class AffiliateDashboardView(TemplateView):
             'server_commission_pct': int(SERVER_COMMISSION_RATE * 100),
         })
         return ctx
+
+
+class PartnerPageView(LoginRequiredMixin, View):
+    template_name = 'pages/affiliates/partner.jinja'
+
+    def get(self, request):
+        partner = get_or_create_partner(request.user)
+        share_url = partner_share_url(request, partner)
+        wa_text = urllib.parse.quote(
+            f'Join Krizn — deploy your website in minutes! Sign up using my link: {share_url}',
+            safe='',
+        )
+        wa_url = f'https://wa.me/?text={wa_text}'
+
+        # Plans available for credit redemption
+        redeemable_plans = [
+            {
+                'slug': slug,
+                'label': PLAN_LABELS.get(slug, slug),
+                'price': float(price),
+                'affordable': partner.credit_balance >= price,
+                'partial': 0 < partner.credit_balance < price,
+            }
+            for slug, price in PLAN_PRICES.items()
+            if slug != 'free'
+        ]
+
+        return render(request, self.template_name, {
+            'partner': partner,
+            'share_url': share_url,
+            'wa_url': wa_url,
+            'slab_info': partner.slab_info,
+            'referrals': partner.referrals.select_related('referred_user').order_by('-created_at')[:25],
+            'redemptions': partner.redemptions.order_by('-created_at')[:10],
+            'redeemable_plans': redeemable_plans,
+            'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+        })
 
 
 def affiliate_success(request):

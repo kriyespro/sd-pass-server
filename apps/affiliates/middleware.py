@@ -1,4 +1,4 @@
-from .services import capture_referral
+from .services import capture_partner_referral, capture_referral
 
 
 class AffiliateReferralMiddleware:
@@ -7,4 +7,5 @@ class AffiliateReferralMiddleware:
 
     def __call__(self, request):
         capture_referral(request)
+        capture_partner_referral(request)
         return self.get_response(request)

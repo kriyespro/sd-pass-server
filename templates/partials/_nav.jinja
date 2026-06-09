@@ -9,6 +9,7 @@
       <a href="{{ url('affiliates:apply') }}" class="hover:text-sky-300">Affiliate</a>
     {% endif %}
     {% if request.user is defined and request.user.is_authenticated %}
+      <a href="{{ url('affiliates:partner') }}" class="hover:text-violet-300">Partner</a>
       <a href="{{ url('projects:dashboard') }}" class="hover:text-white">Server</a>
       <a href="{{ url('billing:redeem') }}" class="hover:text-emerald-300">Upgrade</a>
       <a href="{{ url('notifications:list') }}" class="relative inline-flex items-center gap-1 hover:text-white">

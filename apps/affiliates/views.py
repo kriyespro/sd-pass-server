@@ -17,16 +17,34 @@ from .services import (
 
 
 class AffiliateHubView(View):
-    """Public program page; apply form requires login."""
+    """Public program page; apply form requires login. Active affiliates see dashboard inline."""
 
     template_name = 'pages/affiliates/apply.jinja'
+    dashboard_template_name = 'pages/affiliates/dashboard.jinja'
 
     def get(self, request):
         if request.user.is_authenticated:
             affiliate = get_active_affiliate(request.user)
             if affiliate:
-                return redirect('affiliates:dashboard')
+                return render(request, self.dashboard_template_name, self._dashboard_context(request, affiliate))
         return render(request, self.template_name, self._context(request))
+
+    def _dashboard_context(self, request, affiliate):
+        products = ResellProduct.objects.filter(is_active=True).order_by('-is_featured', 'name')
+        return {
+            'affiliate': affiliate,
+            'store_url': affiliate_store_url(request, affiliate),
+            'product_links': [
+                {
+                    'product': product,
+                    'url': affiliate_product_url(request, affiliate, product),
+                }
+                for product in products
+            ],
+            'commissions': affiliate.commissions.select_related('order').order_by('-created_at')[:25],
+            'product_commission_pct': int(PRODUCT_COMMISSION_RATE * 100),
+            'server_commission_pct': int(SERVER_COMMISSION_RATE * 100),
+        }
 
     def post(self, request):
         if not request.user.is_authenticated:

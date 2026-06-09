@@ -231,6 +231,7 @@ function partnerPage() {
     copied: false,
     redeemMsg: '',
     redeemErr: '',
+    csrf: document.querySelector('meta[name="csrf-token"]').content,
 
     copyLink(text) {
       navigator.clipboard.writeText(text);
@@ -245,7 +246,7 @@ function partnerPage() {
       try {
         const res = await fetch('{{ url("billing:partner_credit_buy") }}', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf},
           body: JSON.stringify({plan_slug: slug}),
         });
         const data = await res.json();
@@ -272,7 +273,7 @@ function partnerPage() {
       // Create Razorpay order with credit pre-applied
       const orderRes = await fetch('{{ url("billing:create_order") }}', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf},
         body: JSON.stringify({plan_slug: slug, credit_amount: creditAmount}),
       });
       const orderData = await orderRes.json();
@@ -289,7 +290,7 @@ function partnerPage() {
         handler: async (resp) => {
           const vRes = await fetch('{{ url("billing:verify_payment") }}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf},
             body: JSON.stringify({
               razorpay_payment_id: resp.razorpay_payment_id,
               razorpay_order_id: resp.razorpay_order_id,

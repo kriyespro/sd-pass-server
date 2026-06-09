@@ -82,8 +82,11 @@ services:
       - platform_backups_data:/app/data/platform_backups
       - media_data:/app/media
       - traefik_dynamic:/app/data/traefik/dynamic
-      # Live templates from host — after git pull, restart web (no rebuild for .jinja-only changes)
+      # Bind-mount source — git pull + restart picks up all code/template changes (no rebuild needed)
+      - ./apps:/app/apps:ro
+      - ./core:/app/core:ro
       - ./templates:/app/templates:ro
+      - ./manage.py:/app/manage.py:ro
     ports:
       - '${WEB_HTTP_BIND:-0.0.0.0}:${WEB_HTTP_PUBLISH:-9898}:8000'
     expose:
@@ -107,6 +110,8 @@ services:
       - platform_backups_data:/app/data/platform_backups
       - media_data:/app/media
       - traefik_dynamic:/app/data/traefik/dynamic
+      - ./apps:/app/apps:ro
+      - ./core:/app/core:ro
     depends_on:
       db:
         condition: service_healthy
@@ -124,6 +129,8 @@ services:
       - sites_data:/app/data/sites
       - uploads_data:/app/data/uploads
       - traefik_dynamic:/app/data/traefik/dynamic
+      - ./apps:/app/apps:ro
+      - ./core:/app/core:ro
     depends_on:
       db:
         condition: service_healthy

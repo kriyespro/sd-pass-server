@@ -38,6 +38,29 @@ def _get_or_create_tag() -> int:
     return _tag_id_cache
 
 
+def _tag_existing_contact(email: str, tag_id: int) -> bool:
+    """Look up contact by email and apply tag."""
+    resp = requests.get(
+        f'{_BASE}/contacts',
+        params={'limit': 10, 'email': email},
+        headers=_headers(),
+        timeout=10,
+    )
+    if resp.status_code != 200:
+        return False
+    items = resp.json().get('items', [])
+    if not items:
+        return False
+    contact_id = items[0]['id']
+    r = requests.post(
+        f'{_BASE}/contacts/{contact_id}/tags',
+        json={'tagId': tag_id},
+        headers=_headers(),
+        timeout=10,
+    )
+    return r.status_code in (200, 201, 204)
+
+
 def sync_user(email: str, first_name: str = '', last_name: str = '') -> bool:
     """Upsert a single user into systeme.io with the krizn-user tag. Returns True on success."""
     try:
@@ -51,17 +74,15 @@ def sync_user(email: str, first_name: str = '', last_name: str = '') -> bool:
         resp = requests.post(f'{_BASE}/contacts', json=payload, headers=_headers(), timeout=10)
         if resp.status_code in (200, 201):
             return True
-        # 409 = already exists — tag it
-        if resp.status_code == 409:
-            contact_id = resp.json().get('id')
-            if contact_id:
-                requests.post(
-                    f'{_BASE}/contacts/{contact_id}/tags',
-                    json={'tagId': tag_id},
-                    headers=_headers(),
-                    timeout=10,
-                )
-            return True
+        if resp.status_code in (409, 422):
+            body = resp.json()
+            detail = body.get('detail', '')
+            # Contact already exists — look it up and tag it
+            if 'already used' in detail or resp.status_code == 409:
+                return _tag_existing_contact(email, tag_id)
+            # Truly invalid email — skip
+            logger.warning('systeme.io upsert %s → %s %s', email, resp.status_code, detail[:120])
+            return False
         logger.warning('systeme.io upsert %s → %s %s', email, resp.status_code, resp.text[:200])
         return False
     except Exception:

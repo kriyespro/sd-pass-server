@@ -43,7 +43,8 @@ def sync_all_users(self, sync_id: int = None):
     sync.synced = synced
     sync.skipped = skipped
     sync.failed = failed
-    sync.status = NewsletterSync.Status.DONE if failed == 0 else NewsletterSync.Status.FAILED
+    all_failed = failed == len(users) and len(users) > 0
+    sync.status = NewsletterSync.Status.FAILED if all_failed else NewsletterSync.Status.DONE
     sync.finished_at = timezone.now()
     sync.save(update_fields=['synced', 'skipped', 'failed', 'status', 'finished_at'])
     logger.info('newsletter sync done: %s/%s synced, %s failed', synced, len(users), failed)

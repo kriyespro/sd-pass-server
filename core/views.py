@@ -2,7 +2,10 @@ from django.shortcuts import render
 
 
 def home(request):
-    return render(request, 'pages/home.jinja', {})
+    response = render(request, 'pages/home.jinja', {})
+    if not request.user.is_authenticated:
+        response['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=60'
+    return response
 
 
 def handler404(request, exception):

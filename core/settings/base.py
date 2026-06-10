@@ -68,6 +68,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django.middleware.gzip.GZipMiddleware',
     'core.middleware.student_https_proto.StudentTraefikHttpsProtoMiddleware',
     'core.middleware.normalize_forwarded_host.NormalizeForwardedHostMiddleware',
     'core.middleware.recover_proxy_host.RecoverProxyHostMiddleware',

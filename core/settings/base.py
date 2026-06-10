@@ -21,6 +21,7 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
 RAZORPAY_KEY_ID = env('RAZORPAY_KEY_ID', default='')
 RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='')
+SYSTEME_IO_API_KEY = env('SYSTEME_IO_API_KEY', default='')
 DEBUG = False
 
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
@@ -63,6 +64,7 @@ INSTALLED_APPS = [
     'apps.api',
     'apps.affiliates',
     'apps.resell',
+    'apps.newsletter',
 ]
 
 MIDDLEWARE = [
@@ -439,6 +441,11 @@ CELERY_BEAT_SCHEDULE = {
     'platform-ops-asset-optimization': {
         'task': 'platform_ops.schedule_asset_optimization',
         'schedule': crontab(hour=22, minute=40),
+    },
+    # Every Monday 9 AM IST = 3:30 UTC — sync all users to Systeme.io newsletter list
+    'newsletter-sync-users-weekly': {
+        'task': 'newsletter.sync_all_users',
+        'schedule': crontab(hour=3, minute=30, day_of_week=1),
     },
 }
 

@@ -207,7 +207,7 @@ STUDENT_SITE_ROOT = Path(
 PLATFORM_BACKUP_ROOT = Path(
     env('PLATFORM_BACKUP_ROOT', default=str(BASE_DIR / 'data' / 'platform_backups'))
 )
-ASSET_OPTIMIZATION_INTERVAL_HOURS = env.int('ASSET_OPTIMIZATION_INTERVAL_HOURS', default=24)
+ASSET_OPTIMIZATION_INTERVAL_HOURS = env.int('ASSET_OPTIMIZATION_INTERVAL_HOURS', default=12)
 
 STUDENT_APPS_BASE_DOMAIN = env(
     'STUDENT_APPS_BASE_DOMAIN',
@@ -438,10 +438,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'billing.suspend_expired_trials',
         'schedule': crontab(hour=2, minute=0),
     },
-    # 4:10 AM IST = 22:40 UTC (IST is UTC+5:30)
+    # 4:10 AM IST = 22:40 UTC and 4:10 PM IST = 10:40 UTC — twice daily
     'platform-ops-asset-optimization': {
         'task': 'platform_ops.schedule_asset_optimization',
-        'schedule': crontab(hour=22, minute=40),
+        'schedule': crontab(hour='10,22', minute=40),
     },
     # Every Monday 9 AM IST = 3:30 UTC — sync all users to Systeme.io newsletter list
     'newsletter-sync-users-weekly': {

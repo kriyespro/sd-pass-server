@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db import models
 from django.urls import reverse
 
 from .models import (
@@ -113,6 +114,7 @@ def capture_partner_referral(request):
     if partner:
         request.session[PARTNER_SESSION_KEY] = partner.code
         request.session.modified = True
+        Partner.objects.filter(pk=partner.pk).update(click_count=models.F('click_count') + 1)
 
 
 def get_referral_partner(request):

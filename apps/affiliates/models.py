@@ -149,6 +149,7 @@ class Partner(models.Model):
     )
     code = models.CharField(max_length=16, unique=True, db_index=True)
     credit_balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    click_count = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

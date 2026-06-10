@@ -40,11 +40,16 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['project_count'] = len(ctx['projects'])
-        ctx['plan_limit'] = user_project_limit(self.request.user)
+
+        # Fetch subscription once; reuse for plan_label, plan_limit, and expiry checks.
         try:
-            ctx['plan_label'] = self.request.user.subscription.plan_label
+            sub = self.request.user.subscription
         except Exception:
-            ctx['plan_label'] = 'Free'
+            sub = None
+
+        ctx['plan_limit'] = user_project_limit(self.request.user)
+        ctx['plan_label'] = sub.plan_label if sub else 'Free'
+
         from core.server_stats import get_server_stats
         ctx['server'] = get_server_stats()
         from .models import PromoMessage
@@ -60,9 +65,8 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
             settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http'
         )
         # Subscription expiry state + partner share link for expiry banner
-        try:
-            sub = self.request.user.subscription
-            ctx['subscription'] = sub
+        ctx['subscription'] = sub
+        if sub:
             ctx['plan_is_expired'] = (
                 sub.trial_expired
                 or (not sub.is_active and sub.plan_slug != 'free')
@@ -71,8 +75,7 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
                     and sub.current_period_end < timezone.now()
                 )
             )
-        except Exception:
-            ctx['subscription'] = None
+        else:
             ctx['plan_is_expired'] = False
         if ctx['plan_is_expired']:
             try:
@@ -94,15 +97,11 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
             ob = sync_onboarding_progress(self.request.user)
             ctx['onboarding'] = ob
             ctx['onboarding_step'] = onboarding_current_step(ob)
-            ctx['onboarding_project'] = (
-                Project.objects.filter(owner=self.request.user, is_deleted=False)
-                .order_by('-created_at')
-                .first()
-            )
-            from django.conf import settings as dj_settings
+            # Reuse already-loaded queryset instead of issuing a second DB query.
+            ctx['onboarding_project'] = ctx['projects'][0] if ctx['projects'] else None
             from apps.deployments.services import MAX_STATIC_FILES_PER_POST
 
-            ctx['upload_max_mb'] = dj_settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
+            ctx['upload_max_mb'] = settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
             ctx['upload_max_files'] = MAX_STATIC_FILES_PER_POST
             ctx['upload_error'] = self.request.session.pop('onboarding_upload_error', None)
         return ctx

@@ -25,6 +25,7 @@ _PROJ_HOST_CACHE_PREFIX = 'studentsite:host:'
 _TRIAL_CACHE_PREFIX = 'studentsite:trial:'
 _FREE_PLAN_CACHE_PREFIX = 'studentsite:free_plan:'
 _SUBFOLDER_LIST_CACHE_PREFIX = 'studentsite:subfolders:'
+_HAS_FILES_CACHE_PREFIX = 'studentsite:hasfiles:'
 _SITE_CACHE_TTL = 30
 
 
@@ -38,6 +39,7 @@ def invalidate_site_host_cache(project) -> None:
     cache.delete(_TRIAL_CACHE_PREFIX + str(project.owner_id))
     cache.delete(_FREE_PLAN_CACHE_PREFIX + str(project.owner_id))
     cache.delete(_SUBFOLDER_LIST_CACHE_PREFIX + str(project.pk))
+    cache.delete(_HAS_FILES_CACHE_PREFIX + str(project.pk))
 
 
 def _host_without_port(raw: str) -> str:
@@ -522,10 +524,14 @@ class StudentStaticSiteMiddleware:
                         )
 
         root = project_site_dir(project)
-        try:
-            has_contents = any(root.iterdir())
-        except OSError:
-            has_contents = False
+        has_files_key = _HAS_FILES_CACHE_PREFIX + str(project.pk)
+        has_contents = cache.get(has_files_key)
+        if has_contents is None:
+            try:
+                has_contents = any(root.iterdir())
+            except OSError:
+                has_contents = False
+            cache.set(has_files_key, has_contents, _SITE_CACHE_TTL)
         if not has_contents:
             return HttpResponse(
                 'No published site bundle yet. Upload a ZIP (Static project) from the dashboard.',

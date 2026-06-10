@@ -28,7 +28,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 
 COPY . .
 
-RUN npm ci --omit=dev && npm run build:css && rm -rf node_modules
+RUN npm ci && npm run build:css && rm -rf node_modules
 
 RUN python manage.py collectstatic --noinput
 

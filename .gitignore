@@ -8,6 +8,8 @@ venv/
 .idea/
 .DS_Store
 staticfiles/
+node_modules/
+static/css/tailwind.css
 media/
 data/sites/
 data/platform_backups/

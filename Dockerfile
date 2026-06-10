@@ -18,10 +18,17 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements.txt package.json ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Node + build Tailwind CSS
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY . .
+
+RUN npm ci --omit=dev && npm run build:css && rm -rf node_modules
 
 EXPOSE 8000
 

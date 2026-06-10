@@ -136,9 +136,15 @@ def record_partner_referral_signup(request, new_user):
     )
 
 
+FIRST_REFERRAL_BONUS_RATE = Decimal('0.25')
+
+
 def credit_partner_for_plan(referred_user, plan_slug, plan_amount):
     """Call after a referred user pays for a server plan. Credits the partner."""
+    import logging
     from django.utils import timezone
+
+    logger = logging.getLogger(__name__)
 
     referral = (
         PartnerReferral.objects
@@ -151,7 +157,13 @@ def credit_partner_for_plan(referred_user, plan_slug, plan_amount):
 
     partner = referral.partner
     paid_count = partner.referrals.filter(status=PartnerReferral.Status.CREDITED).count()
-    rate, _label = get_partner_slab(paid_count)
+
+    # First ever successful referral gets a 25% bonus rate regardless of slab
+    if paid_count == 0:
+        rate = FIRST_REFERRAL_BONUS_RATE
+    else:
+        rate, _label = get_partner_slab(paid_count)
+
     commission = (Decimal(str(plan_amount)) * rate).quantize(Decimal('0.01'))
 
     referral.plan_slug = plan_slug
@@ -164,6 +176,34 @@ def credit_partner_for_plan(referred_user, plan_slug, plan_amount):
 
     partner.credit_balance += commission
     partner.save(update_fields=['credit_balance'])
+
+    # Notify partner by email (silently skip if email backend not configured)
+    try:
+        from django.core.mail import send_mail
+        from django.conf import settings
+        partner_email = partner.user.email
+        is_first = paid_count == 0
+        subject = f'🎉 You earned ₹{commission}{"  — First Referral Bonus!" if is_first else "!"}'
+        body = (
+            f'Hi,\n\n'
+            f'Someone you referred just bought a plan on Krizn!\n\n'
+            f'Plan: {plan_slug}\n'
+            f'Commission rate: {int(rate * 100)}%{"  (First Referral Bonus)" if is_first else ""}\n'
+            f'You earned: ₹{commission}\n'
+            f'New credit balance: ₹{partner.credit_balance}\n\n'
+            f'Keep sharing your link to earn more!\n'
+            f'View your dashboard: https://krizn.in/partner/\n\n'
+            f'— Krizn Team'
+        )
+        send_mail(
+            subject, body,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@krizn.in'),
+            [partner_email],
+            fail_silently=True,
+        )
+    except Exception:
+        logger.debug('Partner commission email skipped — email backend not configured')
+
     return referral
 
 

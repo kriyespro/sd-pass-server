@@ -8,6 +8,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, ListView
 from django_htmx.http import HttpResponseClientRedirect
@@ -58,6 +59,31 @@ class ProjectDashboardView(LoginRequiredMixin, ListView):
         ctx['student_site_scheme'] = getattr(
             settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http'
         )
+        # Subscription expiry state + partner share link for expiry banner
+        try:
+            sub = self.request.user.subscription
+            ctx['subscription'] = sub
+            ctx['plan_is_expired'] = (
+                sub.trial_expired
+                or (not sub.is_active and sub.plan_slug != 'free')
+                or (
+                    sub.current_period_end is not None
+                    and sub.current_period_end < timezone.now()
+                )
+            )
+        except Exception:
+            ctx['subscription'] = None
+            ctx['plan_is_expired'] = False
+        if ctx['plan_is_expired']:
+            try:
+                from apps.affiliates.services import get_or_create_partner, partner_share_url
+                partner = get_or_create_partner(self.request.user)
+                ctx['expiry_partner'] = partner
+                ctx['expiry_share_url'] = partner_share_url(self.request, partner)
+            except Exception:
+                ctx['expiry_partner'] = None
+                ctx['expiry_share_url'] = ''
+
         from apps.accounts.services import profile_is_complete
         from apps.onboarding.services import should_show_onboarding, sync_onboarding_progress
         from apps.onboarding.services import current_wizard_step as onboarding_current_step

@@ -1,8 +1,11 @@
 import logging
+import time
 
 from django.utils import timezone
 
 from core.celery import app
+
+_RATE_DELAY = 0.4  # seconds between API calls (~2.5 req/s, well under systeme.io limit)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +42,7 @@ def sync_all_users(self, sync_id: int = None):
             synced += 1
         else:
             failed += 1
+        time.sleep(_RATE_DELAY)
 
     sync.synced = synced
     sync.skipped = skipped

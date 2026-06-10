@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Optional
 
 import requests
@@ -17,6 +18,17 @@ def _headers() -> dict:
         'Accept': 'application/json',
         'Content-Type': 'application/json',
     }
+
+
+def _request_with_retry(method: str, url: str, **kwargs) -> requests.Response:
+    """Make a request, retrying once on 429 after honouring Retry-After."""
+    resp = getattr(requests, method)(url, **kwargs)
+    if resp.status_code == 429:
+        retry_after = int(resp.headers.get('Retry-After', 10))
+        logger.info('systeme.io 429 — waiting %ss before retry', retry_after)
+        time.sleep(retry_after)
+        resp = getattr(requests, method)(url, **kwargs)
+    return resp
 
 
 def _get_or_create_tag() -> int:
@@ -40,11 +52,10 @@ def _get_or_create_tag() -> int:
 
 def _tag_existing_contact(email: str, tag_id: int) -> bool:
     """Look up contact by email and apply tag."""
-    resp = requests.get(
-        f'{_BASE}/contacts',
+    resp = _request_with_retry(
+        'get', f'{_BASE}/contacts',
         params={'limit': 10, 'email': email},
-        headers=_headers(),
-        timeout=10,
+        headers=_headers(), timeout=10,
     )
     if resp.status_code != 200:
         return False
@@ -52,11 +63,10 @@ def _tag_existing_contact(email: str, tag_id: int) -> bool:
     if not items:
         return False
     contact_id = items[0]['id']
-    r = requests.post(
-        f'{_BASE}/contacts/{contact_id}/tags',
+    r = _request_with_retry(
+        'post', f'{_BASE}/contacts/{contact_id}/tags',
         json={'tagId': tag_id},
-        headers=_headers(),
-        timeout=10,
+        headers=_headers(), timeout=10,
     )
     return r.status_code in (200, 201, 204)
 
@@ -71,19 +81,23 @@ def sync_user(email: str, first_name: str = '', last_name: str = '') -> bool:
             'lastName': last_name or '',
             'tags': [{'id': tag_id}],
         }
-        resp = requests.post(f'{_BASE}/contacts', json=payload, headers=_headers(), timeout=10)
+        resp = _request_with_retry(
+            'post', f'{_BASE}/contacts',
+            json=payload, headers=_headers(), timeout=10,
+        )
         if resp.status_code in (200, 201):
             return True
         if resp.status_code in (409, 422):
-            body = resp.json()
+            try:
+                body = resp.json()
+            except Exception:
+                body = {}
             detail = body.get('detail', '')
-            # Contact already exists — look it up and tag it
             if 'already used' in detail or resp.status_code == 409:
                 return _tag_existing_contact(email, tag_id)
-            # Truly invalid email — skip
             logger.warning('systeme.io upsert %s → %s %s', email, resp.status_code, detail[:120])
             return False
-        logger.warning('systeme.io upsert %s → %s %s', email, resp.status_code, resp.text[:200])
+        logger.warning('systeme.io upsert %s → %s %s', email, resp.status_code, resp.text[:120])
         return False
     except Exception:
         logger.exception('systeme.io sync_user failed for %s', email)

@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/v1/', include('apps.api.urls')),
     path('affiliate/', include('apps.affiliates.urls')),
     path('resell/', include('apps.resell.urls')),
+    path('admin/emails/', include('apps.emails.urls')),
     path('', core_views.home, name='home'),
 ]
 

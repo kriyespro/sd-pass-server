@@ -1,0 +1,117 @@
+{% extends "base.jinja" %}
+{% block title %}Scheduled Emails — Krizn{% endblock %}
+{% block content %}
+<section class="space-y-4">
+
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h1 class="text-lg font-bold text-white">Scheduled Emails</h1>
+      <p class="text-[11px] text-slate-500">Queue bulk sends · Send now or on schedule</p>
+    </div>
+    <div class="flex flex-wrap gap-1.5">
+      <a href="{{ url('admin_emails:scheduled_create') }}"
+         class="rounded border border-emerald-700/40 bg-emerald-600/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-600/20">
+        + Schedule Send
+      </a>
+      <a href="{{ url('admin_emails:email_lists') }}"
+         class="rounded border border-sky-700/40 bg-sky-600/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-600/20">
+        Lists
+      </a>
+      <a href="{{ url('admin_emails:list') }}"
+         class="rounded border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:bg-slate-800">
+        ← Templates
+      </a>
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="space-y-1">
+      {% for message in messages %}
+        <p class="rounded-lg border px-3 py-2 text-xs
+          {{ 'border-emerald-800/50 bg-emerald-950/40 text-emerald-300' if message.tags == 'success' else 'border-rose-800/50 bg-rose-950/40 text-rose-300' }}">
+          {{ message }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if scheduled_emails %}
+    <div class="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+      <table class="min-w-full text-left text-xs">
+        <thead class="bg-slate-950/80 text-slate-500">
+          <tr>
+            <th class="px-4 py-2.5 font-semibold uppercase tracking-wide">Template</th>
+            <th class="px-4 py-2.5 font-semibold uppercase tracking-wide">Recipients</th>
+            <th class="px-4 py-2.5 font-semibold uppercase tracking-wide">Scheduled</th>
+            <th class="px-4 py-2.5 font-semibold uppercase tracking-wide">Status</th>
+            <th class="px-4 py-2.5 font-semibold uppercase tracking-wide">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 text-slate-300">
+          {% for s in scheduled_emails %}
+            {% set status_cls = {
+              'pending': 'bg-amber-800/40 text-amber-300',
+              'sent': 'bg-emerald-800/40 text-emerald-300',
+              'failed': 'bg-rose-800/40 text-rose-300',
+            } %}
+            <tr class="hover:bg-slate-900/60">
+              <td class="px-4 py-3 font-semibold text-white">{{ s.template.get_template_type_display() }}</td>
+              <td class="px-4 py-3 text-slate-400">
+                {% if s.email_list %}
+                  <span class="text-sky-300">{{ s.email_list.name }}</span>
+                  <span class="text-slate-600"> ({{ s.email_list.count }})</span>
+                {% else %}
+                  <span class="text-slate-500">{{ s.get_recipients()|length }} manual</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 font-mono text-slate-400">{{ s.scheduled_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td class="px-4 py-3">
+                <span class="rounded-full px-2 py-0.5 text-[10px] font-bold {{ status_cls.get(s.status, 'bg-slate-700 text-slate-400') }}">
+                  {{ s.get_status_display() }}
+                </span>
+                {% if s.error_msg %}
+                  <p class="mt-0.5 text-[10px] text-rose-400 line-clamp-1" title="{{ s.error_msg }}">{{ s.error_msg }}</p>
+                {% endif %}
+                {% if s.sent_at %}
+                  <p class="mt-0.5 text-[10px] text-slate-600">sent {{ s.sent_at.strftime('%m-%d %H:%M') }}</p>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex gap-1">
+                  {% if s.status == 'pending' %}
+                    <form method="post" action="{{ url('admin_emails:scheduled_send_now', pk=s.pk) }}"
+                          onsubmit="return confirm('Send now to all recipients?')" class="inline">
+                      {{ csrf_input }}
+                      <button type="submit"
+                              class="rounded border border-emerald-700/40 bg-emerald-600/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-600/20">
+                        Send Now
+                      </button>
+                    </form>
+                  {% endif %}
+                  <form method="post" action="{{ url('admin_emails:scheduled_delete', pk=s.pk) }}"
+                        onsubmit="return confirm('Delete this scheduled send?')" class="inline">
+                    {{ csrf_input }}
+                    <button type="submit"
+                            class="rounded border border-rose-700/40 bg-rose-600/10 px-2 py-0.5 text-[10px] font-semibold text-rose-300 hover:bg-rose-600/20">
+                      Del
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="rounded-xl border border-dashed border-slate-700 bg-slate-900/20 px-6 py-12 text-center">
+      <p class="text-slate-500">No scheduled emails.</p>
+      <a href="{{ url('admin_emails:scheduled_create') }}"
+         class="mt-3 inline-block rounded border border-emerald-700/40 bg-emerald-600/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-600/20">
+        Schedule your first send →
+      </a>
+    </div>
+  {% endif %}
+
+</section>
+{% endblock %}

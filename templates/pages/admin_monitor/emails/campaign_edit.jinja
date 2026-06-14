@@ -1,0 +1,145 @@
+{% extends "base.jinja" %}
+{% block title %}{{ 'Edit' if campaign else 'New' }} Campaign — Krizn{% endblock %}
+{% block content %}
+<section class="space-y-4">
+
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h1 class="text-lg font-bold text-white">{{ 'Edit Campaign' if campaign else 'New Campaign' }}</h1>
+      <p class="text-[11px] text-slate-500">Auto-send emails on a recurring schedule</p>
+    </div>
+    <a href="{{ url('admin_emails:campaigns') }}"
+       class="rounded border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:bg-slate-800">
+      ← Campaigns
+    </a>
+  </div>
+
+  <form method="post" class="space-y-5 max-w-2xl">
+    {{ csrf_input }}
+
+    {# ── Name ── #}
+    <div>
+      <label class="mb-1 block text-[11px] font-semibold uppercase text-slate-400">Campaign Name</label>
+      <input type="text" name="name" value="{{ form.name.value() or '' }}"
+             placeholder="e.g. Weekly Newsletter, Monthly Digest"
+             class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-sky-600 focus:outline-none">
+      {% for e in form.name.errors %}
+        <p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>
+      {% endfor %}
+    </div>
+
+    {# ── Template picker ── #}
+    <div>
+      <label class="mb-1 block text-[11px] font-semibold uppercase text-slate-400">Email Template</label>
+      <select name="template"
+              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 focus:border-sky-600 focus:outline-none">
+        <option value="">— Select a template —</option>
+        {% for t in templates %}
+          <option value="{{ t.pk }}" {{ 'selected' if form.template.value()|string == t.pk|string else '' }}>
+            {{ t.get_template_type_display() }} — {{ t.subject|truncate(60) }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if not templates %}
+        <p class="mt-1 text-[10px] text-amber-400">No active templates.
+          <a href="{{ url('admin_emails:list') }}" class="underline">Create one first →</a>
+        </p>
+      {% endif %}
+      {% for e in form.template.errors %}
+        <p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>
+      {% endfor %}
+    </div>
+
+    {# ── Email List picker ── #}
+    <div>
+      <label class="mb-1 block text-[11px] font-semibold uppercase text-slate-400">Email List</label>
+      <select name="email_list"
+              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 focus:border-sky-600 focus:outline-none">
+        <option value="">— Select a list —</option>
+        {% for lst in email_lists %}
+          <option value="{{ lst.pk }}" {{ 'selected' if form.email_list.value()|string == lst.pk|string else '' }}>
+            {{ lst.name }} ({{ lst.count }} recipients)
+          </option>
+        {% endfor %}
+      </select>
+      {% if not email_lists %}
+        <p class="mt-1 text-[10px] text-amber-400">No lists.
+          <a href="{{ url('admin_emails:email_lists') }}" class="underline">Auto-create one →</a>
+        </p>
+      {% endif %}
+      {% for e in form.email_list.errors %}
+        <p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>
+      {% endfor %}
+    </div>
+
+    {# ── Frequency — big button group ── #}
+    <div>
+      <label class="mb-2 block text-[11px] font-semibold uppercase text-slate-400">Frequency</label>
+      <div class="grid grid-cols-3 gap-2" x-data="{ freq: '{{ form.frequency.value() or '' }}' }">
+        {% set freq_meta = [
+          ('weekly',   'Weekly',         'Every 7 days',     'text-sky-300',    'border-sky-600/60 bg-sky-600/15'),
+          ('biweekly', 'Every 2 Weeks',  'Every 14 days',    'text-violet-300', 'border-violet-600/60 bg-violet-600/15'),
+          ('monthly',  'Monthly',        'Same day each month', 'text-amber-300', 'border-amber-600/60 bg-amber-600/15'),
+        ] %}
+        {% for val, label, sub, tc, ac in freq_meta %}
+          <label class="cursor-pointer">
+            <input type="radio" name="frequency" value="{{ val }}" class="sr-only"
+                   {{ 'checked' if form.frequency.value() == val else '' }}
+                   @change="freq = '{{ val }}'">
+            <div class="rounded-xl border-2 p-3 text-center transition-all"
+                 :class="freq === '{{ val }}' ? '{{ ac }} border-opacity-100' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'"
+                 x-bind:class="freq === '{{ val }}' ? '{{ ac }}' : 'border-slate-700 bg-slate-900/50'">
+              <p class="font-bold text-sm {{ tc }}">{{ label }}</p>
+              <p class="text-[10px] text-slate-500 mt-0.5">{{ sub }}</p>
+            </div>
+          </label>
+        {% endfor %}
+      </div>
+      {% for e in form.frequency.errors %}
+        <p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>
+      {% endfor %}
+    </div>
+
+    {# ── First send at ── #}
+    <div>
+      <label class="mb-1 block text-[11px] font-semibold uppercase text-slate-400">First Send At</label>
+      {% set dt_val = form.next_run_at.value() %}
+      <input type="datetime-local" name="next_run_at"
+             value="{{ dt_val.strftime('%Y-%m-%dT%H:%M') if dt_val else '' }}"
+             class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 focus:border-sky-600 focus:outline-none">
+      <p class="mt-0.5 text-[10px] text-slate-600">After each send, the next run is calculated automatically based on frequency.</p>
+      {% for e in form.next_run_at.errors %}
+        <p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>
+      {% endfor %}
+    </div>
+
+    {# ── Active toggle ── #}
+    <div class="flex items-center gap-2">
+      <input type="checkbox" name="is_active" id="is_active"
+             class="rounded border-slate-600 bg-slate-800 text-sky-600"
+             {{ 'checked' if form.is_active.value() != False else '' }}>
+      <label for="is_active" class="text-sm text-slate-300">Active — run on schedule</label>
+    </div>
+
+    {% if form.non_field_errors() %}
+      <div class="rounded-lg border border-rose-800/40 bg-rose-950/30 px-3 py-2">
+        {% for e in form.non_field_errors() %}
+          <p class="text-[11px] text-rose-400">{{ e }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="flex gap-2 pt-1">
+      <button type="submit"
+              class="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+        {{ 'Save Campaign' if campaign else 'Create Campaign' }}
+      </button>
+      <a href="{{ url('admin_emails:campaigns') }}"
+         class="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800">
+        Cancel
+      </a>
+    </div>
+  </form>
+
+</section>
+{% endblock %}

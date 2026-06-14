@@ -1,0 +1,16 @@
+http:
+  routers:
+    proj-1-durga:
+      rule: "Host(`durga.apps.localhost`)"
+      entryPoints:
+        - web
+
+      service: proj-1-durga-svc
+
+
+  services:
+    proj-1-durga-svc:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://127.0.0.1:8000"

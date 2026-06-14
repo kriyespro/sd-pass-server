@@ -1,0 +1,64 @@
+{% extends "base.jinja" %}
+{% block title %}Test Send — {{ template_obj }} — Krizn{% endblock %}
+{% block content %}
+<section class="space-y-4 max-w-lg">
+
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h1 class="text-lg font-bold text-white">Test Send</h1>
+      <p class="text-[11px] text-slate-500">{{ template_obj.get_template_type_display() }} · {{ template_obj.subject }}</p>
+    </div>
+    <a href="{{ url('admin_emails:list') }}"
+       class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800">
+      ← Templates
+    </a>
+  </div>
+
+  {% if not smtp_config %}
+    <div class="rounded-xl border border-rose-800/40 bg-rose-950/30 p-4 text-sm text-rose-300">
+      No active SMTP config.
+      <a href="{{ url('admin_emails:smtp') }}" class="underline hover:text-rose-200">Set up SMTP first →</a>
+    </div>
+  {% else %}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+      <p class="mb-3 text-[11px] text-slate-500">
+        Sends with sample placeholder values so you see what the final email looks like.
+        SMTP: <span class="text-slate-300">{{ smtp_config.from_name }} &lt;{{ smtp_config.from_email }}&gt;</span>
+      </p>
+
+      <form method="post" class="space-y-3">
+        {{ csrf_input }}
+
+        {% for field in form %}
+          <div>
+            <label class="mb-1 block text-[11px] font-semibold uppercase text-slate-400">{{ field.label }}</label>
+            <input type="email" name="{{ field.html_name }}" value="{{ field.value() or '' }}"
+                   placeholder="you@example.com"
+                   class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-sky-600 focus:outline-none">
+            {% if field.errors %}
+              {% for e in field.errors %}
+                <p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>
+              {% endfor %}
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        {% if messages %}
+          {% for message in messages %}
+            <p class="rounded-lg border px-3 py-2 text-xs
+              {{ 'border-emerald-800/50 bg-emerald-950/40 text-emerald-300' if message.tags == 'success' else 'border-rose-800/50 bg-rose-950/40 text-rose-300' }}">
+              {{ message }}
+            </p>
+          {% endfor %}
+        {% endif %}
+
+        <button type="submit"
+                class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">
+          Send Test Email
+        </button>
+      </form>
+    </div>
+  {% endif %}
+
+</section>
+{% endblock %}

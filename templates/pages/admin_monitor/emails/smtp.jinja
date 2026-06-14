@@ -1,0 +1,78 @@
+{% extends "base.jinja" %}
+{% block title %}SMTP Config — Krizn{% endblock %}
+{% block content %}
+<section class="space-y-4 max-w-lg">
+
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h1 class="text-lg font-bold text-white">SMTP Configuration</h1>
+      <p class="text-[11px] text-slate-500">Outgoing email server settings</p>
+    </div>
+    <a href="{{ url('admin_emails:list') }}"
+       class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800">
+      ← Templates
+    </a>
+  </div>
+
+  {% if messages %}
+    <div class="space-y-1">
+      {% for message in messages %}
+        <p class="rounded-lg border px-3 py-2 text-xs
+          {{ 'border-emerald-800/50 bg-emerald-950/40 text-emerald-300' if message.tags == 'success' else 'border-rose-800/50 bg-rose-950/40 text-rose-300' }}">
+          {{ message }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" class="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+    {{ csrf_input }}
+
+    {% for field in form %}
+      {% if field.name == 'use_tls' or field.name == 'is_active' %}
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="{{ field.html_name }}" id="{{ field.id_for_label }}"
+                 class="rounded border-slate-600 bg-slate-800 text-sky-600"
+                 {{ 'checked' if field.value() else '' }}>
+          <label for="{{ field.id_for_label }}" class="text-sm font-medium text-slate-300">
+            {{ field.label }}
+          </label>
+        </div>
+      {% elif field.name == 'password' %}
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold uppercase text-slate-400">{{ field.label }}</label>
+          <input type="password" name="{{ field.html_name }}" value="{{ field.value() or '' }}"
+                 autocomplete="current-password"
+                 class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 focus:border-sky-600 focus:outline-none">
+          {% if field.errors %}
+            {% for e in field.errors %}<p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>{% endfor %}
+          {% endif %}
+        </div>
+      {% else %}
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold uppercase text-slate-400">{{ field.label }}</label>
+          <input type="{{ 'number' if field.name == 'port' else 'text' }}"
+                 name="{{ field.html_name }}" value="{{ field.value() or '' }}"
+                 class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 focus:border-sky-600 focus:outline-none">
+          {% if field.errors %}
+            {% for e in field.errors %}<p class="mt-0.5 text-[10px] text-rose-400">{{ e }}</p>{% endfor %}
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+
+    <div class="rounded-lg border border-slate-700/50 bg-slate-950/40 p-2.5 text-[10px] text-slate-500">
+      <p class="font-semibold text-slate-400 mb-1">krizn.com SMTP (from email.txt)</p>
+      <p>SSL Host: <span class="text-slate-300">us2.smtp.mailhostbox.com</span> Port: <span class="text-slate-300">587</span></p>
+      <p>Non-SSL: <span class="text-slate-300">smtp.krizn.com</span> Port: <span class="text-slate-300">25 or 587</span></p>
+      <p>User: <span class="text-slate-300">admin@krizn.com</span></p>
+    </div>
+
+    <button type="submit"
+            class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500">
+      Save SMTP Config
+    </button>
+  </form>
+
+</section>
+{% endblock %}

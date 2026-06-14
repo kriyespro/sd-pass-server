@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'apps.affiliates',
     'apps.resell',
     'apps.newsletter',
+    'apps.emails',
 ]
 
 MIDDLEWARE = [

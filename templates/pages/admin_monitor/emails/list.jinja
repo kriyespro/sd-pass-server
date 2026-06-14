@@ -1,0 +1,114 @@
+{% extends "base.jinja" %}
+{% block title %}Email Templates — Krizn{% endblock %}
+{% block content %}
+<section class="space-y-4">
+
+  {# Header #}
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h1 class="text-lg font-bold text-white">Email</h1>
+      <p class="text-[11px] text-slate-500">Templates · Lists · Scheduled sends</p>
+    </div>
+    <div class="flex flex-wrap gap-1.5">
+      <a href="{{ url('admin_emails:campaigns') }}"
+         class="rounded border border-emerald-700/40 bg-emerald-600/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-600/20">
+        Campaigns
+      </a>
+      <a href="{{ url('admin_emails:email_lists') }}"
+         class="rounded border border-sky-700/40 bg-sky-600/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300 hover:bg-sky-600/20">
+        Lists
+      </a>
+      <a href="{{ url('admin_emails:scheduled') }}"
+         class="rounded border border-violet-700/40 bg-violet-600/10 px-2.5 py-1 text-[11px] font-semibold text-violet-300 hover:bg-violet-600/20">
+        Scheduled
+      </a>
+      <a href="{{ url('admin_emails:smtp') }}"
+         class="rounded border border-amber-700/40 bg-amber-600/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-amber-600/20">
+        SMTP
+      </a>
+      <a href="{{ url('admin_monitor:dashboard') }}"
+         class="rounded border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:bg-slate-800">
+        ← Mission Control
+      </a>
+    </div>
+  </div>
+
+  {# Flash messages #}
+  {% if messages %}
+    <div class="space-y-1">
+      {% for message in messages %}
+        <p class="rounded-lg border px-3 py-2 text-xs
+          {{ 'border-emerald-800/50 bg-emerald-950/40 text-emerald-300' if message.tags == 'success' else 'border-rose-800/50 bg-rose-950/40 text-rose-300' }}">
+          {{ message }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# SMTP status chip #}
+  {% if smtp_config %}
+    <div class="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-[11px]">
+      <span class="h-1.5 w-1.5 rounded-full {{ 'bg-emerald-400' if smtp_config.is_active else 'bg-rose-400' }}"></span>
+      <span class="text-slate-400 font-medium">SMTP:</span>
+      <span class="text-slate-500">{{ smtp_config.from_name }} &lt;{{ smtp_config.from_email }}&gt; via {{ smtp_config.host }}:{{ smtp_config.port }}</span>
+    </div>
+  {% else %}
+    <div class="flex items-center gap-2 rounded-lg border border-rose-800/40 bg-rose-950/30 px-3 py-2 text-[11px] text-rose-300">
+      ✗ No SMTP config.
+      <a href="{{ url('admin_emails:smtp') }}" class="underline hover:text-rose-200">Set up →</a>
+    </div>
+  {% endif %}
+
+  {# Template grid #}
+  <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    {% for type_key, type_label in all_types %}
+      {% set tpl = templates | selectattr('template_type', 'equalto', type_key) | list | first %}
+      <div class="rounded-xl border {{ 'border-slate-800 bg-slate-900/50' if tpl else 'border-dashed border-slate-700/60 bg-slate-900/20' }} p-3">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ type_key | replace('_', ' ') }}</p>
+            <p class="text-sm font-bold text-white leading-tight">{{ type_label }}</p>
+            {% if tpl %}
+              <p class="mt-0.5 truncate text-[10px] text-slate-500" title="{{ tpl.subject }}">{{ tpl.subject }}</p>
+            {% else %}
+              <p class="mt-0.5 text-[10px] italic text-slate-600">No template</p>
+            {% endif %}
+          </div>
+          {% if tpl %}
+            <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ 'bg-emerald-800/50 text-emerald-300' if tpl.is_active else 'bg-slate-700 text-slate-400' }}">
+              {{ 'On' if tpl.is_active else 'Off' }}
+            </span>
+          {% endif %}
+        </div>
+
+        <div class="flex flex-wrap gap-1">
+          {% if tpl %}
+            <a href="{{ url('admin_emails:edit', pk=tpl.pk) }}"
+               class="rounded border border-sky-700/40 bg-sky-600/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300 hover:bg-sky-600/20">
+              Edit
+            </a>
+            <a href="{{ url('admin_emails:send_test', pk=tpl.pk) }}"
+               class="rounded border border-violet-700/40 bg-violet-600/10 px-2 py-0.5 text-[10px] font-semibold text-violet-300 hover:bg-violet-600/20">
+              Test
+            </a>
+            <form method="post" action="{{ url('admin_emails:delete', pk=tpl.pk) }}"
+                  onsubmit="return confirm('Delete {{ type_label }} template?')" class="inline">
+              {{ csrf_input }}
+              <button type="submit"
+                      class="rounded border border-rose-700/40 bg-rose-600/10 px-2 py-0.5 text-[10px] font-semibold text-rose-300 hover:bg-rose-600/20">
+                Del
+              </button>
+            </form>
+          {% else %}
+            <a href="{{ url('admin_emails:create', template_type=type_key) }}"
+               class="rounded border border-emerald-700/40 bg-emerald-600/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-600/20">
+              + Create
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+</section>
+{% endblock %}

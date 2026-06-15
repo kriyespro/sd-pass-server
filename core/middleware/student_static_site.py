@@ -500,6 +500,16 @@ class StudentStaticSiteMiddleware:
             'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
             'te', 'trailers', 'transfer-encoding', 'upgrade', 'content-encoding',
         })
+
+        # Never follow redirects — return them to the browser so it handles
+        # cookies and method correctly (POST → 302 → browser follows as GET).
+        class _NoRedirect(ureq.HTTPRedirectHandler):
+            def http_error_302(self, req, fp, code, msg, headers):
+                raise ureq.HTTPError(req.full_url, code, msg, headers, fp)
+            http_error_301 = http_error_303 = http_error_307 = http_error_308 = http_error_302
+
+        opener = ureq.build_opener(_NoRedirect())
+
         flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
         flask_host = flask_runner_base.rsplit(':', 1)[0]  # strip :6000 management port
         target = f'{flask_host}:{flask_port}{request.path}'
@@ -528,21 +538,21 @@ class StudentStaticSiteMiddleware:
 
         req = ureq.Request(target, data=body, headers=headers, method=request.method)
         try:
-            with ureq.urlopen(req, timeout=30) as resp:
+            with opener.open(req, timeout=30) as resp:
                 content = resp.read()
                 out = HttpResponse(content, status=resp.status)
                 for name, val in resp.headers.items():
                     if name.lower() not in _HOP:
                         out[name] = val
                 return out
-        except urllib.error.HTTPError as exc:
+        except ureq.HTTPError as exc:
             content = exc.read()
             out = HttpResponse(content, status=exc.code)
             for name, val in exc.headers.items():
                 if name.lower() not in _HOP:
                     out[name] = val
             return out
-        except (urllib.error.URLError, OSError):
+        except (ureq.URLError, OSError):
             return HttpResponse(
                 'Flask app is starting up or unavailable. Try again in a moment.',
                 status=503, content_type='text/plain; charset=utf-8',

@@ -339,7 +339,7 @@ def _resolve_project_for_static_host(host: str):
     if cached_pk is not None:
         project = (
             Project.objects.filter(pk=cached_pk, is_deleted=False)
-            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder')
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port')
             .first()
         )
         if project:
@@ -358,7 +358,7 @@ def _resolve_project_for_static_host(host: str):
             return None
         project = (
             Project.objects.filter(subdomain__iexact=sub, is_deleted=False)
-            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'site_subfolder')
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'site_subfolder', 'project_type', 'flask_port')
             .first()
         )
         if project is None:
@@ -375,7 +375,7 @@ def _resolve_project_for_static_host(host: str):
             custom_hostname__iexact=host,
             is_deleted=False,
         )
-        .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder')
+        .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port')
         .first()
     )
     if project is None:
@@ -490,10 +490,65 @@ class StudentStaticSiteMiddleware:
         except Exception:
             return '/billing/redeem/'
 
-    def _maybe_static_site(self, request):
-        if request.method not in ('GET', 'HEAD'):
-            return None
+    @staticmethod
+    def _proxy_to_flask(request, flask_port):
+        """Proxy an HTTP request to the Flask runner gunicorn process on flask_port."""
+        import urllib.error
+        import urllib.request as ureq
 
+        _HOP = frozenset({
+            'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+            'te', 'trailers', 'transfer-encoding', 'upgrade', 'content-encoding',
+        })
+        flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
+        flask_host = flask_runner_base.rsplit(':', 1)[0]  # strip :6000 management port
+        target = f'{flask_host}:{flask_port}{request.path}'
+        if request.META.get('QUERY_STRING'):
+            target += '?' + request.META['QUERY_STRING']
+
+        headers = {}
+        for key, val in request.META.items():
+            if key.startswith('HTTP_'):
+                name = key[5:].replace('_', '-').lower()
+                if name not in _HOP:
+                    headers[name] = val
+            elif key == 'CONTENT_TYPE' and val:
+                headers['content-type'] = val
+            elif key == 'CONTENT_LENGTH' and val:
+                headers['content-length'] = val
+        headers['x-forwarded-proto'] = 'https'
+        headers['x-forwarded-host'] = request.get_host()
+
+        body = None
+        if request.method in ('POST', 'PUT', 'PATCH'):
+            try:
+                body = request.body
+            except Exception:
+                body = None
+
+        req = ureq.Request(target, data=body, headers=headers, method=request.method)
+        try:
+            with ureq.urlopen(req, timeout=30) as resp:
+                content = resp.read()
+                out = HttpResponse(content, status=resp.status)
+                for name, val in resp.headers.items():
+                    if name.lower() not in _HOP:
+                        out[name] = val
+                return out
+        except urllib.error.HTTPError as exc:
+            content = exc.read()
+            out = HttpResponse(content, status=exc.code)
+            for name, val in exc.headers.items():
+                if name.lower() not in _HOP:
+                    out[name] = val
+            return out
+        except (urllib.error.URLError, OSError):
+            return HttpResponse(
+                'Flask app is starting up or unavailable. Try again in a moment.',
+                status=503, content_type='text/plain; charset=utf-8',
+            )
+
+    def _maybe_static_site(self, request):
         host = _host_without_port(request.get_host())
         resolved = _resolve_project_for_static_host(host)
         if resolved is None:
@@ -501,6 +556,22 @@ class StudentStaticSiteMiddleware:
         if isinstance(resolved, HttpResponse):
             return resolved
         project = resolved
+
+        # Flask projects: proxy all methods to the gunicorn process.
+        # Custom domain traffic arrives here via nginx's default server block
+        # (Traefik handles the *.krizn.com subdomain path directly).
+        from apps.projects.models import ProjectType
+        if project.project_type == ProjectType.FLASK:
+            if not project.flask_port:
+                return HttpResponse(
+                    'Flask app not yet deployed. Upload a ZIP from the dashboard.',
+                    status=503, content_type='text/plain; charset=utf-8',
+                )
+            return self._proxy_to_flask(request, project.flask_port)
+
+        # Static projects — only serve GET and HEAD.
+        if request.method not in ('GET', 'HEAD'):
+            return None
 
         if self._is_trial_expired(project):
             upgrade_url = self._upgrade_url(request)

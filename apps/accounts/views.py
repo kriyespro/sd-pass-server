@@ -12,9 +12,12 @@ from .forms import EmailAuthenticationForm, UserRegistrationForm
 
 def _redirect_after_login(request):
     next_url = request.GET.get('next') or request.POST.get('next')
+    # Use canonical SITE_DOMAIN (not request.get_host()) to prevent open-redirect
+    # via a crafted Host header pointing at a student subdomain.
+    site_domain = getattr(settings, 'SITE_DOMAIN', '') or request.get_host()
     if next_url and url_has_allowed_host_and_scheme(
         next_url,
-        allowed_hosts={request.get_host()},
+        allowed_hosts={site_domain},
         require_https=request.is_secure(),
     ):
         return redirect(next_url)

@@ -1,4 +1,8 @@
+import os
+
 from .base import *  # noqa: F403, F405
+
+assert not os.environ.get('PRODUCTION'), 'dev settings must not be used in production'
 
 DEBUG = True
 ALLOWED_HOSTS = ['*']

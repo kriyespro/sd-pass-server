@@ -127,14 +127,14 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 SOCIALACCOUNT_AUTO_SIGNUP = True
-# Skip allauth "You are about to sign in… Continue" — go straight to Google account picker.
-SOCIALACCOUNT_LOGIN_ON_GET = True
+# Require a POST to start OAuth (prevents login CSRF via crafted link).
+SOCIALACCOUNT_LOGIN_ON_GET = False
 # Log in / connect Google when the email already exists (manual sign-up users).
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 SOCIALACCOUNT_ADAPTER = 'apps.accounts.adapters.SocialAccountAdapter'
 ACCOUNT_ADAPTER = 'apps.accounts.adapters.AccountAdapter'
-ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_EMAIL_VERIFICATION = env('ACCOUNT_EMAIL_VERIFICATION', default='optional')
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
 ACCOUNT_LOGOUT_ON_GET = False
 ACCOUNT_LOGIN_METHODS = {'email'}
@@ -195,7 +195,14 @@ if _fernet_raw:
 else:
     import base64
     import hashlib
+    import warnings
 
+    if not DEBUG:
+        warnings.warn(
+            'FERNET_KEY not set — falling back to SHA256(SECRET_KEY). '
+            'Set an independent FERNET_KEY in your .env to protect stored env vars.',
+            stacklevel=2,
+        )
     FERNET_KEY = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode()).digest())
 
 CLAMD_UNIX_SOCKET = env('CLAMD_UNIX_SOCKET', default='')

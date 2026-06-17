@@ -1,3 +1,4 @@
+import html as _html
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
@@ -133,7 +134,8 @@ def get_placeholders_for_type(template_type: str) -> list:
 def render_template(html_body: str, context: dict) -> str:
     result = html_body
     for key, value in context.items():
-        result = result.replace('{{' + key + '}}', str(value))
+        safe_value = _html.escape(str(value), quote=False)
+        result = result.replace('{{' + key + '}}', safe_value)
     return result
 
 

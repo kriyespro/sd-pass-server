@@ -186,12 +186,13 @@ class StudentWebsitesCsvView(LoginRequiredMixin, UserPassesTestMixin, View):
         return response
 
 
-class StaffPlatformOverviewView(UserPassesTestMixin, TemplateView):
+class StaffPlatformOverviewView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'pages/ops/platform_overview.jinja'
+    login_url = reverse_lazy('accounts:login')
     raise_exception = True
 
     def test_func(self):
-        return self.request.user.is_authenticated and self.request.user.is_staff
+        return self.request.user.is_staff
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -484,8 +485,9 @@ class DeleteProjectDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
         return HttpResponseRedirect(reverse('admin_monitor:website_overview'))
 
 
-class TrainerOverviewView(UserPassesTestMixin, TemplateView):
+class TrainerOverviewView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'pages/trainer/overview.jinja'
+    login_url = reverse_lazy('accounts:login')
     raise_exception = True
 
     def test_func(self):
@@ -502,10 +504,11 @@ class TrainerOverviewView(UserPassesTestMixin, TemplateView):
         return ctx
 
 
-class TrainerEnvAuditListView(UserPassesTestMixin, TemplateView):
+class TrainerEnvAuditListView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Lists trainee projects with env var counts; values are never exposed."""
 
     template_name = 'pages/trainer/env_audit_list.jinja'
+    login_url = reverse_lazy('accounts:login')
     raise_exception = True
 
     def test_func(self):
@@ -523,10 +526,11 @@ class TrainerEnvAuditListView(UserPassesTestMixin, TemplateView):
         return ctx
 
 
-class TrainerProjectEnvKeysView(UserPassesTestMixin, TemplateView):
+class TrainerProjectEnvKeysView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Key names only for one trainee-owned project (404 if not supervised)."""
 
     template_name = 'pages/trainer/env_project_keys.jinja'
+    login_url = reverse_lazy('accounts:login')
     raise_exception = True
 
     def test_func(self):

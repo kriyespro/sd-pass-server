@@ -45,7 +45,7 @@ STATIC_ASSET_SUFFIXES = frozenset(
 )
 
 IMAGE_SUFFIXES = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'})
-MAX_IMAGE_BYTES: int | None = None  # TEMP: disabled for testing; restore to 120 * 1024
+MAX_IMAGE_BYTES: int | None = 120 * 1024
 
 _SUBFOLDER_RE = re.compile(r'^[a-zA-Z0-9_\-][a-zA-Z0-9_\-/]*$')
 

@@ -19,3 +19,8 @@ data/platform_backups/
 # Keep Python dependency manifest tracked — remove this line only if you truly
 # want requirements.txt ignored (not recommended).
 !requirements.txt
+
+# Explicit deny — production secrets must never be committed
+env-prod.txt
+.env.prod
+.env.production

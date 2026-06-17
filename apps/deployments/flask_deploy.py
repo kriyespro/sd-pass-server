@@ -30,8 +30,6 @@ FLASK_ALLOWED_SUFFIXES = frozenset({
     '.txt', '.md',
     '.env', '.cfg', '.ini', '.toml', '.yaml', '.yml',
     '.csv', '.xml',
-    # Scripts (helper scripts for local dev — not web-served, harmless to include)
-    '.sh',
 })
 
 MAX_FLASK_ZIP_SIZE = 50 * 1024 * 1024   # 50 MB

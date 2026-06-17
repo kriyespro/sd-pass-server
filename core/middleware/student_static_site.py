@@ -510,6 +510,8 @@ class StudentStaticSiteMiddleware:
 
         opener = ureq.build_opener(_NoRedirect())
 
+        if not (7000 <= int(flask_port) <= 7999):
+            return HttpResponse('Invalid app port.', status=502, content_type='text/plain')
         flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
         flask_host = flask_runner_base.rsplit(':', 1)[0]  # strip :6000 management port
         target = f'{flask_host}:{flask_port}{request.path}'

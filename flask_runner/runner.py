@@ -113,7 +113,7 @@ def _restore_state() -> None:
             continue
 
         gunicorn = _venv_bin(project_id, 'gunicorn')
-        env = {**os.environ, 'PYTHONPATH': str(project_dir)}
+        env = _student_env(project_dir)
         try:
             proc = subprocess.Popen(
                 [
@@ -139,6 +139,20 @@ def _restore_state() -> None:
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+# Safe environment for student gunicorn processes — no platform secrets inherited.
+_STUDENT_ENV_ALLOWLIST = frozenset({
+    'PATH', 'HOME', 'USER', 'LANG', 'LC_ALL', 'LC_CTYPE',
+    'TMPDIR', 'TEMP', 'TMP', 'TERM',
+})
+
+
+def _student_env(project_dir: Path) -> dict[str, str]:
+    """Return a minimal env for student gunicorn — strips platform secrets."""
+    base = {k: v for k, v in os.environ.items() if k in _STUDENT_ENV_ALLOWLIST}
+    base['PYTHONPATH'] = str(project_dir)
+    return base
+
 
 def _project_dir(project_id: int) -> Path:
     return SITES_ROOT / str(project_id)
@@ -261,7 +275,7 @@ def deploy(project_id: int):
         }), 400
 
     gunicorn = _venv_bin(project_id, 'gunicorn')
-    env = {**os.environ, 'PYTHONPATH': str(project_dir)}
+    env = _student_env(project_dir)
 
     try:
         proc = subprocess.Popen(
@@ -321,6 +335,12 @@ def list_projects():
 
 
 if __name__ == '__main__':
+    if not API_TOKEN or API_TOKEN == 'change-me-strong-random-token':
+        log.error(
+            'FLASK_RUNNER_TOKEN is not set or uses the default placeholder. '
+            'Set a strong random token before running in production.'
+        )
+        sys.exit(1)
     log.info('Flask Runner starting on :6000  sites_root=%s', SITES_ROOT)
     _restore_state()
     management_app.run(host='0.0.0.0', port=6000, debug=False)

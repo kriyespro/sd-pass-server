@@ -1,0 +1,270 @@
+{% extends "base.jinja" %}
+{% block title %}Partner Activity — Krizn Admin{% endblock %}
+
+{% block content %}
+<section class="space-y-5">
+
+  {# ── Header ── #}
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <h1 class="text-lg font-bold text-white">Partner Activity</h1>
+      <p class="text-[11px] text-slate-500">Referrals · Clicks · Commissions · Payouts</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{{ url('admin_monitor:dashboard') }}"
+         class="rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:bg-slate-800">
+        ← Dashboard
+      </a>
+      <a href="{{ url('admin_monitor:partners') }}"
+         class="rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800">
+        ↻ Refresh
+      </a>
+    </div>
+  </div>
+
+  {# ── Top KPI cards ── #}
+  <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+
+    {% macro kpi(label, value, sub='', color='text-white') %}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ label }}</p>
+      <p class="mt-0.5 text-xl font-bold {{ color }}">{{ value }}</p>
+      {% if sub %}<p class="text-[10px] text-slate-600">{{ sub }}</p>{% endif %}
+    </div>
+    {% endmacro %}
+
+    {{ kpi('Partners', total_partners, 'active', 'text-indigo-400') }}
+    {{ kpi('Total Clicks', total_clicks, 'all time', 'text-sky-400') }}
+    {{ kpi('Signups', total_signups, 'via partner link', 'text-violet-400') }}
+    {{ kpi('Paid', total_paid, 'converted', 'text-emerald-400') }}
+    {{ kpi('Commission', '₹' ~ total_commission, 'all time', 'text-amber-400') }}
+    {{ kpi('Redeemed', '₹' ~ total_redeemed, 'credits used', 'text-rose-400') }}
+    {{ kpi('This Week', paid_week ~ ' paid', '₹' ~ commission_week ~ ' earned', 'text-emerald-300') }}
+    {{ kpi('Affiliates', total_affiliates, '₹' ~ affiliate_commission_total ~ ' earned', 'text-pink-400') }}
+
+  </div>
+
+  {# ── Commission tier legend ── #}
+  <div class="flex flex-wrap gap-2">
+    {% for min_ref, rate, label in slabs %}
+    <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-0.5 text-[11px] font-medium text-slate-300">
+      {{ label }} — {{ (rate * 100)|int }}%
+      {% if min_ref == 0 %}(0+ paid){% else %}({{ min_ref }}+ paid){% endif %}
+    </span>
+    {% endfor %}
+    <span class="rounded-full border border-amber-700/40 bg-amber-900/20 px-3 py-0.5 text-[11px] font-medium text-amber-400">
+      First referral bonus — 25%
+    </span>
+  </div>
+
+  {# ── Per-partner table ── #}
+  <div class="rounded-xl border border-slate-800 bg-slate-900/50">
+    <div class="border-b border-slate-800 px-4 py-2.5">
+      <h2 class="text-[12px] font-semibold text-slate-200">All Partners</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-[11px]">
+        <thead>
+          <tr class="border-b border-slate-800 text-left text-[10px] font-semibold uppercase text-slate-500">
+            <th class="px-3 py-2">Partner</th>
+            <th class="px-3 py-2">Code</th>
+            <th class="px-3 py-2 text-right">Clicks</th>
+            <th class="px-3 py-2 text-right">Signups</th>
+            <th class="px-3 py-2 text-right">Paid</th>
+            <th class="px-3 py-2 text-right">Earned</th>
+            <th class="px-3 py-2 text-right">Balance</th>
+            <th class="px-3 py-2">Tier</th>
+            <th class="px-3 py-2">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60">
+          {% for r in partner_rows %}
+          <tr class="hover:bg-slate-800/30">
+            <td class="px-3 py-2">
+              <p class="font-medium text-slate-200">{{ r.name }}</p>
+              <p class="text-slate-500">{{ r.email }}</p>
+            </td>
+            <td class="px-3 py-2">
+              <span class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-sky-400">{{ r.code }}</span>
+            </td>
+            <td class="px-3 py-2 text-right font-semibold text-sky-300">{{ r.clicks }}</td>
+            <td class="px-3 py-2 text-right font-semibold text-violet-300">{{ r.signups }}</td>
+            <td class="px-3 py-2 text-right font-semibold text-emerald-300">{{ r.paid }}</td>
+            <td class="px-3 py-2 text-right font-bold text-amber-300">₹{{ r.earned }}</td>
+            <td class="px-3 py-2 text-right font-semibold text-slate-300">₹{{ r.balance }}</td>
+            <td class="px-3 py-2">
+              {% if r.tier == 'Gold' %}
+                <span class="rounded-full bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold text-amber-400">Gold</span>
+              {% elif r.tier == 'Silver' %}
+                <span class="rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-semibold text-slate-300">Silver</span>
+              {% else %}
+                <span class="rounded-full bg-orange-900/30 px-2 py-0.5 text-[10px] font-semibold text-orange-400">Bronze</span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2">
+              {% if r.is_active %}
+                <span class="rounded-full bg-emerald-900/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">Active</span>
+              {% else %}
+                <span class="rounded-full bg-rose-900/40 px-2 py-0.5 text-[10px] font-semibold text-rose-400">Paused</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="9" class="px-3 py-6 text-center text-slate-600">No partners yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Two column lower section ── #}
+  <div class="grid gap-4 lg:grid-cols-2">
+
+    {# Recent referral signups #}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50">
+      <div class="border-b border-slate-800 px-4 py-2.5">
+        <h2 class="text-[12px] font-semibold text-slate-200">Recent Referral Activity <span class="ml-1 text-slate-500">(last 50)</span></h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-[11px]">
+          <thead>
+            <tr class="border-b border-slate-800 text-left text-[10px] font-semibold uppercase text-slate-500">
+              <th class="px-3 py-2">Referred Email</th>
+              <th class="px-3 py-2">Partner</th>
+              <th class="px-3 py-2">Status</th>
+              <th class="px-3 py-2 text-right">Commission</th>
+              <th class="px-3 py-2">Date</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60">
+            {% for ref in recent_referrals %}
+            <tr class="hover:bg-slate-800/30">
+              <td class="px-3 py-2">
+                <p class="font-medium text-slate-200">
+                  {{ ref.referred_user.email if ref.referred_user else '—' }}
+                </p>
+                {% if ref.plan_slug %}
+                <p class="text-slate-500">{{ ref.plan_slug }}</p>
+                {% endif %}
+              </td>
+              <td class="px-3 py-2">
+                <p class="text-slate-300">{{ ref.partner.user.email }}</p>
+                <span class="font-mono text-[10px] text-sky-500">{{ ref.partner.code }}</span>
+              </td>
+              <td class="px-3 py-2">
+                {% if ref.status == 'credited' %}
+                  <span class="rounded-full bg-emerald-900/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">Paid</span>
+                {% else %}
+                  <span class="rounded-full bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-400">Pending</span>
+                {% endif %}
+              </td>
+              <td class="px-3 py-2 text-right font-semibold text-amber-300">
+                {% if ref.commission_amount %}₹{{ ref.commission_amount }}{% else %}—{% endif %}
+              </td>
+              <td class="px-3 py-2 text-slate-500">
+                {{ ref.created_at.strftime('%d %b %y') }}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="px-3 py-6 text-center text-slate-600">No referrals yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# Right column: pending + affiliate commissions #}
+    <div class="space-y-4">
+
+      {# Pending — signed up but not paid #}
+      <div class="rounded-xl border border-slate-800 bg-slate-900/50">
+        <div class="border-b border-slate-800 px-4 py-2.5">
+          <h2 class="text-[12px] font-semibold text-slate-200">
+            Pending Signups
+            <span class="ml-1 text-amber-500">{{ pending_referrals|length }}</span>
+          </h2>
+          <p class="text-[10px] text-slate-600">Signed up via partner link — not purchased yet</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px]">
+            <thead>
+              <tr class="border-b border-slate-800 text-left text-[10px] font-semibold uppercase text-slate-500">
+                <th class="px-3 py-2">User Email</th>
+                <th class="px-3 py-2">Partner</th>
+                <th class="px-3 py-2">Joined</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+              {% for ref in pending_referrals %}
+              <tr class="hover:bg-slate-800/30">
+                <td class="px-3 py-2 font-medium text-slate-200">
+                  {{ ref.referred_user.email if ref.referred_user else '—' }}
+                </td>
+                <td class="px-3 py-2">
+                  <span class="font-mono text-[10px] text-sky-500">{{ ref.partner.code }}</span>
+                </td>
+                <td class="px-3 py-2 text-slate-500">
+                  {{ ref.created_at.strftime('%d %b %y') }}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="3" class="px-3 py-4 text-center text-slate-600">No pending signups.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {# Affiliate commissions (resell product sales) #}
+      <div class="rounded-xl border border-slate-800 bg-slate-900/50">
+        <div class="border-b border-slate-800 px-4 py-2.5">
+          <h2 class="text-[12px] font-semibold text-slate-200">Affiliate Product Commissions</h2>
+          <p class="text-[10px] text-slate-600">From resell store sales</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px]">
+            <thead>
+              <tr class="border-b border-slate-800 text-left text-[10px] font-semibold uppercase text-slate-500">
+                <th class="px-3 py-2">Affiliate</th>
+                <th class="px-3 py-2">Item</th>
+                <th class="px-3 py-2 text-right">Rate</th>
+                <th class="px-3 py-2 text-right">Earned</th>
+                <th class="px-3 py-2">Date</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+              {% for ac in recent_affiliate_commissions %}
+              <tr class="hover:bg-slate-800/30">
+                <td class="px-3 py-2">
+                  <p class="font-medium text-slate-200">{{ ac.affiliate.user.email }}</p>
+                  <span class="font-mono text-[10px] text-pink-400">{{ ac.affiliate.code }}</span>
+                </td>
+                <td class="px-3 py-2">
+                  <p class="text-slate-300">{{ ac.item_name }}</p>
+                  <span class="text-[10px] text-slate-600">{{ ac.get_item_type_display() }}</span>
+                </td>
+                <td class="px-3 py-2 text-right text-slate-400">{{ (ac.commission_rate * 100)|int }}%</td>
+                <td class="px-3 py-2 text-right font-bold text-amber-300">₹{{ ac.commission_amount }}</td>
+                <td class="px-3 py-2 text-slate-500">{{ ac.created_at.strftime('%d %b %y') }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="px-3 py-4 text-center text-slate-600">No affiliate commissions yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</section>
+{% endblock %}

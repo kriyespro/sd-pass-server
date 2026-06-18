@@ -1,11 +1,13 @@
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Count, Sum
+from django.db.models import Count, DecimalField, Q, Sum, Value
+from django.db.models.functions import Coalesce
 import csv
 
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
@@ -554,4 +556,125 @@ class TrainerProjectEnvKeysView(LoginRequiredMixin, UserPassesTestMixin, Templat
             .order_by('key')
             .values_list('key', flat=True)
         )
+        return ctx
+
+
+class PartnerActivityDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """Staff: full partner + affiliate activity dashboard at /admin/partners/."""
+
+    template_name = 'pages/admin_monitor/partners.jinja'
+    login_url = reverse_lazy('accounts:login')
+    raise_exception = False
+
+    def test_func(self):
+        return self.request.user.is_authenticated and self.request.user.is_staff
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            messages.warning(self.request, 'Staff access required.')
+            return HttpResponseRedirect(reverse('home'))
+        return super().handle_no_permission()
+
+    def get_context_data(self, **kwargs):
+        from apps.affiliates.models import (
+            Affiliate, AffiliateCommission,
+            Partner, PartnerReferral, PartnerCreditRedemption,
+            PARTNER_SLABS, get_partner_slab,
+        )
+
+        ctx = super().get_context_data(**kwargs)
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+
+        # ── Platform-wide stats ───────────────────────────────────────────────
+        ctx['total_partners'] = Partner.objects.filter(is_active=True).count()
+        ctx['total_clicks'] = Partner.objects.aggregate(t=Sum('click_count'))['t'] or 0
+        ctx['total_signups'] = PartnerReferral.objects.count()
+        ctx['total_paid'] = PartnerReferral.objects.filter(
+            status=PartnerReferral.Status.CREDITED
+        ).count()
+        ctx['total_commission'] = (
+            PartnerReferral.objects.filter(status=PartnerReferral.Status.CREDITED)
+            .aggregate(t=Sum('commission_amount'))['t'] or Decimal('0')
+        )
+        ctx['total_redeemed'] = (
+            PartnerCreditRedemption.objects.aggregate(t=Sum('amount_redeemed'))['t'] or Decimal('0')
+        )
+        ctx['signups_week'] = PartnerReferral.objects.filter(created_at__gte=week_ago).count()
+        ctx['paid_week'] = PartnerReferral.objects.filter(
+            status=PartnerReferral.Status.CREDITED, credited_at__gte=week_ago
+        ).count()
+        ctx['commission_week'] = (
+            PartnerReferral.objects.filter(
+                status=PartnerReferral.Status.CREDITED, credited_at__gte=week_ago
+            ).aggregate(t=Sum('commission_amount'))['t'] or Decimal('0')
+        )
+
+        # Affiliate stats
+        ctx['total_affiliates'] = Affiliate.objects.filter(is_active=True).count()
+        ctx['affiliate_commission_total'] = (
+            AffiliateCommission.objects.aggregate(t=Sum('commission_amount'))['t'] or Decimal('0')
+        )
+
+        # ── Per-partner table ─────────────────────────────────────────────────
+        partners = (
+            Partner.objects.select_related('user')
+            .annotate(
+                signup_count=Count('referrals', distinct=True),
+                paid_count=Count(
+                    'referrals',
+                    filter=Q(referrals__status=PartnerReferral.Status.CREDITED),
+                    distinct=True,
+                ),
+                earned_total=Coalesce(
+                    Sum(
+                        'referrals__commission_amount',
+                        filter=Q(referrals__status=PartnerReferral.Status.CREDITED),
+                    ),
+                    Value(Decimal('0')), output_field=DecimalField()
+                ),
+            )
+            .order_by('-click_count')
+        )
+
+        partner_rows = []
+        for p in partners:
+            _, tier = get_partner_slab(p.paid_count)
+            partner_rows.append({
+                'id': p.pk,
+                'email': p.user.email,
+                'name': (p.user.get_full_name() or '').strip() or p.user.email,
+                'code': p.code,
+                'clicks': p.click_count,
+                'signups': p.signup_count,
+                'paid': p.paid_count,
+                'earned': p.earned_total,
+                'balance': p.credit_balance,
+                'tier': tier,
+                'is_active': p.is_active,
+            })
+        ctx['partner_rows'] = partner_rows
+
+        # ── Recent referral activity ──────────────────────────────────────────
+        ctx['recent_referrals'] = (
+            PartnerReferral.objects.select_related('partner__user', 'referred_user')
+            .order_by('-created_at')[:50]
+        )
+
+        # ── Affiliate commission details ──────────────────────────────────────
+        ctx['recent_affiliate_commissions'] = (
+            AffiliateCommission.objects.select_related('affiliate__user', 'order')
+            .order_by('-created_at')[:30]
+        )
+
+        # ── Pending signups (no purchase yet) ────────────────────────────────
+        ctx['pending_referrals'] = (
+            PartnerReferral.objects.filter(status=PartnerReferral.Status.PENDING)
+            .select_related('partner__user', 'referred_user')
+            .order_by('-created_at')[:30]
+        )
+
+        ctx['slabs'] = PARTNER_SLABS
+
         return ctx

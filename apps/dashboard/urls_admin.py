@@ -42,4 +42,9 @@ urlpatterns = [
         views.DeleteProjectDashboardView.as_view(),
         name='delete_project',
     ),
+    path(
+        'partners/',
+        views.PartnerActivityDashboardView.as_view(),
+        name='partners',
+    ),
 ]

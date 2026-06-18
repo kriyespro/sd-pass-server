@@ -9,10 +9,16 @@
       <h1 class="text-lg font-bold text-white">Mission Control</h1>
       <p class="text-[11px] text-slate-500">Staff · live health &amp; billing</p>
     </div>
-    <a href="{{ url('admin_monitor:dashboard') }}"
-       class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800">
-      ↻ Refresh
-    </a>
+    <div class="flex items-center gap-2">
+      <a href="{{ url('admin_monitor:partners') }}"
+         class="rounded-md border border-indigo-700/50 bg-indigo-900/30 px-2.5 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-800/40">
+        🤝 Partners
+      </a>
+      <a href="{{ url('admin_monitor:dashboard') }}"
+         class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800">
+        ↻ Refresh
+      </a>
+    </div>
   </div>
 
   {# ══ Overview (server + platform) ══ #}
@@ -421,6 +427,7 @@
     <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">⚡ Quick Links</p>
     <div class="flex flex-wrap gap-2 text-xs">
       {% set links = [
+        ('🤝 Partners', url('admin_monitor:partners')),
         ('🌐 Website Overview', url('admin_monitor:website_overview')),
         ('📋 SD Website Overview', url('admin:projects_websiteoverview_changelist')),
         ('✉ Email', url('admin_emails:list')),

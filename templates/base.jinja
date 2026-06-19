@@ -29,15 +29,15 @@
   <meta property="og:title" content="{% block og_title %}{{ site_name }}{% endblock %}">
   <meta property="og:description" content="{% block og_description %}Krizn — AI-powered cloud hosting for students in India. Free 2-day trial. Deploy in under 2 minutes.{% endblock %}">
   <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host() }}{{ request.path }}">
-  <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host() }}{{ static('img/og-default.png') }}{% endblock %}">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  {# og:image added per-page via {% block og_image %} once assets exist #}
+  {% block og_image %}{% endblock %}
 
   {# ── SEO: Twitter Card ── #}
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{% block twitter_title %}{{ site_name }}{% endblock %}">
   <meta name="twitter:description" content="{% block twitter_description %}AI-powered cloud hosting for students in India. Free trial. Plans from ₹299.{% endblock %}">
-  <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host() }}{{ static('img/og-default.png') }}{% endblock %}">
+  {# twitter:image added per-page via {% block twitter_image %} once assets exist #}
+  {% block twitter_image %}{% endblock %}
 
   {# ── SEO: JSON-LD structured data (override per page) ── #}
   {% block json_ld %}{% endblock %}

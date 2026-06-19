@@ -73,7 +73,7 @@ def _friendly_static_upload_error(msg: str) -> str:
         )
     if msg.startswith('image_too_large:'):
         name = msg.split(':', 1)[1]
-        return f'Image "{name}" exceeds 120 KB. Please compress it and re-upload.'
+        return f'Image "{name}" exceeds 300 KB. Please compress it and re-upload.'
     return msg
 
 

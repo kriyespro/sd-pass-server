@@ -8,7 +8,7 @@ from __future__ import annotations
 
 _FEATURES = [
     {'icon': '🤖', 'title': 'AI Image Optimizer', 'body': 'Auto-compress images after every upload — faster pages, zero manual work.'},
-    {'icon': '🔒', 'title': 'Free SSL (HTTPS)', 'body': 'Every site gets automatic HTTPS via Let's Encrypt. No setup needed.'},
+    {'icon': '🔒', 'title': 'Free SSL (HTTPS)', 'body': "Every site gets automatic HTTPS via Let's Encrypt. No setup needed."},
     {'icon': '🌐', 'title': 'Instant Subdomain', 'body': 'Go live on yourname.apps.krizn.com in under 2 minutes.'},
     {'icon': '🔗', 'title': 'Custom Domain', 'body': 'Connect your own domain with guided DNS steps — free on paid plans.'},
     {'icon': '🔍', 'title': 'Security Scan', 'body': 'Every upload is scanned before publishing — keeps your site and visitors safe.'},

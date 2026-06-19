@@ -1,11 +1,20 @@
+from django.conf import settings
 from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
 
+_DOMAIN = getattr(settings, 'SITE_DOMAIN', 'krizn.com')
 
-class StaticViewSitemap(Sitemap):
+
+class _BaseSitemap(Sitemap):
+    protocol = 'https'
+
+    def get_domain(self, site=None):
+        return _DOMAIN
+
+
+class StaticViewSitemap(_BaseSitemap):
     priority = 1.0
     changefreq = 'weekly'
-    protocol = 'https'
 
     def items(self):
         return ['home', 'resell:store']
@@ -14,11 +23,10 @@ class StaticViewSitemap(Sitemap):
         return reverse(item)
 
 
-class ProgrammaticHubSitemap(Sitemap):
+class ProgrammaticHubSitemap(_BaseSitemap):
     """Top-level /hosting/ and /server/ hub pages."""
     priority = 0.9
     changefreq = 'monthly'
-    protocol = 'https'
 
     def items(self):
         return [
@@ -32,11 +40,10 @@ class ProgrammaticHubSitemap(Sitemap):
         return item
 
 
-class ProgrammaticLandingSitemap(Sitemap):
+class ProgrammaticLandingSitemap(_BaseSitemap):
     """All /hosting/<slug>/ and /server/<slug>/ landing pages."""
     priority = 0.8
     changefreq = 'monthly'
-    protocol = 'https'
 
     PAGES = [
         '/hosting/for-students/',
@@ -62,10 +69,9 @@ class ProgrammaticLandingSitemap(Sitemap):
         return item
 
 
-class ResellProductSitemap(Sitemap):
+class ResellProductSitemap(_BaseSitemap):
     priority = 0.6
     changefreq = 'weekly'
-    protocol = 'https'
 
     def items(self):
         from apps.resell.models import ResellProduct

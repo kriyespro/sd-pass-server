@@ -1,6 +1,101 @@
 {% extends "base.jinja" %}
 {# landing-v4-krizn — grep for "Launch in under 2 minutes" #}
-{% block title %}Krizn — AI Web Hosting for Students & Creators{% endblock %}
+{% block title %}Krizn — Free Cloud Hosting for Students in India | Deploy in 2 Minutes{% endblock %}
+{% block meta_description %}Host websites and Flask apps free on India's fastest cloud. AI optimizer, free SSL, custom domain. 2-day free trial — no credit card. Plans from ₹299.{% endblock %}
+{% block og_title %}Krizn — Free Cloud Hosting for Students in India{% endblock %}
+{% block og_description %}Deploy your website in under 2 minutes. AI optimizer, free SSL, custom domain. 2-day free trial. Plans from ₹299.{% endblock %}
+{% block twitter_title %}Krizn — Free Cloud Hosting for Students in India{% endblock %}
+{% block twitter_description %}Deploy websites and Flask apps free. AI optimizer, free SSL, custom domain. 2-day free trial. Plans from ₹299.{% endblock %}
+
+{% block json_ld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "name": "Krizn",
+      "url": "https://krizn.com",
+      "description": "AI-powered cloud hosting for students and creators in India"
+    },
+    {
+      "@type": "Organization",
+      "name": "Krizn",
+      "url": "https://krizn.com",
+      "logo": "https://krizn.com/static/img/logo.png"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Krizn Cloud Hosting",
+      "applicationCategory": "WebApplication",
+      "operatingSystem": "Web",
+      "description": "AI-powered cloud hosting for students and creators in India. Deploy static sites and Flask apps free.",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Free Trial",
+          "price": "0",
+          "priceCurrency": "INR",
+          "description": "2-day free trial. No credit card required."
+        },
+        {
+          "@type": "Offer",
+          "name": "Starter Trial",
+          "price": "299",
+          "priceCurrency": "INR",
+          "description": "30-day full access. SSL, custom domain, AI optimizer."
+        },
+        {
+          "@type": "Offer",
+          "name": "Launch Lite",
+          "price": "1499",
+          "priceCurrency": "INR",
+          "description": "1-year hosting plan for portfolio websites."
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is Krizn cloud hosting free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Every new account gets a 2-day free trial with 1 website and no credit card required. Paid plans start at ₹299."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I host Python Flask apps on Krizn?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Flask app hosting is available on paid plans. Upload a ZIP of your Flask project and Krizn deploys it to a live URL automatically."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Krizn support custom domains?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. All paid plans support custom domain mapping with guided DNS steps and automatic free SSL via Let's Encrypt."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How fast can I deploy a website on Krizn?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Under 2 minutes. Upload your ZIP or folder, Krizn scans it, optimizes images with AI, and publishes to a live subdomain instantly."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
+
 {% block content %}
 
 {# ══ HERO (split) ══ #}

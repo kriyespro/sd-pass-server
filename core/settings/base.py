@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+    'django.contrib.sitemaps',
     'django_htmx',
     'allauth',
     'allauth.account',
@@ -66,6 +67,7 @@ INSTALLED_APPS = [
     'apps.resell',
     'apps.newsletter',
     'apps.emails',
+    'apps.seo',
 ]
 
 MIDDLEWARE = [

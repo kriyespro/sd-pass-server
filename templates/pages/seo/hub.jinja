@@ -1,0 +1,162 @@
+{% extends "base.jinja" %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block meta_description %}{{ page.meta_description }}{% endblock %}
+{% block og_title %}{{ page.og_title }}{% endblock %}
+{% block og_description %}{{ page.og_description }}{% endblock %}
+{% block twitter_title %}{{ page.og_title }}{% endblock %}
+{% block twitter_description %}{{ page.og_description }}{% endblock %}
+
+{% block json_ld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": {{ page.h1 | tojson }},
+  "description": {{ page.meta_description | tojson }},
+  "url": "{{ request.build_absolute_uri() }}",
+  "isPartOf": { "@type": "WebSite", "name": "Krizn", "url": "https://krizn.com" }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-14">
+
+  {# ── Hero ── #}
+  <section class="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/40 px-6 py-14 text-center lg:px-12 lg:py-20">
+    <div class="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl"></div>
+    <div class="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl"></div>
+    <div class="relative mx-auto max-w-3xl">
+      {% if page.badge %}
+        <span class="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-300">
+          {{ page.badge }}
+        </span>
+      {% endif %}
+      <h1 class="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl">
+        {{ page.h1 }}
+      </h1>
+      <p class="mt-2 text-lg font-semibold text-slate-400">{{ page.tagline }}</p>
+      <p class="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-300">
+        {{ page.intro }}
+      </p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        {% if request.user is defined and request.user.is_authenticated %}
+          <a href="{{ url('projects:dashboard') }}"
+             class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400">
+            Open dashboard
+          </a>
+        {% else %}
+          <a href="{{ url('accounts:register') }}"
+             class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400">
+            Start free — no card
+          </a>
+          <a href="{{ url('billing:redeem') }}"
+             class="inline-flex items-center rounded-xl border border-violet-500/40 bg-violet-500/10 px-5 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20">
+            Plans from ₹299
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {# ── Sub-topic cards ── #}
+  {% if page.children is defined and page.children %}
+  <section>
+    <div class="text-center">
+      <h2 class="text-xl font-bold text-white">Explore {{ page.h1 }}</h2>
+      <p class="mt-1 text-sm text-slate-500">Choose your use case for a tailored guide</p>
+    </div>
+    <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {% for child in page.children %}
+        <a href="/{{ section }}/{{ child.slug }}/"
+           class="group flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:border-emerald-500/30 hover:bg-slate-900">
+          <span class="text-3xl">{{ child.icon }}</span>
+          <div>
+            <p class="font-semibold text-white group-hover:text-emerald-300">{{ child.label }}</p>
+            <p class="mt-0.5 text-xs text-slate-500">{{ section | capitalize }} for {{ child.label | lower }} →</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# ── Platform features ── #}
+  <section>
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">What's included</p>
+      <h2 class="mt-2 text-2xl font-bold text-white">Everything you need to host</h2>
+    </div>
+    <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {% for feat in features %}
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 transition hover:border-emerald-500/20">
+          <p class="text-2xl">{{ feat.icon }}</p>
+          <p class="mt-2 font-semibold text-emerald-300">{{ feat.title }}</p>
+          <p class="mt-1 text-sm text-slate-400">{{ feat.body }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── How it works ── #}
+  <section>
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-emerald-400/80">How it works</p>
+      <h2 class="mt-2 text-2xl font-bold text-white sm:text-3xl">Three steps to go live</h2>
+    </div>
+    <div class="mt-8 grid gap-4 md:grid-cols-3">
+      {% for step in steps %}
+        {% set colours = {'emerald': 'bg-emerald-500/20 text-emerald-300', 'sky': 'bg-sky-500/20 text-sky-300', 'violet': 'bg-violet-500/20 text-violet-300'} %}
+        <div class="relative rounded-2xl border border-slate-800 bg-slate-900/50 p-6 transition hover:border-slate-700">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-full {{ colours[step.color] }} text-sm font-bold">{{ step.n }}</span>
+          <h3 class="mt-4 font-semibold text-white">{{ step.title }}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">{{ step.body }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── Pricing ── #}
+  <section class="rounded-3xl border border-slate-800 bg-slate-900/30 p-6 sm:p-10">
+    <div class="text-center">
+      <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">Pricing</p>
+      <h2 class="mt-2 text-2xl font-bold text-white">Start free, scale when you grow</h2>
+    </div>
+    <div class="mt-8 grid gap-4 sm:grid-cols-3">
+      {% for plan in plans %}
+        {% set border_color = {'emerald': 'border-emerald-500/40 bg-emerald-500/5 ring-1 ring-emerald-500/20', 'sky': 'border-sky-500/40 bg-sky-500/5 ring-1 ring-sky-500/20', 'violet': 'border-slate-700 bg-slate-900/60'}[plan.color] %}
+        {% set label_color = {'emerald': 'text-emerald-400', 'sky': 'text-sky-400', 'violet': 'text-violet-400'}[plan.color] %}
+        {% set btn_class = {'emerald': 'bg-emerald-500 text-slate-950 hover:bg-emerald-400', 'sky': 'bg-sky-600 text-white hover:bg-sky-500', 'violet': 'border border-slate-600 text-slate-200 hover:bg-slate-800'}[plan.color] %}
+        <div class="flex flex-col rounded-2xl border {{ border_color }} p-5">
+          <span class="text-xs font-bold uppercase {{ label_color }}">{{ plan.name }}</span>
+          <p class="mt-2 text-3xl font-extrabold text-white">{{ plan.price }}<span class="text-sm font-normal text-slate-400"> / {{ plan.period }}</span></p>
+          <ul class="mt-4 flex-1 space-y-1 text-xs text-slate-300">
+            {% for b in plan.bullets %}<li>✓ {{ b }}</li>{% endfor %}
+          </ul>
+          <a href="{{ url('accounts:register') }}" class="mt-5 block rounded-xl py-2.5 text-center text-sm font-bold transition {{ btn_class }}">
+            {{ 'Start free trial' if plan.price == '₹0' else ('Get ' ~ plan.price ~ ' plan') }}
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── CTA ── #}
+  <section class="relative overflow-hidden rounded-3xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/60 via-slate-900 to-slate-950 px-8 py-12 text-center">
+    <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent"></div>
+    <div class="relative">
+      <h2 class="text-2xl font-bold text-white sm:text-3xl">Ready to put your site online?</h2>
+      <p class="mx-auto mt-3 max-w-md text-sm text-slate-400">2-day free trial, no credit card. India-based cloud hosting from ₹299.</p>
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+        {% if request.user is defined and request.user.is_authenticated %}
+          <a href="{{ url('projects:dashboard') }}" class="inline-flex rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400">Go to dashboard</a>
+        {% else %}
+          <a href="{{ url('accounts:register') }}" class="inline-flex rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400">Start free</a>
+          <a href="{{ url('accounts:login') }}" class="inline-flex rounded-xl border border-slate-600 px-6 py-3 text-sm font-semibold text-slate-300 hover:text-white">Log in</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

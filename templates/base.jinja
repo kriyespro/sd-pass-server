@@ -4,7 +4,38 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% if csrf_token %}<meta name="csrf-token" content="{{ csrf_token }}">{% endif %}
+
+  {# ── SEO: Title ── #}
   <title>{% block title %}{{ site_name }}{% endblock %}</title>
+
+  {# ── SEO: Meta description + robots ── #}
+  <meta name="description" content="{% block meta_description %}Krizn — AI-powered cloud hosting for students and creators in India. Deploy websites and Flask apps free. Free SSL, custom domain, AI optimizer. Plans from ₹299.{% endblock %}">
+  {% set _noindex_prefixes = ['/projects/', '/billing/', '/notifications/', '/onboarding/', '/admin/', '/ops/', '/trainer/', '/api/', '/sd/'] %}
+  {% set _is_private = namespace(v=false) %}
+  {% for _p in _noindex_prefixes %}{% if request.path.startswith(_p) %}{% set _is_private.v = true %}{% endif %}{% endfor %}
+  <meta name="robots" content="{% if _is_private.v %}noindex, nofollow{% else %}{% block meta_robots %}index, follow{% endblock %}{% endif %}">
+
+  {# ── SEO: Canonical ── #}
+  <link rel="canonical" href="{% block canonical %}{{ request.scheme }}://{{ request.get_host() }}{{ request.path }}{% endblock %}">
+
+  {# ── SEO: Open Graph ── #}
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:site_name" content="{{ site_name }}">
+  <meta property="og:title" content="{% block og_title %}{% block _title_ref %}{{ site_name }}{% endblock %}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Krizn — AI-powered cloud hosting for students in India. Free 2-day trial. Deploy in under 2 minutes.{% endblock %}">
+  <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host() }}{{ request.path }}">
+  <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host() }}{{ static('img/og-default.png') }}{% endblock %}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  {# ── SEO: Twitter Card ── #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{% block twitter_title %}{{ site_name }}{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}AI-powered cloud hosting for students in India. Free trial. Plans from ₹299.{% endblock %}">
+  <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host() }}{{ static('img/og-default.png') }}{% endblock %}">
+
+  {# ── SEO: JSON-LD structured data (override per page) ── #}
+  {% block json_ld %}{% endblock %}
   <link rel="stylesheet" href="{{ static('css/tailwind.css') }}">
   <script src="{{ static('js/htmx.min.js') }}" defer></script>
   <script src="{{ static('js/alpine.min.js') }}" defer></script>

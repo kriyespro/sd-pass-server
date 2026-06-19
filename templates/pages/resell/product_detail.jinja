@@ -1,5 +1,28 @@
 {% extends "base.jinja" %}
-{% block title %}{{ product.name }} — Krizn Store{% endblock %}
+{% block title %}{{ product.name }} — Buy Online | Krizn Store{% endblock %}
+{% block meta_description %}{{ (product.short_description or product.description)[:155] }} — Buy now on Krizn Store.{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_title %}{{ product.name }} | Krizn Store{% endblock %}
+{% block og_description %}{{ (product.short_description or product.description)[:155] }}{% endblock %}
+
+{% block json_ld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": {{ product.name | tojson }},
+  "description": {{ (product.short_description or product.description) | tojson }},
+  "url": "{{ request.build_absolute_uri() }}",
+  "offers": {
+    "@type": "Offer",
+    "price": "{{ product.price }}",
+    "priceCurrency": "INR",
+    "availability": "https://schema.org/InStock",
+    "seller": { "@type": "Organization", "name": "Krizn" }
+  }
+}
+</script>
+{% endblock %}
 
 {% block content %}
 {# JSON in x-data="" breaks Alpine — server list uses double quotes. Pass config via script. #}

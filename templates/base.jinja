@@ -8,12 +8,17 @@
   {# ── SEO: Title ── #}
   <title>{% block title %}{{ site_name }}{% endblock %}</title>
 
-  {# ── SEO: Meta description + robots ── #}
+  {# ── SEO: Meta description ── #}
   <meta name="description" content="{% block meta_description %}Krizn — AI-powered cloud hosting for students and creators in India. Deploy websites and Flask apps free. Free SSL, custom domain, AI optimizer. Plans from ₹299.{% endblock %}">
-  {% set _noindex_prefixes = ['/projects/', '/billing/', '/notifications/', '/onboarding/', '/admin/', '/ops/', '/trainer/', '/api/', '/sd/'] %}
-  {% set _is_private = namespace(v=false) %}
-  {% for _p in _noindex_prefixes %}{% if request.path.startswith(_p) %}{% set _is_private.v = true %}{% endif %}{% endfor %}
-  <meta name="robots" content="{% if _is_private.v %}noindex, nofollow{% else %}{% block meta_robots %}index, follow{% endblock %}{% endif %}">
+
+  {# ── SEO: Robots — block must stay at top level (Jinja2 forbids block inside if) ── #}
+  {# Private paths get noindex automatically; override {% block meta_robots %} in child templates if needed #}
+  {% set _priv = request.path.startswith('/projects/') or request.path.startswith('/billing/')
+      or request.path.startswith('/notifications/') or request.path.startswith('/onboarding/')
+      or request.path.startswith('/admin/') or request.path.startswith('/ops/')
+      or request.path.startswith('/trainer/') or request.path.startswith('/api/')
+      or request.path.startswith('/sd/') %}
+  {% block meta_robots %}<meta name="robots" content="{{ 'noindex, nofollow' if _priv else 'index, follow' }}">{% endblock %}
 
   {# ── SEO: Canonical ── #}
   <link rel="canonical" href="{% block canonical %}{{ request.scheme }}://{{ request.get_host() }}{{ request.path }}{% endblock %}">
@@ -21,7 +26,7 @@
   {# ── SEO: Open Graph ── #}
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
   <meta property="og:site_name" content="{{ site_name }}">
-  <meta property="og:title" content="{% block og_title %}{% block _title_ref %}{{ site_name }}{% endblock %}{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}{{ site_name }}{% endblock %}">
   <meta property="og:description" content="{% block og_description %}Krizn — AI-powered cloud hosting for students in India. Free 2-day trial. Deploy in under 2 minutes.{% endblock %}">
   <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host() }}{{ request.path }}">
   <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host() }}{{ static('img/og-default.png') }}{% endblock %}">

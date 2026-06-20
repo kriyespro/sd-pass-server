@@ -21,6 +21,16 @@ def _redirect_after_login(request):
         require_https=request.is_secure(),
     ):
         return redirect(next_url)
+
+    # Paid-plan users → Partner dashboard.
+    # Free / no-plan users → Projects dashboard.
+    from apps.billing.models import Subscription
+    has_paid_plan = Subscription.objects.filter(
+        user=request.user, is_active=True,
+    ).exclude(plan_slug=Subscription.Plan.FREE).exists()
+    if has_paid_plan:
+        return redirect('affiliates:partner')
+
     return redirect(settings.LOGIN_REDIRECT_URL)
 
 

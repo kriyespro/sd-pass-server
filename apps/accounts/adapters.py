@@ -12,9 +12,22 @@ from apps.billing.services import get_or_create_subscription
 
 
 def _login_redirect_url(request):
+    # Always honour an explicit ?next= parameter first.
     next_url = get_next_redirect_url(request)
     if next_url:
         return next_url
+
+    # Paid-plan users → Partner dashboard (motivates sharing & earning).
+    # Free / no-plan users → Projects dashboard (onboarding flow).
+    user = getattr(request, 'user', None)
+    if user and user.is_authenticated:
+        from apps.billing.models import Subscription
+        has_paid_plan = Subscription.objects.filter(
+            user=user, is_active=True,
+        ).exclude(plan_slug=Subscription.Plan.FREE).exists()
+        if has_paid_plan:
+            return reverse('affiliates:partner')
+
     return reverse(settings.LOGIN_REDIRECT_URL)
 
 

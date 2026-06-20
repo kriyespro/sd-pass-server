@@ -57,104 +57,103 @@
   {% endif %}
 
   {# ══════════════════════════════════════════════════════
-     STATS ROW — always 4 columns, never wraps
+     STATS ROW — flex so it works with pre-compiled CSS
   ══════════════════════════════════════════════════════ #}
-  <div class="grid grid-cols-4 gap-2">
+  <div class="flex gap-2">
 
     {# Tier #}
-    <div class="rounded-xl border px-2 py-3 text-center
-      {% if slab_info.label == 'Gold' %}border-amber-500/40 bg-amber-950/30
-      {% elif slab_info.label == 'Silver' %}border-slate-500/40 bg-slate-800/40
-      {% else %}border-orange-700/40 bg-orange-950/20{% endif %}">
-      <p class="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Tier</p>
-      <p class="mt-1 text-xl font-black
-        {% if slab_info.label == 'Gold' %}text-amber-300
-        {% elif slab_info.label == 'Silver' %}text-slate-200
-        {% else %}text-orange-300{% endif %}">{{ slab_info.rate_pct }}%</p>
-      <p class="text-[10px] font-semibold text-slate-400">{{ slab_info.label }}</p>
+    <div class="flex-1 rounded-lg px-2 py-3 text-center"
+         style="background:rgba(124,45,18,0.15);border:1px solid rgba(194,65,12,0.35)">
+      <p style="font-size:9px;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase">Tier</p>
+      <p style="margin-top:4px;font-size:20px;font-weight:900;
+        {% if slab_info.label == 'Gold' %}color:#fcd34d
+        {% elif slab_info.label == 'Silver' %}color:#e2e8f0
+        {% else %}color:#fb923c{% endif %}">{{ slab_info.rate_pct }}%</p>
+      <p style="font-size:10px;font-weight:600;color:#94a3b8">{{ slab_info.label }}</p>
     </div>
 
-    {# Credit balance #}
-    <div class="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-2 py-3 text-center">
-      <p class="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Credit</p>
-      <p class="mt-1 text-xl font-black text-emerald-300">₹{{ partner.credit_balance | float | round(0) | int }}</p>
-      <p class="text-[10px] text-slate-500">₹{{ partner.total_earned | float | round(0) | int }} earned</p>
+    {# Credit #}
+    <div class="flex-1 rounded-lg px-2 py-3 text-center"
+         style="background:rgba(6,78,59,0.18);border:1px solid rgba(16,185,129,0.25)">
+      <p style="font-size:9px;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase">Credit</p>
+      <p style="margin-top:4px;font-size:20px;font-weight:900;color:#6ee7b7">₹{{ partner.credit_balance | float | round(0) | int }}</p>
+      <p style="font-size:10px;color:#475569">₹{{ partner.total_earned | float | round(0) | int }} earned</p>
     </div>
 
-    {# Paid sales #}
-    <div class="rounded-xl border border-sky-500/20 bg-slate-900/60 px-2 py-3 text-center">
-      <p class="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Sales</p>
-      <p class="mt-1 text-xl font-black text-white">{{ paid_count }}</p>
-      <p class="text-[10px] text-slate-500">paid refs</p>
+    {# Sales #}
+    <div class="flex-1 rounded-lg px-2 py-3 text-center"
+         style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.6)">
+      <p style="font-size:9px;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase">Sales</p>
+      <p style="margin-top:4px;font-size:20px;font-weight:900;color:#f1f5f9">{{ paid_count }}</p>
+      <p style="font-size:10px;color:#475569">paid refs</p>
     </div>
 
-    {# Link clicks #}
-    <div class="rounded-xl border border-violet-500/20 bg-slate-900/60 px-2 py-3 text-center">
-      <p class="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Clicks</p>
-      <p class="mt-1 text-xl font-black text-violet-300">{{ partner.click_count }}</p>
-      <p class="text-[10px] text-slate-500">link visits</p>
+    {# Clicks #}
+    <div class="flex-1 rounded-lg px-2 py-3 text-center"
+         style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.6)">
+      <p style="font-size:9px;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase">Clicks</p>
+      <p style="margin-top:4px;font-size:20px;font-weight:900;color:#c4b5fd">{{ partner.click_count }}</p>
+      <p style="font-size:10px;color:#475569">link visits</p>
     </div>
 
   </div>
 
   {# ══════════════════════════════════════════════════════
-     COMMISSION TIERS — bold ladder with current highlighted
+     COMMISSION TIERS — 3-col flex with bold emerald %
   ══════════════════════════════════════════════════════ #}
-  <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-    <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Commission Tiers</p>
+  <div class="rounded-xl p-4" style="background:rgba(15,23,42,0.7);border:1px solid rgba(51,65,85,0.5)">
+    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Commission Tiers</p>
 
-    <div class="grid grid-cols-3 gap-2">
+    <div class="flex gap-2">
 
       {# Bronze #}
-      <div class="rounded-xl border px-3 py-3 text-center
-        {% if slab_info.label == 'Bronze' %}border-orange-500/60 bg-orange-950/30 ring-1 ring-orange-500/30{% else %}border-slate-800 bg-slate-950/40 opacity-50{% endif %}">
-        <p class="text-[10px] font-semibold text-slate-400">Bronze</p>
-        <p class="mt-1 text-2xl font-black text-emerald-400">10%</p>
-        <p class="mt-0.5 text-[10px] text-slate-500">0 sales</p>
+      <div class="flex-1 rounded-xl py-3 text-center"
+           style="{% if slab_info.label == 'Bronze' %}background:rgba(124,45,18,0.25);border:1px solid rgba(249,115,22,0.5){% else %}background:rgba(15,23,42,0.5);border:1px solid rgba(51,65,85,0.3);opacity:.45{% endif %}">
+        <p style="font-size:10px;font-weight:600;color:#94a3b8">🥉 Bronze</p>
+        <p style="margin-top:4px;font-size:26px;font-weight:900;color:#34d399">10%</p>
+        <p style="font-size:10px;color:#475569">0 sales</p>
         {% if slab_info.label == 'Bronze' %}
-        <span class="mt-1.5 inline-block rounded-full bg-orange-500/20 px-2 py-0.5 text-[9px] font-bold text-orange-300">YOU ARE HERE</span>
+        <p style="margin-top:6px;font-size:9px;font-weight:700;color:#fb923c">▶ YOU ARE HERE</p>
         {% endif %}
       </div>
 
       {# Silver #}
-      <div class="rounded-xl border px-3 py-3 text-center
-        {% if slab_info.label == 'Silver' %}border-slate-400/60 bg-slate-700/30 ring-1 ring-slate-400/30{% else %}border-slate-800 bg-slate-950/40 opacity-50{% endif %}">
-        <p class="text-[10px] font-semibold text-slate-400">Silver</p>
-        <p class="mt-1 text-2xl font-black text-emerald-400">15%</p>
-        <p class="mt-0.5 text-[10px] text-slate-500">5 sales</p>
+      <div class="flex-1 rounded-xl py-3 text-center"
+           style="{% if slab_info.label == 'Silver' %}background:rgba(71,85,105,0.35);border:1px solid rgba(148,163,184,0.5){% else %}background:rgba(15,23,42,0.5);border:1px solid rgba(51,65,85,0.3);opacity:.45{% endif %}">
+        <p style="font-size:10px;font-weight:600;color:#94a3b8">🥈 Silver</p>
+        <p style="margin-top:4px;font-size:26px;font-weight:900;color:#34d399">15%</p>
+        <p style="font-size:10px;color:#475569">5 sales</p>
         {% if slab_info.label == 'Silver' %}
-        <span class="mt-1.5 inline-block rounded-full bg-slate-500/20 px-2 py-0.5 text-[9px] font-bold text-slate-300">YOU ARE HERE</span>
+        <p style="margin-top:6px;font-size:9px;font-weight:700;color:#94a3b8">▶ YOU ARE HERE</p>
         {% endif %}
       </div>
 
       {# Gold #}
-      <div class="rounded-xl border px-3 py-3 text-center
-        {% if slab_info.label == 'Gold' %}border-amber-500/60 bg-amber-950/30 ring-1 ring-amber-500/30{% else %}border-slate-800 bg-slate-950/40 opacity-50{% endif %}">
-        <p class="text-[10px] font-semibold text-slate-400">Gold</p>
-        <p class="mt-1 text-2xl font-black text-emerald-400">20%</p>
-        <p class="mt-0.5 text-[10px] text-slate-500">10 sales</p>
+      <div class="flex-1 rounded-xl py-3 text-center"
+           style="{% if slab_info.label == 'Gold' %}background:rgba(120,53,15,0.3);border:1px solid rgba(245,158,11,0.5){% else %}background:rgba(15,23,42,0.5);border:1px solid rgba(51,65,85,0.3);opacity:.45{% endif %}">
+        <p style="font-size:10px;font-weight:600;color:#94a3b8">🥇 Gold</p>
+        <p style="margin-top:4px;font-size:26px;font-weight:900;color:#34d399">20%</p>
+        <p style="font-size:10px;color:#475569">10 sales</p>
         {% if slab_info.label == 'Gold' %}
-        <span class="mt-1.5 inline-block rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-300">YOU ARE HERE</span>
+        <p style="margin-top:6px;font-size:9px;font-weight:700;color:#fcd34d">▶ YOU ARE HERE</p>
         {% endif %}
       </div>
 
     </div>
 
-    {# Progress bar under tiers #}
+    {# Progress bar #}
     {% set filled = [slab_info.count, 10] | min %}
-    <div class="mt-3 relative h-2 w-full overflow-hidden rounded-full bg-slate-800">
-      <div class="absolute left-0 top-0 h-full rounded-full
-        {% if slab_info.label == 'Gold' %}bg-amber-400
-        {% elif slab_info.label == 'Silver' %}bg-slate-300
-        {% else %}bg-orange-400{% endif %}"
-        style="width: {{ (filled / 10 * 100) | int }}%"></div>
-      <div class="absolute top-0 h-full w-px bg-slate-700" style="left:50%"></div>
+    <div class="mt-3 relative h-2 w-full overflow-hidden rounded-full" style="background:#1e293b">
+      <div class="absolute left-0 top-0 h-full rounded-full"
+           style="width:{{ (filled / 10 * 100) | int }}%;
+           {% if slab_info.label == 'Gold' %}background:#f59e0b
+           {% elif slab_info.label == 'Silver' %}background:#cbd5e1
+           {% else %}background:#f97316{% endif %}"></div>
+      <div class="absolute top-0 h-full" style="left:50%;width:1px;background:rgba(100,116,139,0.5)"></div>
     </div>
-    <div class="mt-1 flex justify-between text-[9px] text-slate-600">
-      <span>0</span>
-      <span>{% if slab_info.next %}{{ slab_info.next.need }} more to {{ slab_info.next.label }}{% else %}🏆 Max tier!{% endif %}</span>
-      <span>10</span>
-    </div>
+    <p class="mt-1.5 text-center" style="font-size:10px;color:#475569">
+      {% if slab_info.next %}{{ slab_info.next.need }} more sale{{ 's' if slab_info.next.need != 1 else '' }} to reach {{ slab_info.next.label }} ({{ slab_info.next.rate }}%){% else %}🏆 Max tier reached!{% endif %}
+    </p>
   </div>
 
   {# ══════════════════════════════════════════════════════
@@ -246,29 +245,29 @@
   {# ══════════════════════════════════════════════════════
      EARNING POTENTIAL CALCULATOR
   ══════════════════════════════════════════════════════ #}
-  <div class="rounded-xl border border-violet-700/30 bg-violet-950/10 p-4 space-y-3">
-    <p class="text-sm font-semibold text-white">💡 How much can you earn?</p>
-    <div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
-      <div class="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2.5 text-center">
-        <p class="text-[10px] text-slate-500 uppercase tracking-wide">20 min/day</p>
-        <p class="mt-1 text-base font-bold text-white">1–2 sales</p>
-        <p class="text-emerald-300 font-semibold">₹1,400–₹4,000</p>
-        <p class="text-[10px] text-slate-600 mt-0.5">per month</p>
+  <div class="rounded-xl p-4" style="background:rgba(46,16,101,0.12);border:1px solid rgba(109,40,217,0.25)">
+    <p class="mb-3 text-sm font-semibold text-white">💡 How much can you earn?</p>
+    <div class="flex gap-2">
+      <div class="flex-1 rounded-lg px-2 py-3 text-center" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.5)">
+        <p style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em">20 min/day</p>
+        <p style="margin-top:4px;font-size:13px;font-weight:700;color:#f1f5f9">1–2 sales</p>
+        <p style="font-size:12px;font-weight:700;color:#6ee7b7">₹1,400–₹4,000</p>
+        <p style="font-size:9px;color:#475569;margin-top:2px">per month</p>
       </div>
-      <div class="rounded-lg border border-emerald-700/30 bg-emerald-950/20 px-3 py-2.5 text-center">
-        <p class="text-[10px] text-slate-500 uppercase tracking-wide">1 hr/day</p>
-        <p class="mt-1 text-base font-bold text-white">5–7 sales</p>
-        <p class="text-emerald-300 font-semibold">₹7,000–₹14,000</p>
-        <p class="text-[10px] text-slate-600 mt-0.5">per month</p>
+      <div class="flex-1 rounded-lg px-2 py-3 text-center" style="background:rgba(6,78,59,0.15);border:1px solid rgba(16,185,129,0.3)">
+        <p style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em">1 hr/day</p>
+        <p style="margin-top:4px;font-size:13px;font-weight:700;color:#f1f5f9">5–7 sales</p>
+        <p style="font-size:12px;font-weight:700;color:#6ee7b7">₹7,000–₹14,000</p>
+        <p style="font-size:9px;color:#475569;margin-top:2px">per month</p>
       </div>
-      <div class="rounded-lg border border-amber-700/30 bg-amber-950/15 px-3 py-2.5 text-center">
-        <p class="text-[10px] text-slate-500 uppercase tracking-wide">2+ hrs/day</p>
-        <p class="mt-1 text-base font-bold text-white">15–20 sales</p>
-        <p class="text-amber-300 font-semibold">₹20,000–₹40,000</p>
-        <p class="text-[10px] text-slate-600 mt-0.5">per month</p>
+      <div class="flex-1 rounded-lg px-2 py-3 text-center" style="background:rgba(120,53,15,0.12);border:1px solid rgba(245,158,11,0.25)">
+        <p style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em">2+ hrs/day</p>
+        <p style="margin-top:4px;font-size:13px;font-weight:700;color:#f1f5f9">15–20 sales</p>
+        <p style="font-size:12px;font-weight:700;color:#fcd34d">₹20,000–₹40,000</p>
+        <p style="font-size:9px;color:#475569;margin-top:2px">per month</p>
       </div>
     </div>
-    <p class="text-[11px] text-slate-600">Based on 20% commission on resell products (avg ₹7,000). More you share → more you earn.</p>
+    <p class="mt-3" style="font-size:10px;color:#475569">Based on 20% commission on resell products (avg ₹7,000). <strong style="color:#94a3b8">More you share → more you earn.</strong></p>
   </div>
 
   {# ══════════════════════════════════════════════════════

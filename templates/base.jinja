@@ -77,5 +77,84 @@
     </main>
   </div>
   {% block extra_js %}{% endblock %}
+
+  {# ── Auto-logout after 30 min of inactivity (authenticated users only) ── #}
+  {% if request.user is defined and request.user.is_authenticated %}
+  {# Hidden logout form — submitted by JS when timeout fires #}
+  <form id="auto-logout-form" method="post" action="{{ url('accounts:logout') }}" style="display:none">
+    {{ csrf_input }}
+  </form>
+
+  {# Warning toast — appears at 25 min, dismissed on any activity #}
+  <div id="inactivity-toast"
+       style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;
+              max-width:320px;border-radius:14px;padding:14px 18px;
+              background:#1e293b;border:1px solid rgba(245,158,11,0.5);
+              box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+    <div style="display:flex;align-items:flex-start;gap:10px;">
+      <span style="font-size:20px;line-height:1">⏱</span>
+      <div style="flex:1;min-width:0">
+        <p style="margin:0;font-size:13px;font-weight:700;color:#fbbf24">Still there?</p>
+        <p style="margin:4px 0 10px;font-size:12px;color:#94a3b8;line-height:1.4">
+          You'll be logged out in <strong id="inactivity-countdown" style="color:#f1f5f9">5:00</strong> due to inactivity.
+        </p>
+        <button onclick="window.__resetInactivityTimer()"
+                style="padding:5px 14px;border-radius:8px;border:none;cursor:pointer;
+                       background:#10b981;color:#0f172a;font-size:12px;font-weight:700">
+          Stay logged in
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var WARN_MS   = 25 * 60 * 1000;  /* show toast at 25 min */
+    var LOGOUT_MS = 30 * 60 * 1000;  /* submit logout at 30 min */
+    var toast     = document.getElementById('inactivity-toast');
+    var countdown = document.getElementById('inactivity-countdown');
+    var warnTimer, logoutTimer, countdownInterval;
+
+    function fmtMs(ms) {
+      var s = Math.max(0, Math.ceil(ms / 1000));
+      return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+    }
+
+    function doLogout() {
+      clearInterval(countdownInterval);
+      document.getElementById('auto-logout-form').submit();
+    }
+
+    window.__resetInactivityTimer = function () {
+      clearTimeout(warnTimer);
+      clearTimeout(logoutTimer);
+      clearInterval(countdownInterval);
+      if (toast) toast.style.display = 'none';
+
+      warnTimer = setTimeout(function () {
+        if (toast) toast.style.display = 'block';
+        /* Tick countdown every second */
+        var remaining = LOGOUT_MS - WARN_MS;
+        countdownInterval = setInterval(function () {
+          remaining -= 1000;
+          if (countdown) countdown.textContent = fmtMs(remaining);
+          if (remaining <= 0) { clearInterval(countdownInterval); doLogout(); }
+        }, 1000);
+      }, WARN_MS);
+
+      logoutTimer = setTimeout(doLogout, LOGOUT_MS);
+    };
+
+    /* Reset on any real user activity */
+    ['mousedown','mousemove','keydown','scroll','touchstart','click','wheel'].forEach(function(e){
+      document.addEventListener(e, window.__resetInactivityTimer, { passive: true });
+    });
+
+    /* Start the clock */
+    window.__resetInactivityTimer();
+  })();
+  </script>
+  {% endif %}
+
 </body>
 </html>

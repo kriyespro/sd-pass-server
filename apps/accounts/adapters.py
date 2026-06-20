@@ -23,7 +23,7 @@ def _login_redirect_url(request):
     if user and user.is_authenticated:
         from apps.billing.models import Subscription
         has_paid_plan = Subscription.objects.filter(
-            user=user, is_active=True,
+            user=user, status=Subscription.Status.ACTIVE,
         ).exclude(plan_slug=Subscription.Plan.FREE).exists()
         if has_paid_plan:
             return reverse('affiliates:partner')

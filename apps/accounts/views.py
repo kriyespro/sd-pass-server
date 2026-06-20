@@ -26,7 +26,7 @@ def _redirect_after_login(request):
     # Free / no-plan users → Projects dashboard.
     from apps.billing.models import Subscription
     has_paid_plan = Subscription.objects.filter(
-        user=request.user, is_active=True,
+        user=request.user, status=Subscription.Status.ACTIVE,
     ).exclude(plan_slug=Subscription.Plan.FREE).exists()
     if has_paid_plan:
         return redirect('affiliates:partner')

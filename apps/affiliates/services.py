@@ -102,7 +102,20 @@ def get_or_create_partner(user):
 
 
 def partner_share_url(request, partner):
+    """Server/hosting referral link → billing redeem page."""
     path = reverse('billing:redeem') + f'?pref={partner.code}'
+    return request.build_absolute_uri(path)
+
+
+def partner_resell_store_url(request, partner):
+    """Resell store referral link."""
+    path = reverse('resell:store') + f'?pref={partner.code}'
+    return request.build_absolute_uri(path)
+
+
+def partner_product_url(request, partner, product):
+    """Individual resell product referral link."""
+    path = reverse('resell:product_detail', kwargs={'slug': product.slug}) + f'?pref={partner.code}'
     return request.build_absolute_uri(path)
 
 

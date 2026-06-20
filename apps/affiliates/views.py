@@ -19,6 +19,8 @@ from .services import (
     get_active_affiliate,
     get_application_for_user,
     get_or_create_partner,
+    partner_product_url,
+    partner_resell_store_url,
     partner_share_url,
 )
 
@@ -123,12 +125,30 @@ class PartnerPageView(LoginRequiredMixin, View):
 
     def get(self, request):
         partner = get_or_create_partner(request.user)
-        share_url = partner_share_url(request, partner)
-        wa_text = urllib.parse.quote(
-            f'Join Krizn — deploy your website in minutes! Sign up using my link: {share_url}',
-            safe='',
-        )
-        wa_url = f'https://wa.me/?text={wa_text}'
+
+        # Server / hosting share link
+        server_url = partner_share_url(request, partner)
+        wa_server = f'https://wa.me/?text={urllib.parse.quote(f"🚀 Deploy your website FREE on Krizn! No setup needed. Sign up using my link: {server_url}", safe="")}'
+
+        # Resell store share link
+        resell_url = partner_resell_store_url(request, partner)
+        wa_resell = f'https://wa.me/?text={urllib.parse.quote(f"💼 Check out these ready-made websites at Krizn Resell Store — launch your own job portal, matrimony site or marketplace: {resell_url}", safe="")}'
+
+        # Per-product resell links
+        products = ResellProduct.objects.filter(is_active=True).order_by('-is_featured', 'name')
+        product_links = [
+            {
+                'product': p,
+                'url': partner_product_url(request, partner, p),
+                'wa_url': f'https://wa.me/?text={urllib.parse.quote(f"🛒 Launch your own {p.name} website! Ready in 3 days — get it here: {partner_product_url(request, partner, p)}", safe="")}',
+            }
+            for p in products
+        ]
+
+        # Paid referrals count and earnings for motivational messaging
+        credited = partner.referrals.filter(status='credited')
+        paid_count = credited.count()
+        total_earned = partner.total_earned
 
         # Plans available for credit redemption
         redeemable_plans = [
@@ -145,13 +165,21 @@ class PartnerPageView(LoginRequiredMixin, View):
 
         return render(request, self.template_name, {
             'partner': partner,
-            'share_url': share_url,
-            'wa_url': wa_url,
+            'server_url': server_url,
+            'resell_url': resell_url,
+            'wa_server': wa_server,
+            'wa_resell': wa_resell,
+            'product_links': product_links,
             'slab_info': partner.slab_info,
+            'paid_count': paid_count,
+            'total_earned': total_earned,
             'referrals': partner.referrals.select_related('referred_user').order_by('-created_at')[:25],
             'redemptions': partner.redemptions.order_by('-created_at')[:10],
             'redeemable_plans': redeemable_plans,
             'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+            # keep share_url for legacy JS usage
+            'share_url': server_url,
+            'wa_url': wa_server,
         })
 
 

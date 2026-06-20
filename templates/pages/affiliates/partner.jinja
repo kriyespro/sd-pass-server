@@ -1,136 +1,254 @@
 {% extends "base.jinja" %}
-{% block title %}Partner — Krizn{% endblock %}
+{% block title %}Partner Dashboard — Krizn{% endblock %}
 
 {% block content %}
-<div x-data="partnerPage()" class="mx-auto max-w-2xl space-y-4 py-3">
+<div x-data="partnerPage()" class="mx-auto max-w-2xl space-y-5 py-4">
 
-  {# ── Top bar: tier + stats ── #}
-  <div class="grid grid-cols-3 gap-2">
+  {# ══════════════════════════════════════════════════════
+     MOTIVATIONAL HERO BANNER — context-aware message
+  ══════════════════════════════════════════════════════ #}
+  {% if paid_count == 0 and partner.click_count == 0 %}
+  {# Fresh start #}
+  <div class="rounded-2xl border border-emerald-700/40 bg-emerald-950/25 px-5 py-4">
+    <p class="text-base font-bold text-emerald-300">👋 Welcome to your Partner Dashboard!</p>
+    <p class="mt-1 text-sm text-slate-400">Share your links below and start earning. Every click brings you closer to your first sale.</p>
+    <div class="mt-3 rounded-xl border border-emerald-800/40 bg-slate-950/40 px-4 py-3">
+      <p class="text-xs font-semibold text-slate-300">💡 Earning potential:</p>
+      <p class="mt-1 text-xs text-slate-400">Share daily for just <strong class="text-white">20 minutes</strong> → <strong class="text-emerald-300">₹10,000–₹20,000/month</strong></p>
+      <p class="mt-0.5 text-xs text-slate-500">Resell product sale = ₹1,200–₹2,000 commission · Server plan = ₹30–₹150 credit</p>
+    </div>
+  </div>
 
+  {% elif paid_count == 0 and partner.click_count > 0 %}
+  {# Clicks but no purchase yet #}
+  <div class="rounded-2xl border border-amber-700/40 bg-amber-950/20 px-5 py-4">
+    <p class="text-base font-bold text-amber-300">
+      {% if partner.click_count >= 20 %}🔥 {{ partner.click_count }} clicks!
+      {% elif partner.click_count >= 5 %}👍 {{ partner.click_count }} clicks — nice work!
+      {% else %}✅ {{ partner.click_count }} click{{ 's' if partner.click_count != 1 else '' }} so far
+      {% endif %}
+    </p>
+    <p class="mt-1 text-sm text-slate-400">
+      Someone is about to buy — keep sharing! Every 20–30 clicks typically converts into 1 sale.
+    </p>
+    <p class="mt-2 text-xs text-slate-500">💡 Try WhatsApp groups, Instagram stories, or your college network for faster results.</p>
+  </div>
+
+  {% elif paid_count >= 1 %}
+  {# At least one sale! #}
+  <div class="rounded-2xl border border-emerald-600/50 bg-emerald-950/30 px-5 py-4">
+    <p class="text-base font-bold text-emerald-300">
+      🎉 {{ paid_count }} sale{{ 's' if paid_count != 1 else '' }} done! You've earned <span class="text-white">₹{{ total_earned | float | round(0) | int }}</span>
+    </p>
+    <p class="mt-1 text-sm text-slate-400">
+      Keep the momentum going — <strong class="text-white">more shares = more sales = more money.</strong>
+    </p>
+    <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2">
+        <p class="text-slate-500">At this rate</p>
+        <p class="mt-0.5 font-semibold text-emerald-300">₹{{ ((total_earned | float) * (30 / [paid_count,1]|max)) | round(0) | int }}/month est.</p>
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2">
+        <p class="text-slate-500">Next tier at {{ slab_info.next.at if slab_info.next else '—' }} sales</p>
+        <p class="mt-0.5 font-semibold text-amber-300">{{ slab_info.next.rate if slab_info.next else slab_info.rate_pct }}% commission</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ══════════════════════════════════════════════════════
+     STATS ROW
+  ══════════════════════════════════════════════════════ #}
+  <div class="grid grid-cols-4 gap-2">
     {# Tier #}
-    <div class="col-span-1 rounded-xl border
+    <div class="rounded-xl border px-3 py-2.5
       {% if slab_info.label == 'Gold' %}border-amber-500/40 bg-amber-950/30
       {% elif slab_info.label == 'Silver' %}border-slate-500/40 bg-slate-800/40
-      {% else %}border-orange-700/40 bg-orange-950/20{% endif %}
-      px-3 py-2.5">
-      <p class="text-[10px] font-semibold uppercase tracking-wider
-        {% if slab_info.label == 'Gold' %}text-amber-400/70
-        {% elif slab_info.label == 'Silver' %}text-slate-400/70
-        {% else %}text-orange-400/70{% endif %}">Tier</p>
-      <p class="mt-0.5 text-xl font-bold
+      {% else %}border-orange-700/40 bg-orange-950/20{% endif %}">
+      <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Tier</p>
+      <p class="mt-0.5 text-lg font-bold
         {% if slab_info.label == 'Gold' %}text-amber-300
         {% elif slab_info.label == 'Silver' %}text-slate-200
         {% else %}text-orange-300{% endif %}">{{ slab_info.rate_pct }}%</p>
-      <p class="text-[11px] font-medium text-slate-400">{{ slab_info.label }}
-        {% if slab_info.next %}<span class="text-slate-600"> · {{ slab_info.next.need }} to {{ slab_info.next.label }}</span>{% endif %}
-      </p>
+      <p class="text-[10px] text-slate-500">{{ slab_info.label }}</p>
     </div>
 
-    {# Credit balance #}
-    <div class="col-span-1 rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-3 py-2.5">
-      <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">Credit</p>
-      <p class="mt-0.5 text-xl font-bold text-emerald-300">₹{{ partner.credit_balance | float | round(2) }}</p>
-      <p class="text-[11px] text-slate-500">Earned ₹{{ partner.total_earned | float | round(2) }}</p>
+    {# Credits earned #}
+    <div class="rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-3 py-2.5">
+      <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Credit</p>
+      <p class="mt-0.5 text-lg font-bold text-emerald-300">₹{{ partner.credit_balance | float | round(0) | int }}</p>
+      <p class="text-[10px] text-slate-500">₹{{ partner.total_earned | float | round(0) | int }} earned</p>
     </div>
 
-    {# Referrals #}
-    <div class="col-span-1 rounded-xl border border-sky-500/20 bg-slate-900/50 px-3 py-2.5">
-      <p class="text-[10px] font-semibold uppercase tracking-wider text-sky-400/70">Referrals</p>
-      <p class="mt-0.5 text-xl font-bold text-white">{{ slab_info.count }}</p>
-      <p class="text-[11px] text-slate-500">Paid ₹{{ partner.total_redeemed | float | round(2) }}</p>
+    {# Sales #}
+    <div class="rounded-xl border border-sky-500/20 bg-slate-900/50 px-3 py-2.5">
+      <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Sales</p>
+      <p class="mt-0.5 text-lg font-bold text-white">{{ paid_count }}</p>
+      <p class="text-[10px] text-slate-500">paid refs</p>
+    </div>
+
+    {# Clicks #}
+    <div class="rounded-xl border border-violet-500/20 bg-slate-900/50 px-3 py-2.5">
+      <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Clicks</p>
+      <p class="mt-0.5 text-lg font-bold text-violet-300">{{ partner.click_count }}</p>
+      <p class="text-[10px] text-slate-500">link visits</p>
     </div>
   </div>
 
-  {# ── Clicks stat ── #}
-  <div class="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2 flex items-center gap-3">
-    <svg class="h-4 w-4 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-    <span class="text-xs text-slate-400">Link clicks</span>
-    <span class="ml-auto text-sm font-bold text-white">{{ partner.click_count }}</span>
-  </div>
-
-  {# ── Tier progress bar ── #}
-  <div class="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 space-y-2.5">
-
-    {# Header row: current tier + next tier call-to-action #}
+  {# ══════════════════════════════════════════════════════
+     TIER PROGRESS BAR
+  ══════════════════════════════════════════════════════ #}
+  <div class="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 space-y-2">
     <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Commission tier</span>
-        <span class="rounded-full px-2 py-0.5 text-[10px] font-bold
-          {% if slab_info.label == 'Gold' %}bg-amber-500/20 text-amber-300
-          {% elif slab_info.label == 'Silver' %}bg-slate-500/20 text-slate-200
-          {% else %}bg-orange-500/15 text-orange-300{% endif %}">
-          {{ slab_info.label }} · {{ slab_info.rate_pct }}%
-        </span>
-      </div>
-      {% if slab_info.next %}
-      <span class="text-[11px] font-semibold text-sky-400">
-        {{ slab_info.next.need }} more → {{ slab_info.next.label }} ({{ slab_info.next.rate }}%)
+      <span class="text-xs font-semibold
+        {% if slab_info.label == 'Gold' %}text-amber-300
+        {% elif slab_info.label == 'Silver' %}text-slate-200
+        {% else %}text-orange-300{% endif %}">
+        {{ slab_info.label }} · {{ slab_info.rate_pct }}% commission
       </span>
+      {% if slab_info.next %}
+      <span class="text-[11px] text-sky-400 font-medium">{{ slab_info.next.need }} more sale{{ 's' if slab_info.next.need != 1 else '' }} → {{ slab_info.next.label }} ({{ slab_info.next.rate }}%)</span>
       {% else %}
-      <span class="text-[11px] font-semibold text-amber-400">Max tier reached!</span>
+      <span class="text-[11px] text-amber-400 font-semibold">🏆 Max tier reached!</span>
       {% endif %}
     </div>
-
-    {# Progress track across all 3 tiers: 0–4 Bronze, 5–9 Silver, 10+ Gold #}
-    {% set total_segments = 10 %}
-    {% set filled = [slab_info.count, total_segments] | min %}
-    <div class="relative h-3 w-full overflow-hidden rounded-full bg-slate-800">
-      {# Filled portion #}
-      <div class="absolute left-0 top-0 h-full rounded-full transition-all duration-500
+    {% set filled = [slab_info.count, 10] | min %}
+    <div class="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+      <div class="absolute left-0 top-0 h-full rounded-full
         {% if slab_info.label == 'Gold' %}bg-amber-400
         {% elif slab_info.label == 'Silver' %}bg-slate-300
         {% else %}bg-orange-400{% endif %}"
-        style="width: {{ (filled / total_segments * 100) | int }}%"></div>
-      {# Slab boundary markers at 5/10 #}
-      <div class="absolute top-0 h-full w-px bg-slate-600/80" style="left: 50%"></div>
+        style="width: {{ (filled / 10 * 100) | int }}%"></div>
+      <div class="absolute top-0 h-full w-px bg-slate-600/80" style="left:50%"></div>
     </div>
-
-    {# Labels under bar #}
     <div class="flex justify-between text-[10px] text-slate-600">
-      <span>0 — Bronze 10%</span>
-      <span>5 — Silver 15%</span>
-      <span>10 — Gold 20%</span>
+      <span>Bronze 10%</span><span>Silver 15% (5)</span><span>Gold 20% (10)</span>
     </div>
   </div>
 
-  {# ── Share link ── #}
-  <div class="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
-    <div class="mb-2 flex items-center justify-between">
-      <h2 class="text-sm font-semibold text-white">Your referral link</h2>
-      <span class="rounded-full border border-slate-700 px-2 py-0.5 font-mono text-[11px] text-slate-400">{{ partner.code }}</span>
+  {# ══════════════════════════════════════════════════════
+     SHARE LINKS — SERVER HOSTING
+  ══════════════════════════════════════════════════════ #}
+  <div class="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4 space-y-3">
+    <div class="flex items-center gap-2">
+      <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-base">🖥</span>
+      <div>
+        <h2 class="text-sm font-semibold text-white">Server Hosting Link</h2>
+        <p class="text-[11px] text-slate-500">Earn credit when someone buys a hosting plan</p>
+      </div>
     </div>
-
     <div class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2">
-      <p class="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-400">{{ share_url }}</p>
-      <button type="button"
-              @click="copyLink('{{ share_url }}')"
+      <p class="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-400">{{ server_url }}</p>
+      <button type="button" @click="copyLink('{{ server_url }}', 'server')"
               class="shrink-0 rounded-md bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-emerald-400 active:scale-95">
-        <span x-show="!copied">Copy</span>
-        <span x-show="copied" x-cloak>✓</span>
+        <span x-show="copiedKey !== 'server'">Copy</span>
+        <span x-show="copiedKey === 'server'" x-cloak>✓ Copied!</span>
       </button>
     </div>
-
-    <div class="mt-2.5 flex flex-wrap gap-2">
-      <a href="{{ wa_url }}" target="_blank" rel="noopener noreferrer"
-         class="inline-flex items-center gap-1.5 rounded-lg border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-[#25D366] transition hover:bg-[#25D366]/20 active:scale-95">
-        <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        WhatsApp
+    <div class="flex flex-wrap gap-2">
+      <a href="{{ wa_server }}" target="_blank" rel="noopener noreferrer"
+         class="inline-flex items-center gap-1.5 rounded-lg border border-green-700/40 bg-green-950/20 px-3 py-1.5 text-xs font-semibold text-green-400 transition hover:bg-green-950/40 active:scale-95">
+        📱 WhatsApp
       </a>
-      <button type="button" @click="copyLink('{{ partner.code }}')"
+      <button type="button" @click="copyLink('{{ partner.code }}', 'code')"
               class="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 active:scale-95">
-        Copy code
+        <span x-show="copiedKey !== 'code'">Copy code</span>
+        <span x-show="copiedKey === 'code'" x-cloak>✓ {{ partner.code }}</span>
       </button>
     </div>
   </div>
 
-  {# ── Redeem credit ── #}
-  {% if partner.credit_balance > 0 %}
-  <div class="rounded-xl border border-emerald-700/40 bg-emerald-950/15 p-4">
-    <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-sm font-semibold text-white">Redeem credit</h2>
-      <span class="text-xs text-emerald-300 font-semibold">₹{{ partner.credit_balance | float | round(2) }} available</span>
+  {# ══════════════════════════════════════════════════════
+     SHARE LINKS — RESELL STORE
+  ══════════════════════════════════════════════════════ #}
+  <div class="rounded-xl border border-amber-700/40 bg-amber-950/10 p-4 space-y-3">
+    <div class="flex items-center gap-2">
+      <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/15 text-base">🛒</span>
+      <div>
+        <h2 class="text-sm font-semibold text-white">Resell Store Link</h2>
+        <p class="text-[11px] text-slate-500">Big commissions — job portal, matrimony, marketplace. Up to ₹2,000/sale!</p>
+      </div>
     </div>
+    <div class="flex items-center gap-2 rounded-lg border border-amber-800/40 bg-slate-950/70 px-3 py-2">
+      <p class="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-400">{{ resell_url }}</p>
+      <button type="button" @click="copyLink('{{ resell_url }}', 'resell')"
+              class="shrink-0 rounded-md bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-amber-400 active:scale-95">
+        <span x-show="copiedKey !== 'resell'">Copy</span>
+        <span x-show="copiedKey === 'resell'" x-cloak>✓ Copied!</span>
+      </button>
+    </div>
+    <a href="{{ wa_resell }}" target="_blank" rel="noopener noreferrer"
+       class="inline-flex items-center gap-1.5 rounded-lg border border-green-700/40 bg-green-950/20 px-3 py-1.5 text-xs font-semibold text-green-400 transition hover:bg-green-950/40 active:scale-95">
+      📱 WhatsApp Store
+    </a>
 
+    {# Per-product links #}
+    {% if product_links %}
+    <div class="space-y-2 pt-1">
+      <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Or share a specific product:</p>
+      {% for pl in product_links %}
+      <div class="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2.5">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-semibold text-white truncate">{{ pl.product.name }}</p>
+            <p class="text-[11px] text-slate-500">
+              ₹{{ pl.product.price | int }} · 20% = <span class="text-emerald-400 font-semibold">₹{{ (pl.product.price * 0.20) | round(0) | int }} commission</span>
+            </p>
+          </div>
+          <div class="flex shrink-0 gap-1.5">
+            <button type="button" @click="copyLink('{{ pl.url }}', 'prod_{{ pl.product.slug }}')"
+                    class="rounded-md border border-slate-700 bg-slate-800/60 px-2 py-1 text-[10px] font-semibold text-slate-300 transition hover:bg-slate-700 active:scale-95">
+              <span x-show="copiedKey !== 'prod_{{ pl.product.slug }}'">Copy</span>
+              <span x-show="copiedKey === 'prod_{{ pl.product.slug }}'" x-cloak>✓</span>
+            </button>
+            <a href="{{ pl.wa_url }}" target="_blank" rel="noopener noreferrer"
+               class="rounded-md border border-green-800/50 bg-green-950/20 px-2 py-1 text-[10px] font-semibold text-green-400 transition hover:bg-green-950/40">WA</a>
+          </div>
+        </div>
+        <p class="font-mono text-[10px] text-slate-600 truncate">{{ pl.url }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# ══════════════════════════════════════════════════════
+     EARNING POTENTIAL CALCULATOR
+  ══════════════════════════════════════════════════════ #}
+  <div class="rounded-xl border border-violet-700/30 bg-violet-950/10 p-4 space-y-3">
+    <p class="text-sm font-semibold text-white">💡 How much can you earn?</p>
+    <div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2.5 text-center">
+        <p class="text-[10px] text-slate-500 uppercase tracking-wide">20 min/day</p>
+        <p class="mt-1 text-base font-bold text-white">1–2 sales</p>
+        <p class="text-emerald-300 font-semibold">₹1,400–₹4,000</p>
+        <p class="text-[10px] text-slate-600 mt-0.5">per month</p>
+      </div>
+      <div class="rounded-lg border border-emerald-700/30 bg-emerald-950/20 px-3 py-2.5 text-center">
+        <p class="text-[10px] text-slate-500 uppercase tracking-wide">1 hr/day</p>
+        <p class="mt-1 text-base font-bold text-white">5–7 sales</p>
+        <p class="text-emerald-300 font-semibold">₹7,000–₹14,000</p>
+        <p class="text-[10px] text-slate-600 mt-0.5">per month</p>
+      </div>
+      <div class="rounded-lg border border-amber-700/30 bg-amber-950/15 px-3 py-2.5 text-center">
+        <p class="text-[10px] text-slate-500 uppercase tracking-wide">2+ hrs/day</p>
+        <p class="mt-1 text-base font-bold text-white">15–20 sales</p>
+        <p class="text-amber-300 font-semibold">₹20,000–₹40,000</p>
+        <p class="text-[10px] text-slate-600 mt-0.5">per month</p>
+      </div>
+    </div>
+    <p class="text-[11px] text-slate-600">Based on 20% commission on resell products (avg ₹7,000). More you share → more you earn.</p>
+  </div>
+
+  {# ══════════════════════════════════════════════════════
+     REDEEM CREDIT
+  ══════════════════════════════════════════════════════ #}
+  {% if partner.credit_balance > 0 %}
+  <div class="rounded-xl border border-emerald-700/40 bg-emerald-950/15 p-4 space-y-2.5">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-white">🎁 Redeem credit</h2>
+      <span class="text-xs text-emerald-300 font-semibold">₹{{ partner.credit_balance | float | round(0) | int }} available</span>
+    </div>
     <div class="space-y-1.5">
       {% for plan in redeemable_plans %}
       {% if plan.affordable or plan.partial %}
@@ -138,20 +256,18 @@
         <div class="min-w-0 flex-1">
           <p class="text-xs font-medium text-slate-200">{{ plan.label }}</p>
           <p class="text-[11px] text-slate-500">₹{{ plan.price | int }}
-            {% if plan.affordable %}<span class="ml-1 text-emerald-400 font-semibold">· Free with credit</span>
+            {% if plan.affordable %}<span class="ml-1 text-emerald-400 font-semibold">· Free with credit!</span>
             {% elif plan.partial %}<span class="ml-1 text-sky-400">· Pay ₹{{ (plan.price - (partner.credit_balance | float)) | round(0) | int }} after credit</span>
             {% endif %}
           </p>
         </div>
         {% if plan.affordable %}
-        <button type="button"
-                @click="creditBuy('{{ plan.slug }}', {{ plan.price }}, '{{ plan.label }}')"
+        <button @click="creditBuy('{{ plan.slug }}', {{ plan.price }}, '{{ plan.label }}')"
                 class="shrink-0 rounded-md bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-emerald-400 active:scale-95">
           Activate →
         </button>
         {% else %}
-        <button type="button"
-                @click="partialCreditBuy('{{ plan.slug }}', {{ plan.price }}, {{ partner.credit_balance | float }}, '{{ plan.label }}')"
+        <button @click="partialCreditBuy('{{ plan.slug }}', {{ plan.price }}, {{ partner.credit_balance | float }}, '{{ plan.label }}')"
                 class="shrink-0 rounded-md border border-sky-500/50 bg-sky-950/30 px-2.5 py-1 text-[11px] font-semibold text-sky-300 transition hover:bg-sky-950/50 active:scale-95">
           Apply + Pay
         </button>
@@ -160,72 +276,65 @@
       {% endif %}
       {% endfor %}
     </div>
-
-    <div x-show="redeemMsg" x-cloak class="mt-2.5 rounded-lg border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200" x-text="redeemMsg"></div>
-    <div x-show="redeemErr" x-cloak class="mt-2.5 rounded-lg border border-rose-700/50 bg-rose-950/40 px-3 py-2 text-xs text-rose-200" x-text="redeemErr"></div>
+    <div x-show="redeemMsg" x-cloak class="rounded-lg border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200" x-text="redeemMsg"></div>
+    <div x-show="redeemErr" x-cloak class="rounded-lg border border-rose-700/50 bg-rose-950/40 px-3 py-2 text-xs text-rose-200" x-text="redeemErr"></div>
   </div>
   {% endif %}
 
-  {# ── Referral history ── #}
+  {# ══════════════════════════════════════════════════════
+     REFERRAL HISTORY
+  ══════════════════════════════════════════════════════ #}
   <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-    <h2 class="mb-3 text-sm font-semibold text-white">Referrals</h2>
+    <h2 class="mb-3 text-sm font-semibold text-white">Referral History</h2>
     {% if referrals %}
-    <table class="w-full text-left text-xs">
-      <thead>
-        <tr class="border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-          <th class="pb-2 pr-4">Name</th>
-          <th class="pb-2 pr-4">Email</th>
-          <th class="pb-2 pr-4">Signed up</th>
-          <th class="pb-2 pr-4">Plan</th>
-          <th class="pb-2 pr-4">Status</th>
-          <th class="pb-2 text-right">Earned</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-800/50">
-        {% for r in referrals %}
-        <tr class="hover:bg-slate-800/20 transition">
-          <td class="py-2 pr-4 text-slate-300">
-            {% if r.referred_user %}
-              {{ r.referred_user.get_full_name().strip() or '—' }}
-            {% else %}—{% endif %}
-          </td>
-          <td class="py-2 pr-4 text-slate-400">{{ r.referred_user.email if r.referred_user else '—' }}</td>
-          <td class="py-2 pr-4 text-slate-500">{{ r.created_at.strftime('%d %b %Y') }}</td>
-          <td class="py-2 pr-4 text-slate-500">{{ r.plan_slug or '—' }}</td>
-          <td class="py-2 pr-4">
-            {% if r.status == 'credited' %}
-            <span class="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">Paid</span>
-            {% else %}
-            <span class="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">Pending</span>
-            {% endif %}
-          </td>
-          <td class="py-2 text-right font-semibold {% if r.commission_amount > 0 %}text-emerald-300{% else %}text-slate-700{% endif %}">
-            {% if r.commission_amount > 0 %}+₹{{ r.commission_amount }}{% else %}—{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="space-y-2">
+      {% for r in referrals %}
+      <div class="flex items-center gap-3 rounded-lg border border-slate-800/60 bg-slate-950/40 px-3 py-2">
+        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-400">
+          {{ loop.index }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-medium text-slate-200 truncate">
+            {{ r.referred_user.get_full_name().strip() or r.referred_user.email if r.referred_user else 'Anonymous' }}
+          </p>
+          <p class="text-[11px] text-slate-600">{{ r.created_at.strftime('%d %b %Y') }}{% if r.plan_slug %} · {{ r.plan_slug }}{% endif %}</p>
+        </div>
+        <div class="shrink-0 text-right">
+          {% if r.status == 'credited' %}
+          <span class="block text-xs font-bold text-emerald-300">+₹{{ r.commission_amount | round(0) | int }}</span>
+          <span class="text-[10px] text-emerald-600">Paid</span>
+          {% else %}
+          <span class="block text-xs font-medium text-amber-400">Pending</span>
+          <span class="text-[10px] text-slate-600">Waiting</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
     {% else %}
-    <p class="py-4 text-center text-xs text-slate-600">No referrals yet — share your link to get started.</p>
+    <div class="py-6 text-center">
+      <p class="text-2xl">🔗</p>
+      <p class="mt-2 text-sm text-slate-400">No referrals yet</p>
+      <p class="text-xs text-slate-600 mt-1">Share your links above to get started!</p>
+    </div>
     {% endif %}
   </div>
 
-  {# ── Redemption history (only if exists) ── #}
+  {# ══════════════════════════════════════════════════════
+     CREDIT USED HISTORY
+  ══════════════════════════════════════════════════════ #}
   {% if redemptions %}
   <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-    <h2 class="mb-3 text-sm font-semibold text-white">Credit used</h2>
-    <table class="w-full text-left text-xs">
-      <tbody class="divide-y divide-slate-800/50">
-        {% for rd in redemptions %}
-        <tr class="hover:bg-slate-800/20 transition">
-          <td class="py-2 pr-4 text-slate-300">{{ rd.plan_slug or '—' }}</td>
-          <td class="py-2 pr-4 text-slate-600">{{ rd.created_at.strftime('%d %b %Y') }}</td>
-          <td class="py-2 text-right font-semibold text-rose-400">−₹{{ rd.amount_redeemed }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <h2 class="mb-3 text-sm font-semibold text-white">Credit Used</h2>
+    <div class="space-y-1.5">
+      {% for rd in redemptions %}
+      <div class="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-950/40 px-3 py-2 text-xs">
+        <span class="text-slate-300">{{ rd.plan_slug or '—' }}</span>
+        <span class="text-slate-600">{{ rd.created_at.strftime('%d %b %Y') }}</span>
+        <span class="font-semibold text-rose-400">−₹{{ rd.amount_redeemed }}</span>
+      </div>
+      {% endfor %}
+    </div>
   </div>
   {% endif %}
 
@@ -236,15 +345,19 @@
 <script>
 function partnerPage() {
   return {
-    copied: false,
+    copiedKey: '',
     redeemMsg: '',
     redeemErr: '',
     csrf: document.querySelector('meta[name="csrf-token"]').content,
 
-    copyLink(text) {
-      navigator.clipboard.writeText(text);
-      this.copied = true;
-      setTimeout(() => this.copied = false, 2000);
+    copyLink(text, key) {
+      navigator.clipboard.writeText(text).catch(() => {
+        const el = document.createElement('textarea');
+        el.value = text; document.body.appendChild(el); el.select();
+        document.execCommand('copy'); document.body.removeChild(el);
+      });
+      this.copiedKey = key;
+      setTimeout(() => { if (this.copiedKey === key) this.copiedKey = ''; }, 2500);
     },
 
     async creditBuy(slug, price, label) {
@@ -267,7 +380,6 @@ function partnerPage() {
       const key = '{{ razorpay_key_id }}';
       if (!key) { this.redeemErr = 'Payment not configured.'; return; }
       const creditAmount = parseFloat(creditBalance.toFixed(2));
-
       const oRes = await fetch('{{ url("billing:create_order") }}', {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf},
@@ -276,7 +388,6 @@ function partnerPage() {
       const oData = await oRes.json();
       if (oData.error) { this.redeemErr = oData.error; return; }
       if (oData.free) { return this.creditBuy(slug, price, label); }
-
       new Razorpay({
         key, order_id: oData.order_id, amount: oData.amount, currency: oData.currency,
         name: 'Krizn', description: `${label} (₹${creditAmount} credit applied)`,

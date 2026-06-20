@@ -17,7 +17,7 @@
       or request.path.startswith('/notifications/') or request.path.startswith('/onboarding/')
       or request.path.startswith('/admin/') or request.path.startswith('/ops/')
       or request.path.startswith('/trainer/') or request.path.startswith('/api/')
-      or request.path.startswith('/sd/') %}
+      or request.path.startswith('/sd/') or request.path.startswith('/accounts/') %}
   {% block meta_robots %}<meta name="robots" content="{{ 'noindex, nofollow' if _priv else 'index, follow' }}">{% endblock %}
 
   {# ── SEO: Canonical ── #}

@@ -10,9 +10,10 @@ from django.db.models import Q
 
 from apps.projects.models import Project
 
-_CACHE_PREFIX = 'projects:allow_host:'
-_CACHE_PREFIX_VERIFIED = 'projects:allow_host_verified:'
+_CACHE_PREFIX = 'projects:allow_host:v2:'
+_CACHE_PREFIX_VERIFIED = 'projects:allow_host_verified:v2:'
 _CACHE_TTL = 600
+_CACHE_TTL_MISS = 30  # short negative cache so DNS/sibling fixes apply quickly
 
 
 def normalize_hostname(host: str | None) -> str:
@@ -92,11 +93,12 @@ def project_has_custom_hostname(host: str) -> bool:
     if hit is not None:
         return bool(hit)
     ok = Project.objects.filter(_custom_host_q(h), is_deleted=False).exists()
-    cache.set(key, ok, _CACHE_TTL)
+    ttl = _CACHE_TTL if ok else _CACHE_TTL_MISS
+    cache.set(key, ok, ttl)
     # Warm sibling cache too so the other form does not re-query immediately.
     sib = sibling_hostname(h)
     if sib:
-        cache.set(_CACHE_PREFIX + sib, ok, _CACHE_TTL)
+        cache.set(_CACHE_PREFIX + sib, ok, ttl)
     return ok
 
 
@@ -117,10 +119,11 @@ def is_trusted_custom_hostname(host: str) -> bool:
         is_deleted=False,
         custom_hostname_verified=True,
     ).exists()
-    cache.set(key, ok, _CACHE_TTL)
+    ttl = _CACHE_TTL if ok else _CACHE_TTL_MISS
+    cache.set(key, ok, ttl)
     sib = sibling_hostname(h)
     if sib:
-        cache.set(_CACHE_PREFIX_VERIFIED + sib, ok, _CACHE_TTL)
+        cache.set(_CACHE_PREFIX_VERIFIED + sib, ok, ttl)
     return ok
 
 

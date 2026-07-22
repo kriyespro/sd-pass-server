@@ -24,7 +24,10 @@ def write_project_router_file(project) -> tuple[Path, str]:
     raw = (getattr(project, 'custom_hostname', None) or '').strip().rstrip('.')
     verified = bool(getattr(project, 'custom_hostname_verified', False))
     if raw and raw.lower() != fqdn.lower() and verified:
-        extra_hosts.append(raw.lower())
+        from apps.projects.host_allowlist import hostname_aliases
+        for alias in sorted(hostname_aliases(raw)):
+            if alias != fqdn.lower() and alias not in extra_hosts:
+                extra_hosts.append(alias)
     from apps.projects.models import ProjectType
     flask_port = getattr(project, 'flask_port', None)
     is_flask = (

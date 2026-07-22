@@ -1,14 +1,16 @@
 """
 Let users add custom domains in the dashboard without SSH/env edits.
 
-If ``Host`` matches ``Project.custom_hostname`` for an active project, append that
-host to ``ALLOWED_HOSTS``. CSRF trusted origins are added only after TXT verification.
+If ``Host`` matches ``Project.custom_hostname`` (or its www ↔ apex sibling) for an
+active project, append both host forms to ``ALLOWED_HOSTS``. CSRF trusted origins
+are added only after TXT verification.
 """
 from __future__ import annotations
 
 from django.conf import settings
 
 from apps.projects.host_allowlist import (
+    host_without_port,
     is_trusted_custom_hostname,
     project_has_custom_hostname,
     register_host_for_django,
@@ -36,7 +38,7 @@ class DynamicAllowedHostsMiddleware:
     def __call__(self, request):
         raw = (request.META.get('HTTP_HOST') or '').strip()
         if raw:
-            host = raw.split(':')[0].lower()
+            host = host_without_port(raw).lower()
             if host and host not in _get_platform_hosts() and project_has_custom_hostname(host):
                 register_host_for_django(host, trust_csrf=is_trusted_custom_hostname(host))
         return self.get_response(request)

@@ -13,7 +13,9 @@ class Command(BaseCommand):
             path, fqdn = write_project_router_file(project)
             extra = getattr(project, 'custom_hostname', None) or ''
             if extra:
-                self.stdout.write(f'{project.subdomain} -> {path} ({fqdn}, also Host(`{extra}`))')
+                from apps.projects.host_allowlist import hostname_aliases
+                aliases = ', '.join(sorted(hostname_aliases(extra)))
+                self.stdout.write(f'{project.subdomain} -> {path} ({fqdn}, custom: {aliases})')
             else:
                 self.stdout.write(f'{project.subdomain} -> {path} ({fqdn})')
             n += 1

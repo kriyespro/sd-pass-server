@@ -59,11 +59,19 @@ class ProjectCustomHostnameForm(forms.ModelForm):
     def clean_custom_hostname(self):
         v = _validate_optional_fqdn(self.cleaned_data.get('custom_hostname') or '') or None
         if v:
-            qs = Project.objects.filter(custom_hostname__iexact=v, is_deleted=False).exclude(
-                pk=self.instance.pk
-            )
-            if qs.exists():
-                raise ValidationError('Another active project already uses this hostname.')
+            from apps.projects.host_allowlist import hostname_aliases
+            aliases = hostname_aliases(v)
+            qs = Project.objects.filter(is_deleted=False).exclude(pk=self.instance.pk)
+            conflict = False
+            for alias in aliases:
+                if qs.filter(custom_hostname__iexact=alias).exists():
+                    conflict = True
+                    break
+            if conflict:
+                raise ValidationError(
+                    'Another active project already uses this hostname '
+                    '(including the www / non-www form).'
+                )
         return v
 
 

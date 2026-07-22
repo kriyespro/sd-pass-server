@@ -30,17 +30,14 @@ _CACHE_TTL = 60  # seconds
 
 
 def _is_verified_custom_host(host: str) -> bool:
-    """Return True if *host* is a verified custom hostname for any Project."""
+    """Return True if *host* (or www↔apex sibling) is a verified custom hostname."""
     now = time.monotonic()
     entry = _custom_host_cache.get(host)
     if entry is not None and entry[1] > now:
         return entry[0]
     try:
-        from apps.projects.models import Project  # avoid circular import at module level
-        verified = Project.objects.filter(
-            custom_hostname__iexact=host,
-            custom_hostname_verified=True,
-        ).exists()
+        from apps.projects.host_allowlist import is_trusted_custom_hostname
+        verified = is_trusted_custom_hostname(host)
     except Exception:  # noqa: BLE001
         verified = False
     _custom_host_cache[host] = (verified, now + _CACHE_TTL)

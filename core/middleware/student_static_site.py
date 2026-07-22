@@ -31,11 +31,14 @@ _SITE_CACHE_TTL = 30
 
 def invalidate_site_host_cache(project) -> None:
     """Call after deploy or delete so the next request re-fetches the project."""
+    from apps.projects.host_allowlist import hostname_aliases
+
     base = getattr(settings, 'STUDENT_APPS_BASE_DOMAIN', '').strip().strip('.').lower()
     sub_host = f'{(project.subdomain or "").lower()}.{base}'
     cache.delete(_PROJ_HOST_CACHE_PREFIX + sub_host)
     if project.custom_hostname:
-        cache.delete(_PROJ_HOST_CACHE_PREFIX + project.custom_hostname.strip().lower())
+        for alias in hostname_aliases(project.custom_hostname):
+            cache.delete(_PROJ_HOST_CACHE_PREFIX + alias)
     cache.delete(_TRIAL_CACHE_PREFIX + str(project.owner_id))
     cache.delete(_FREE_PLAN_CACHE_PREFIX + str(project.owner_id))
     cache.delete(_SUBFOLDER_LIST_CACHE_PREFIX + str(project.pk))
@@ -379,6 +382,19 @@ def _resolve_project_for_static_host(host: str):
         .first()
     )
     if project is None:
+        # www.example.com ↔ example.com — same site when only one form was saved.
+        from apps.projects.host_allowlist import sibling_hostname
+        sib = sibling_hostname(host)
+        if sib:
+            project = (
+                Project.objects.filter(
+                    custom_hostname__iexact=sib,
+                    is_deleted=False,
+                )
+                .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port')
+                .first()
+            )
+    if project is None:
         return None
     if project.custom_hostname_verified:
         cache.set(cache_key, project.pk, _SITE_CACHE_TTL)
@@ -568,6 +584,17 @@ class StudentStaticSiteMiddleware:
         if isinstance(resolved, HttpResponse):
             return resolved
         project = resolved
+
+        # Canonicalize www ↔ apex to the hostname saved on the project (301).
+        canonical = (project.custom_hostname or '').strip().lower().rstrip('.')
+        if canonical and host.lower() != canonical:
+            from apps.projects.host_allowlist import sibling_hostname
+            if sibling_hostname(canonical) == host.lower():
+                path = request.get_full_path() or '/'
+                scheme = getattr(settings, 'STUDENT_SITE_PUBLIC_SCHEME', None) or (
+                    'https' if request.is_secure() else 'http'
+                )
+                return HttpResponsePermanentRedirect(f'{scheme}://{canonical}{path}')
 
         # Flask projects: proxy all methods to the gunicorn process.
         # Custom domain traffic arrives here via nginx's default server block

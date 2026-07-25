@@ -154,6 +154,26 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
                 f'Project was created, but Traefik could not write its route file ({exc}). '
                 'Restart the web container (runs regenerate_traefik_routes) or fix volume permissions.',
             )
+        if self.object.project_type == ProjectType.WORDPRESS:
+            from apps.wordpress.tasks import provision_wordpress_site
+
+            admin_email = form.cleaned_data.get('wp_admin_email') or self.request.user.email
+            provision_wordpress_site.delay(self.object.pk, admin_email)
+            messages.info(
+                self.request,
+                'Setting up your WordPress site — this usually takes under a minute. '
+                'Refresh the WordPress tab for admin details once it is ready.',
+            )
+        elif self.object.project_type == ProjectType.DRUPAL:
+            from apps.drupal.tasks import provision_drupal_site
+
+            admin_email = form.cleaned_data.get('wp_admin_email') or self.request.user.email
+            provision_drupal_site.delay(self.object.pk, None, admin_email)
+            messages.info(
+                self.request,
+                'Setting up your Drupal site — this can take a couple of minutes (Composer scaffold). '
+                'Refresh the Drupal tab for admin details once it is ready.',
+            )
         if adjusted:
             messages.success(
                 self.request,
@@ -206,6 +226,8 @@ class ProjectDeleteView(LoginRequiredMixin, View):
 
     def post(self, request, *args, **kwargs):
         name = self.project.name
+        project_type = self.project.project_type
+        project_pk = self.project.pk
         ok, err = soft_delete_project(project=self.project, user=request.user)
         if not ok:
             if err == 'already_deleted':
@@ -213,6 +235,18 @@ class ProjectDeleteView(LoginRequiredMixin, View):
             else:
                 messages.error(request, 'You cannot remove this project.')
             return HttpResponseRedirect(reverse('projects:dashboard'))
+        if project_type == ProjectType.WORDPRESS:
+            from apps.wordpress.tasks import deprovision_wordpress_site
+
+            deprovision_wordpress_site.delay(project_pk)
+        elif project_type == ProjectType.PHP:
+            from apps.phpapps.tasks import deprovision_php_site
+
+            deprovision_php_site.delay(project_pk)
+        elif project_type == ProjectType.DRUPAL:
+            from apps.drupal.tasks import deprovision_drupal_site
+
+            deprovision_drupal_site.delay(project_pk)
         messages.success(
             request,
             f'Project “{name}” was deleted. Site files and uploads for it were removed.',

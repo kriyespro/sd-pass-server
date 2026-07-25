@@ -9,6 +9,37 @@ def project_fqdn(project) -> str:
     return f'{project.subdomain}.{base}'
 
 
+def site_url_for(project) -> str:
+    """Public URL for a project's platform subdomain (scheme/port from settings)."""
+    fqdn = project_fqdn(project)
+    scheme = getattr(settings, 'STUDENT_SITE_PUBLIC_SCHEME', 'http') or 'http'
+    port = getattr(settings, 'STUDENT_SITE_HTTP_PORT', 0) or 0
+    return f'{scheme}://{fqdn}:{port}/' if port else f'{scheme}://{fqdn}/'
+
+
+def _upstream_for_project(project) -> str:
+    """
+    Traefik upstream for one project, by type:
+      - Flask: flask-runner sidecar on its allocated port
+      - WordPress / PHP / Drupal: the project's own container, managed by the
+        containers_runner sidecar (proj_<id>:80)
+      - everything else: the shared Django `web` upstream
+    See php.txt section 3, INF-3.
+    """
+    from apps.projects.models import ProjectType
+
+    project_type = getattr(project, 'project_type', None)
+    flask_port = getattr(project, 'flask_port', None)
+    if project_type == ProjectType.FLASK and flask_port is not None:
+        flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
+        # Strip management port — use the app's allocated port instead
+        flask_runner_host = flask_runner_base.rsplit(':', 1)[0] if ':' in flask_runner_base else flask_runner_base
+        return f'{flask_runner_host}:{flask_port}'
+    if project_type in (ProjectType.WORDPRESS, ProjectType.PHP, ProjectType.DRUPAL):
+        return f'proj_{project.pk}:80'
+    return settings.TRAEFIK_UPSTREAM_URL
+
+
 def write_project_router_file(project) -> tuple[Path, str]:
     """Render Traefik file-provider YAML for one project and write it to TRAEFIK_DYNAMIC_DIR."""
     fqdn = project_fqdn(project)
@@ -28,20 +59,7 @@ def write_project_router_file(project) -> tuple[Path, str]:
         for alias in sorted(hostname_aliases(raw)):
             if alias != fqdn.lower() and alias not in extra_hosts:
                 extra_hosts.append(alias)
-    from apps.projects.models import ProjectType
-    flask_port = getattr(project, 'flask_port', None)
-    is_flask = (
-        getattr(project, 'project_type', None) == ProjectType.FLASK
-        and flask_port is not None
-    )
-    flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
-    # Strip management port — use the app's allocated port instead
-    flask_runner_host = flask_runner_base.rsplit(':', 1)[0] if ':' in flask_runner_base else flask_runner_base
-    upstream = (
-        f'{flask_runner_host}:{flask_port}'
-        if is_flask
-        else settings.TRAEFIK_UPSTREAM_URL
-    )
+    upstream = _upstream_for_project(project)
     content = render_to_string(
         'traefik/project_route.yml.jinja',
         {

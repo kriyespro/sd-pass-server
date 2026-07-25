@@ -1,3 +1,4 @@
+import re
 import secrets
 import string
 from decimal import Decimal
@@ -118,6 +119,56 @@ def plan_hosting_specs(plan_slug):
         'cpu': '—',
         'storage': '—',
     })
+
+
+# Container-hosted project types (WordPress/PHP/Drupal, php.txt Phase 2-4) split a
+# plan's advertised RAM/CPU between the app container and its per-project MySQL
+# container. Tune the split once real docker stats exist (php.txt section 10) — this
+# is the starting ratio, not a final answer.
+_CONTAINER_APP_RAM_SHARE = 0.7
+_CONTAINER_APP_CPU_SHARE = 0.7
+_MIN_CONTAINER_MEM_MB = 256
+_MIN_CONTAINER_NANO_CPUS = 250_000_000  # 0.25 vCPU floor
+
+
+def _parse_ram_mb(ram_str: str) -> int:
+    match = re.search(r'([\d.]+)\s*(GB|MB)', ram_str or '', re.IGNORECASE)
+    if not match:
+        return _MIN_CONTAINER_MEM_MB * 2
+    value = float(match.group(1))
+    unit = match.group(2).upper()
+    return int(value * 1024) if unit == 'GB' else int(value)
+
+
+def _parse_vcpu(cpu_str: str) -> float:
+    match = re.search(r'([\d.]+)\s*vCPU', cpu_str or '', re.IGNORECASE)
+    if not match:
+        return 1.0
+    return float(match.group(1))
+
+
+def plan_docker_limits(plan_slug: str) -> dict:
+    """
+    Split a plan's advertised RAM/CPU (PLAN_HOSTING_SPECS) between an app container
+    and its per-project MySQL container. Returns
+    {'app': {'mem_limit': '1433m', 'nano_cpus': N}, 'mysql': {...}}.
+    See php.txt section 3, INF-6 and section 10, decision 2.
+    """
+    specs = plan_hosting_specs(plan_slug)
+    total_mb = _parse_ram_mb(specs.get('ram', ''))
+    total_vcpu = _parse_vcpu(specs.get('cpu', ''))
+    total_nano_cpus = int(total_vcpu * 1_000_000_000)
+
+    app_mb = max(_MIN_CONTAINER_MEM_MB, int(total_mb * _CONTAINER_APP_RAM_SHARE))
+    db_mb = max(_MIN_CONTAINER_MEM_MB, total_mb - app_mb)
+
+    app_nano_cpus = max(_MIN_CONTAINER_NANO_CPUS, int(total_nano_cpus * _CONTAINER_APP_CPU_SHARE))
+    db_nano_cpus = max(_MIN_CONTAINER_NANO_CPUS, total_nano_cpus - app_nano_cpus)
+
+    return {
+        'app': {'mem_limit': f'{app_mb}m', 'nano_cpus': app_nano_cpus},
+        'mysql': {'mem_limit': f'{db_mb}m', 'nano_cpus': db_nano_cpus},
+    }
 
 
 class Subscription(models.Model):

@@ -45,6 +45,19 @@ services:
     depends_on:
       - web
 
+  containers-runner:
+    build:
+      context: ./containers_runner
+      dockerfile: Dockerfile
+    environment:
+      CONTAINERS_RUNNER_TOKEN: ${CONTAINERS_RUNNER_TOKEN:-}
+      PLATFORM_DOCKER_NETWORK: platform_net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    depends_on:
+      - web
+
   traefik:
     image: traefik:v3.2
     command:
@@ -62,6 +75,9 @@ services:
     volumes:
       - traefik_dynamic:/dynamic:ro
       - traefik_acme:/acme
+    networks:
+      - default
+      - platform_net
     depends_on:
       - web
 
@@ -135,6 +151,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+
+networks:
+  # Dedicated network for containers-runner-managed per-project containers
+  # (proj_<id>, proj_<id>_mysql) so Traefik can reach them by name. See php.txt
+  # section 3, INF-1.
+  platform_net:
+    name: platform_net
 
 volumes:
   pgdata: {}

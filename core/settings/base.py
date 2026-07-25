@@ -55,6 +55,10 @@ INSTALLED_APPS = [
     'apps.logs',
     'apps.quotas',
     'apps.databases',
+    'apps.containers',
+    'apps.wordpress',
+    'apps.phpapps',
+    'apps.drupal',
     'apps.backups',
     'apps.platform_ops',
     'apps.notifications',
@@ -269,6 +273,12 @@ if STUDENT_SITE_PUBLIC_SCHEME not in ('http', 'https'):
 FLASK_RUNNER_URL   = env('FLASK_RUNNER_URL',   default='http://flask-runner:6000')
 FLASK_RUNNER_TOKEN = env('FLASK_RUNNER_TOKEN', default='')
 
+# Sole client of the containers_runner sidecar (repo root) — the only process that
+# holds /var/run/docker.sock. Used for WordPress/PHP/Drupal per-project containers
+# and their per-project MySQL containers. See php.txt section 3, INF-1/INF-2.
+CONTAINERS_RUNNER_URL   = env('CONTAINERS_RUNNER_URL',   default='http://containers-runner:6100')
+CONTAINERS_RUNNER_TOKEN = env('CONTAINERS_RUNNER_TOKEN', default='')
+
 CLOUDFLARE_API_TOKEN = env('CLOUDFLARE_API_TOKEN', default='')
 CLOUDFLARE_ZONE_ID = env('CLOUDFLARE_ZONE_ID', default='')
 PLATFORM_PUBLIC_IP = env('PLATFORM_PUBLIC_IP', default='')
@@ -458,6 +468,10 @@ CELERY_BEAT_SCHEDULE = {
     'newsletter-sync-users-weekly': {
         'task': 'newsletter.sync_all_users',
         'schedule': crontab(hour=3, minute=30, day_of_week=1),
+    },
+    'containers-restart-crashed': {
+        'task': 'containers.restart_crashed_containers',
+        'schedule': crontab(minute='*/10'),
     },
 }
 

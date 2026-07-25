@@ -11,6 +11,7 @@ class ProjectType(models.TextChoices):
     NODE = 'node', 'Node'
     PHP = 'php', 'PHP'
     WORDPRESS = 'wordpress', 'WordPress'
+    DRUPAL = 'drupal', 'Drupal'
     MYSQL_ONLY = 'mysql_only', 'MySQL only'
 
 

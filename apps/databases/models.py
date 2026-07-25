@@ -7,6 +7,7 @@ class DatabaseInstance(models.Model):
     class Engine(models.TextChoices):
         POSTGRES = 'postgres', 'PostgreSQL'
         REDIS = 'redis', 'Redis'
+        MYSQL = 'mysql', 'MySQL'
 
     project = models.ForeignKey(
         Project,

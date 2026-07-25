@@ -19,7 +19,7 @@ from django.views.generic import FormView
 logger = logging.getLogger(__name__)
 
 from .models import PLAN_LABELS, PLAN_LIMITS, PLAN_PRICES, PlanAddon, Subscription
-from .services import get_or_create_subscription, redeem_coupon
+from .services import get_or_create_subscription, redeem_coupon, sync_container_projects_for_subscription
 
 
 class CouponForm(forms.Form):
@@ -248,6 +248,7 @@ def verify_payment(request):
     sub.current_period_end = timezone.now() + timezone.timedelta(days=plan_days)
     sub.trial_ends_at = None
     sub.save()
+    sync_container_projects_for_subscription(request.user)
 
     # Deduct partner credit if used
     credit_used = Decimal(str(data.get('credit_amount', 0) or 0)).quantize(Decimal('0.01'))
@@ -294,6 +295,7 @@ def partner_credit_buy(request):
     sub.current_period_end = timezone.now() + timezone.timedelta(days=plan_days)
     sub.trial_ends_at = None
     sub.save()
+    sync_container_projects_for_subscription(request.user)
 
     label = PLAN_LABELS.get(plan_slug, plan_slug)
     logger.info('Partner credit buy — user %s activated %s for ₹%s credit', request.user.id, plan_slug, plan_price)

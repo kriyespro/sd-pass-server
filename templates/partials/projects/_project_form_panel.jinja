@@ -13,6 +13,7 @@
     hx-post="{{ url('projects:create') }}"
     hx-target="#project-form-panel"
     hx-swap="innerHTML"
+    x-data="{ ptype: '{{ form.project_type.value() or 'static' }}' }"
   >
     <div id="project-form-hx-indicator" class="htmx-indicator mb-2 text-sm font-medium text-emerald-300">Saving…</div>
     {{ csrf_input }}
@@ -30,9 +31,13 @@
     {% endif %}
 
     {% for field in form %}
-      <div>
+      <div{% if field.name == 'wp_admin_email' %} x-show="ptype === 'wordpress' || ptype === 'drupal'"{% endif %}>
         <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-200">{{ field.label }}</label>
-        {{ field }}
+        {% if field.name == 'project_type' %}
+          {{ field.as_widget(attrs={'x-model': 'ptype'}) }}
+        {% else %}
+          {{ field }}
+        {% endif %}
         {% if field.help_text %}
           <p class="mt-1 text-xs text-slate-500">{{ field.help_text|safe }}</p>
         {% endif %}

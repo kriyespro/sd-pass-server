@@ -1,0 +1,65 @@
+{% extends "base.jinja" %}
+{% block title %}WordPress — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-3xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">WordPress</h1>
+
+    {% if not wp_instance %}
+      <p class="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-4 py-6 text-center text-sm text-slate-500">
+        Your WordPress site is still being set up. This page will show admin details once it is ready — refresh in a moment.
+      </p>
+    {% else %}
+      <dl class="mt-4 divide-y divide-slate-800 rounded-xl border border-slate-800 text-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <dt class="text-slate-400">Site</dt>
+          <dd>
+            <a href="{{ site_url }}" target="_blank" rel="noopener noreferrer" class="font-mono text-xs text-sky-300 hover:text-sky-200">{{ site_url }}</a>
+          </dd>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <dt class="text-slate-400">Admin login</dt>
+          <dd>
+            <a href="{{ site_url }}wp-admin/" target="_blank" rel="noopener noreferrer" class="font-mono text-xs text-sky-300 hover:text-sky-200">{{ site_url }}wp-admin/</a>
+          </dd>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <dt class="text-slate-400">Admin username</dt>
+          <dd class="font-mono text-xs text-white">{{ wp_instance.wp_admin_user }}</dd>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <dt class="text-slate-400">Admin email</dt>
+          <dd class="font-mono text-xs text-white">{{ wp_instance.wp_admin_email }}</dd>
+        </div>
+        {% if stats.status == 'running' %}
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <dt class="text-slate-400">Resource usage</dt>
+          <dd class="font-mono text-xs text-white">{{ stats.mem_usage_mb }} / {{ stats.mem_limit_mb }} MB · {{ stats.cpu_percent }}% CPU</dd>
+        </div>
+        {% endif %}
+        {% if db %}
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <dt class="text-slate-400">Database</dt>
+          <dd class="font-mono text-xs text-white">{{ db.name }} ({{ db.get_engine_display() }})</dd>
+        </div>
+        {% endif %}
+      </dl>
+
+      <form method="post" action="{{ url('projects:wordpress_reset_password', slug=project.slug) }}"
+            class="mt-4"
+            onsubmit="return confirm('Reset the WordPress admin password? The new password will be shown once.');">
+        {{ csrf_input }}
+        <button type="submit"
+                class="inline-flex items-center rounded-lg border border-amber-500/60 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-500/25">
+          Reset admin password
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

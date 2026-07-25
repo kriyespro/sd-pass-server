@@ -91,6 +91,18 @@ def deploy_after_scan(scan_result: dict) -> dict:
         else:
             append_project_log(proj, LogKind.SYSTEM, f'Flask deploy failed: {extract_msg}')
 
+    elif proj.project_type == ProjectType.PHP:
+        from apps.phpapps.tasks import provision_php_site
+
+        provision_php_site.delay(proj.pk, str(upload.file.path))
+        append_project_log(proj, LogKind.BUILD, 'PHP app upload passed scan — deployment queued.')
+
+    elif proj.project_type == ProjectType.DRUPAL:
+        from apps.drupal.tasks import provision_drupal_site
+
+        provision_drupal_site.delay(proj.pk, str(upload.file.path))
+        append_project_log(proj, LogKind.BUILD, 'Drupal site upload passed scan — deployment queued.')
+
     else:
         append_project_log(
             proj,
@@ -144,6 +156,12 @@ def deploy_after_scan(scan_result: dict) -> dict:
     elif proj.project_type == ProjectType.FLASK and extract_ok:
         link_url = site_url
         body = f'Your Flask app is live at {site_url} — first request may take a few seconds while gunicorn starts.'
+    elif proj.project_type == ProjectType.PHP:
+        link_url = reverse('projects:logs', kwargs={'slug': proj.slug})
+        body = 'Your PHP app upload passed the scan and is being deployed — you will get another notification when it is live.'
+    elif proj.project_type == ProjectType.DRUPAL:
+        link_url = reverse('projects:logs', kwargs={'slug': proj.slug})
+        body = 'Your Drupal upload passed the scan and is being deployed — you will get another notification when it is live.'
     else:
         link_url = reverse('projects:logs', kwargs={'slug': proj.slug})
         body = 'Your upload passed the scan. See project logs for details.'

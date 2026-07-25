@@ -250,10 +250,22 @@
               <td class="px-3 py-2 text-slate-400 text-xs whitespace-nowrap">{{ p.created_at.strftime("%d %b '%y") }}</td>
               <td class="px-3 py-2 text-right whitespace-nowrap">
                 <span class="inline-flex items-center gap-1 text-xs font-medium">
-                  <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
-                  <span class="text-slate-700">·</span>
-                  <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
-                  <span class="text-slate-700">·</span>
+                  {% if p.project_type == 'wordpress' %}
+                    <a href="{{ url('projects:wordpress', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">WordPress</a>
+                    <span class="text-slate-700">·</span>
+                  {% else %}
+                    <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
+                    <span class="text-slate-700">·</span>
+                    <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
+                    <span class="text-slate-700">·</span>
+                    {% if p.project_type == 'php' %}
+                      <a href="{{ url('projects:php', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">PHP</a>
+                      <span class="text-slate-700">·</span>
+                    {% elif p.project_type == 'drupal' %}
+                      <a href="{{ url('projects:drupal', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Drupal</a>
+                      <span class="text-slate-700">·</span>
+                    {% endif %}
+                  {% endif %}
                   <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>
                   <span class="text-slate-700">·</span>
                   <a href="{{ url('projects:logs', slug=p.slug) }}" class="text-slate-400 hover:text-white">Logs</a>

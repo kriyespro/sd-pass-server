@@ -31,6 +31,9 @@ services:
       - "9080:80"
     volumes:
       - ./data/traefik/dynamic:/dynamic:ro
+    networks:
+      - default
+      - platform_net
     depends_on:
       - web
 
@@ -45,6 +48,19 @@ services:
       PIP_TIMEOUT: '180'
     volumes:
       - ./data/sites:/app/data/sites
+    restart: unless-stopped
+    depends_on:
+      - web
+
+  containers-runner:
+    build:
+      context: ./containers_runner
+      dockerfile: Dockerfile
+    environment:
+      CONTAINERS_RUNNER_TOKEN: 'dev-local-runner-token'
+      PLATFORM_DOCKER_NETWORK: platform_net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     depends_on:
       - web
@@ -67,6 +83,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CELERY_TASK_ALWAYS_EAGER: 'false'
       TRAEFIK_UPSTREAM_URL: http://web:8000
+      CONTAINERS_RUNNER_URL: http://containers-runner:6100
+      CONTAINERS_RUNNER_TOKEN: 'dev-local-runner-token'
     depends_on:
       db:
         condition: service_healthy
@@ -86,6 +104,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CELERY_TASK_ALWAYS_EAGER: 'false'
       TRAEFIK_UPSTREAM_URL: http://web:8000
+      CONTAINERS_RUNNER_URL: http://containers-runner:6100
+      CONTAINERS_RUNNER_TOKEN: 'dev-local-runner-token'
     depends_on:
       db:
         condition: service_healthy
@@ -105,11 +125,21 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CELERY_TASK_ALWAYS_EAGER: 'false'
       TRAEFIK_UPSTREAM_URL: http://web:8000
+      CONTAINERS_RUNNER_URL: http://containers-runner:6100
+      CONTAINERS_RUNNER_TOKEN: 'dev-local-runner-token'
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
+
+networks:
+  # Dedicated network for containers-runner-managed per-project containers
+  # (proj_<id>, proj_<id>_mysql) so Traefik can reach them by name without every
+  # platform service being on the same network. Explicit `name:` keeps it stable
+  # regardless of the compose project directory name. See php.txt section 3, INF-1.
+  platform_net:
+    name: platform_net
 
 volumes:
   pgdata:

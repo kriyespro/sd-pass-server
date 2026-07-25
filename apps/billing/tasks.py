@@ -7,6 +7,7 @@ from core.celery import app
 def suspend_expired_trials() -> dict:
     from django.utils import timezone
 
+    from apps.billing.services import sync_container_projects_for_subscription
     from apps.notifications.models import NotificationLevel
     from apps.notifications.services import create_notification
 
@@ -26,6 +27,7 @@ def suspend_expired_trials() -> dict:
     for sub in expired_launch_trials:
         sub.status = Subscription.Status.SUSPENDED
         sub.save(update_fields=['status', 'updated_at'])
+        sync_container_projects_for_subscription(sub.user)
         suspended_ids.append(sub.user_id)
         create_notification(
             user_id=sub.user_id,
@@ -48,6 +50,7 @@ def suspend_expired_trials() -> dict:
     for sub in expired_trials:
         sub.status = Subscription.Status.SUSPENDED
         sub.save(update_fields=['status', 'updated_at'])
+        sync_container_projects_for_subscription(sub.user)
         suspended_ids.append(sub.user_id)
         create_notification(
             user_id=sub.user_id,
@@ -69,6 +72,7 @@ def suspend_expired_trials() -> dict:
     for sub in active_free:
         sub.status = Subscription.Status.SUSPENDED
         sub.save(update_fields=['status', 'updated_at'])
+        sync_container_projects_for_subscription(sub.user)
         suspended_ids.append(sub.user_id)
         create_notification(
             user_id=sub.user_id,

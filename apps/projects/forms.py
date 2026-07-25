@@ -4,7 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 
-from apps.billing.services import user_flask_limit, user_project_limit
+from apps.billing.services import user_can_create_project_type, user_flask_limit, user_project_limit
 
 from .models import Project, ProjectType
 from .subdomain import allocate_unique_subdomain, subdomain_is_available, suggest_subdomain_base
@@ -76,6 +76,12 @@ class ProjectCustomHostnameForm(forms.ModelForm):
 
 
 class ProjectForm(forms.ModelForm):
+    wp_admin_email = forms.EmailField(
+        required=False,
+        label='Admin email',
+        help_text='Used to create your admin account. Only needed for WordPress and Drupal projects.',
+    )
+
     class Meta:
         model = Project
         fields = ('name', 'project_type', 'subdomain', 'description')
@@ -84,6 +90,7 @@ class ProjectForm(forms.ModelForm):
         self.user = user
         self.subdomain_adjusted_from = ''
         super().__init__(*args, **kwargs)
+        self.order_fields(['name', 'project_type', 'subdomain', 'wp_admin_email', 'description'])
         if 'subdomain' in self.fields:
             self.fields['subdomain'].required = False
             self.fields['subdomain'].help_text = (
@@ -98,15 +105,21 @@ class ProjectForm(forms.ModelForm):
             self.fields['name'].widget.attrs['placeholder'] = 'My Portfolio Site'
         if 'project_type' in self.fields:
             flask_limit = user_flask_limit(user) if user else 0
+            wp_allowed = user_can_create_project_type(user, 'wordpress') if user else False
+            php_allowed = user_can_create_project_type(user, 'php') if user else False
+            drupal_allowed = user_can_create_project_type(user, 'drupal') if user else False
             type_choices = [
                 (ProjectType.STATIC, 'Static Website (HTML / CSS / JS / Tailwind)'),
                 (ProjectType.FLASK,  f'Flask App (Python · SQLite){" — upgrade required" if flask_limit == 0 else ""}'),
+                (ProjectType.WORDPRESS, f'WordPress{"" if wp_allowed else " — upgrade required"}'),
+                (ProjectType.PHP, f'PHP App (upload a ZIP){"" if php_allowed else " — upgrade required"}'),
+                (ProjectType.DRUPAL, f'Drupal{"" if drupal_allowed else " — upgrade required"}'),
             ]
             self.fields['project_type'].choices = type_choices
             self.fields['project_type'].initial = ProjectType.STATIC
             self.fields['project_type'].help_text = (
                 'Static sites are fast and free to host. '
-                'Flask apps (Python) require WordPress Pro plan or higher.'
+                'Flask apps, WordPress, PHP apps, and Drupal require WordPress Pro plan or higher.'
             )
         for _name, field in self.fields.items():
             field.widget.attrs.setdefault('class', _FIELD_CLASS)
@@ -158,5 +171,33 @@ class ProjectForm(forms.ModelForm):
                     f'({flask_limit} app{"s" if flask_limit != 1 else ""}). '
                     'Upgrade your plan or purchase a Flask Add-on.'
                 )
+
+        # WordPress-specific gate
+        if data.get('project_type') == ProjectType.WORDPRESS:
+            if not user_can_create_project_type(self.user, 'wordpress'):
+                raise forms.ValidationError(
+                    'WordPress hosting requires WordPress Pro (₹3,699/year) or higher. '
+                    'Upgrade your plan to create a WordPress project.'
+                )
+            if not (data.get('wp_admin_email') or '').strip():
+                raise forms.ValidationError('Enter an admin email for your WordPress site.')
+
+        # PHP-specific gate
+        if data.get('project_type') == ProjectType.PHP:
+            if not user_can_create_project_type(self.user, 'php'):
+                raise forms.ValidationError(
+                    'PHP app hosting requires WordPress Pro (₹3,699/year) or higher. '
+                    'Upgrade your plan to create a PHP project.'
+                )
+
+        # Drupal-specific gate
+        if data.get('project_type') == ProjectType.DRUPAL:
+            if not user_can_create_project_type(self.user, 'drupal'):
+                raise forms.ValidationError(
+                    'Drupal hosting requires WordPress Pro (₹3,699/year) or higher. '
+                    'Upgrade your plan to create a Drupal project.'
+                )
+            if not (data.get('wp_admin_email') or '').strip():
+                raise forms.ValidationError('Enter an admin email for your Drupal site.')
 
         return data

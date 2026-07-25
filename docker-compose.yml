@@ -58,7 +58,7 @@ services:
       dockerfile: Dockerfile
     environment:
       CONTAINERS_RUNNER_TOKEN: 'dev-local-runner-token'
-      PLATFORM_DOCKER_NETWORK: platform_net
+      PLATFORM_DOCKER_NETWORK: ${PLATFORM_NETWORK_NAME:-platform_net}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
@@ -139,7 +139,7 @@ networks:
   # platform service being on the same network. Explicit `name:` keeps it stable
   # regardless of the compose project directory name. See php.txt section 3, INF-1.
   platform_net:
-    name: platform_net
+    name: ${PLATFORM_NETWORK_NAME:-platform_net}
 
 volumes:
   pgdata:

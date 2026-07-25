@@ -278,6 +278,10 @@ FLASK_RUNNER_TOKEN = env('FLASK_RUNNER_TOKEN', default='')
 # and their per-project MySQL containers. See php.txt section 3, INF-1/INF-2.
 CONTAINERS_RUNNER_URL   = env('CONTAINERS_RUNNER_URL',   default='http://containers-runner:6100')
 CONTAINERS_RUNNER_TOKEN = env('CONTAINERS_RUNNER_TOKEN', default='')
+# Empty by default. Set on a non-production deployment sharing a Docker host with
+# another one (e.g. a test box alongside prod) so proj_<id> container names never
+# collide — see apps/containers/services.py::_name_prefix().
+CONTAINER_NAME_PREFIX = env('CONTAINER_NAME_PREFIX', default='')
 
 CLOUDFLARE_API_TOKEN = env('CLOUDFLARE_API_TOKEN', default='')
 CLOUDFLARE_ZONE_ID = env('CLOUDFLARE_ZONE_ID', default='')

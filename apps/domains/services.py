@@ -36,7 +36,8 @@ def _upstream_for_project(project) -> str:
         flask_runner_host = flask_runner_base.rsplit(':', 1)[0] if ':' in flask_runner_base else flask_runner_base
         return f'{flask_runner_host}:{flask_port}'
     if project_type in (ProjectType.WORDPRESS, ProjectType.PHP, ProjectType.DRUPAL):
-        return f'proj_{project.pk}:80'
+        from apps.containers.services import container_name
+        return f'{container_name(project)}:80'
     return settings.TRAEFIK_UPSTREAM_URL
 
 

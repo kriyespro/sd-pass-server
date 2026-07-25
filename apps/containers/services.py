@@ -28,12 +28,24 @@ def _headers() -> dict:
 
 # ── Naming ───────────────────────────────────────────────────────────────────────
 
+def _name_prefix() -> str:
+    """
+    Optional prefix so multiple environments (e.g. a test deployment sharing a
+    Docker host with production) never collide on container names — Docker
+    requires container names to be unique per-host, and these are plain
+    `proj_<pk>` strings with no environment scoping otherwise. Empty by default
+    (unchanged behavior); set CONTAINER_NAME_PREFIX to something like 'test_'
+    on a non-production deployment sharing a host with another one.
+    """
+    return getattr(settings, 'CONTAINER_NAME_PREFIX', '') or ''
+
+
 def container_name(project) -> str:
-    return f'proj_{project.pk}'
+    return f'{_name_prefix()}proj_{project.pk}'
 
 
 def mysql_container_name(project) -> str:
-    return f'proj_{project.pk}_mysql'
+    return f'{_name_prefix()}proj_{project.pk}_mysql'
 
 
 # ── Suspend / unsuspend (php.txt Phase 5, BIL-1) ───────────────────────────────────

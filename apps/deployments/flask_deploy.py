@@ -32,6 +32,13 @@ FLASK_ALLOWED_SUFFIXES = frozenset({
     '.csv', '.xml',
 })
 
+# Exact filenames allowed even though Path.suffix only sees their last dot
+# (e.g. '.env.example' → suffix '.example', which isn't in FLASK_ALLOWED_SUFFIXES).
+FLASK_ALLOWED_FILENAMES = frozenset({
+    '.env.example', '.env.sample', '.env.local', '.env.development',
+    '.env.production', '.env.test', '.gitignore', '.flaskenv',
+})
+
 MAX_FLASK_ZIP_SIZE = 50 * 1024 * 1024   # 50 MB
 MAX_FLASK_FILES    = 500
 
@@ -62,7 +69,8 @@ def _validate_flask_zip(zip_path: Path) -> tuple[bool, str]:
                 if not name or name.startswith('/') or '..' in name.split('/'):
                     return False, f'Unsafe ZIP entry: {name!r}'
                 suf = Path(name).suffix.lower()
-                if suf and suf not in FLASK_ALLOWED_SUFFIXES:
+                basename = Path(name).name.lower()
+                if basename not in FLASK_ALLOWED_FILENAMES and suf and suf not in FLASK_ALLOWED_SUFFIXES:
                     return False, (
                         f'File type not allowed: {name!r}. '
                         f'Allowed: Python, HTML, CSS, JS, SQLite, images, config files.'

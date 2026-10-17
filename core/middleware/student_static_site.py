@@ -513,9 +513,13 @@ class StudentStaticSiteMiddleware:
         import urllib.error
         import urllib.request as ureq
 
+        # Content-Encoding is NOT hop-by-hop (RFC 7230) — it describes how the body
+        # itself is encoded (e.g. gzip), so it must pass through unchanged or the
+        # browser renders the still-compressed bytes as garbage text. Stripping it
+        # here while forwarding the compressed body untouched was the bug.
         _HOP = frozenset({
             'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
-            'te', 'trailers', 'transfer-encoding', 'upgrade', 'content-encoding',
+            'te', 'trailers', 'transfer-encoding', 'upgrade',
         })
 
         # Never follow redirects — return them to the browser so it handles

@@ -252,6 +252,8 @@
                 <span class="inline-flex items-center gap-1 text-xs font-medium">
                   <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
                   <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:upload_github', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">GitHub</a>
+                  <span class="text-slate-700">·</span>
                   <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
                   <span class="text-slate-700">·</span>
                   <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>

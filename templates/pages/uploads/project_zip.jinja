@@ -70,6 +70,9 @@
         After upload, a security scan runs then files are published.
       {% endif %}
     </p>
+    <p class="mt-2 text-sm text-slate-400">
+      Or <a href="{{ url('projects:upload_github', slug=project.slug) }}" class="font-semibold text-emerald-300 underline hover:text-emerald-200">🐙 pull from a public GitHub repo</a> instead of uploading a ZIP.
+    </p>
 
     {% if is_static_project %}
       <p class="mt-2 text-sm text-sky-300/90">

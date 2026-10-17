@@ -1,0 +1,56 @@
+{% extends "base.jinja" %}
+{% block title %}Pull from GitHub — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:upload_zip', slug=project.slug) }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Back to ZIP upload</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">🐙 Pull from GitHub</h1>
+    <p class="mt-2 text-sm text-slate-400">
+      We download the repo exactly like GitHub's own "Download ZIP" button, then run it
+      through the same security scan and deploy pipeline as a manual ZIP upload.
+    </p>
+
+    <form method="post" class="mt-6 space-y-4">
+      {{ csrf_input }}
+      {% if form.non_field_errors() %}
+        <div class="rounded-lg border border-rose-700/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+          {% for err in form.non_field_errors() %}{{ err }}{% endfor %}
+        </div>
+      {% endif %}
+
+      <div>
+        <label class="block text-sm font-medium text-slate-200" for="{{ form.repo_url.id_for_label }}">GitHub repo</label>
+        {{ form.repo_url }}
+        {% if form.repo_url.errors %}
+          {% for err in form.repo_url.errors %}<p class="mt-1 text-sm text-rose-300">{{ err }}</p>{% endfor %}
+        {% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-200" for="{{ form.branch.id_for_label }}">
+          Branch <span class="text-slate-500 font-normal">(optional)</span>
+        </label>
+        {{ form.branch }}
+      </div>
+
+      <button type="submit"
+        class="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+        🐙 Pull &amp; deploy
+      </button>
+    </form>
+
+    <div class="mt-6 rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-xs text-slate-400 space-y-1">
+      <p class="font-semibold text-slate-300">Notes</p>
+      <ul class="space-y-1 list-disc pl-4">
+        <li>Public repos only for now — private repos need a token (ask if you need this).</li>
+        <li>Max size: {{ upload_max_mb }} MB, same as a ZIP upload.</li>
+        <li>Runs through the exact same file-type checks and security scan as a normal upload — check the project's Logs page if it doesn't go live.</li>
+        <li>Leave branch blank to use the repo's default branch.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

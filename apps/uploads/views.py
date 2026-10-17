@@ -3,6 +3,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.files.base import ContentFile
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
@@ -15,7 +16,7 @@ from apps.logs.models import LogKind
 from apps.logs.services import append_project_log
 from apps.projects.models import Project, ProjectSubfolder, ProjectType
 
-from .forms import MultiStaticUploadForm, ZipUploadForm
+from .forms import GithubPullForm, MultiStaticUploadForm, ZipUploadForm
 from .models import ProjectUpload
 from .tasks import enqueue_upload_pipeline
 
@@ -148,6 +149,70 @@ class ZipUploadView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         return reverse_lazy('projects:dashboard')
+
+
+class GithubPullView(LoginRequiredMixin, View):
+    """
+    Pull a public GitHub repo as a ZIP (same artifact as GitHub's own "Download ZIP"
+    button) and feed it into the exact same scan/deploy pipeline as a manual ZIP upload.
+    """
+
+    http_method_names = ['get', 'post']
+
+    def dispatch(self, request, *args, **kwargs):
+        self.project = get_object_or_404(
+            Project,
+            slug=kwargs['slug'],
+            owner=request.user,
+            is_deleted=False,
+        )
+        return super().dispatch(request, *args, **kwargs)
+
+    def _context(self, form):
+        return {
+            'project': self.project,
+            'form': form,
+            'upload_max_mb': settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024),
+        }
+
+    def get(self, request, *args, **kwargs):
+        return render(request, 'pages/uploads/github_pull.jinja', self._context(GithubPullForm()))
+
+    def post(self, request, *args, **kwargs):
+        from apps.uploads.github_pull import fetch_github_zipball, parse_github_repo, resolve_default_branch
+
+        form = GithubPullForm(request.POST)
+        if not form.is_valid():
+            return render(request, 'pages/uploads/github_pull.jinja', self._context(form))
+
+        owner, repo = parse_github_repo(form.cleaned_data['repo_url'])
+        branch = (form.cleaned_data.get('branch') or '').strip()
+        if not branch:
+            branch = resolve_default_branch(owner, repo) or 'main'
+
+        ok, result = fetch_github_zipball(owner, repo, branch, settings.STUDENT_UPLOAD_MAX_BYTES)
+        if not ok:
+            form.add_error(None, result)
+            return render(request, 'pages/uploads/github_pull.jinja', self._context(form))
+
+        zip_bytes = result
+        filename = f'{repo}-{branch}.zip'
+
+        upload = ProjectUpload(
+            project=self.project,
+            owner=request.user,
+            original_name=filename,
+            size_bytes=len(zip_bytes),
+        )
+        upload.file.save(filename, ContentFile(zip_bytes), save=True)
+
+        append_project_log(
+            self.project, LogKind.SYSTEM,
+            f'Pulled {owner}/{repo}@{branch} from GitHub ({len(zip_bytes) // 1024} KB).',
+        )
+        enqueue_upload_pipeline.delay(upload.pk)
+        messages.success(request, f'Pulling {owner}/{repo}@{branch} — security scan and deploy are running.')
+        return HttpResponseRedirect(reverse('projects:logs', kwargs={'slug': self.project.slug}))
 
 
 class MultiStaticFilesView(LoginRequiredMixin, View):

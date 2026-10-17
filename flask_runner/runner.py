@@ -176,6 +176,15 @@ def _restore_state() -> None:
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+def _tail(text: str, n: int = 4000) -> str:
+    """Last n chars of text — Python tracebacks put the actual exception type and
+    message at the END, so a head-slice (the old [:600] behavior) routinely cut
+    errors off before reaching anything useful. Error messages here flow into an
+    unbounded LogEntry.message TextField, so there's no reason to be stingy."""
+    text = text or ''
+    return text[-n:]
+
+
 # Safe environment for student gunicorn processes — no platform secrets inherited.
 _STUDENT_ENV_ALLOWLIST = frozenset({
     'PATH', 'HOME', 'USER', 'LANG', 'LC_ALL', 'LC_CTYPE',
@@ -349,7 +358,7 @@ def _setup_venv(project_id: int, project_type: str = 'flask') -> tuple[bool, str
             capture_output=True, text=True, timeout=PIP_TIMEOUT,
         )
         if r.returncode != 0:
-            return False, f'pip base install failed: {r.stderr[:600]}'
+            return False, f'pip base install failed: {_tail(r.stderr)}'
     except subprocess.TimeoutExpired:
         return False, 'pip install timed out (base packages)'
 
@@ -361,7 +370,7 @@ def _setup_venv(project_id: int, project_type: str = 'flask') -> tuple[bool, str
                 capture_output=True, text=True, timeout=PIP_TIMEOUT,
             )
             if r.returncode != 0:
-                return False, f'pip requirements install failed: {r.stderr[:600]}'
+                return False, f'pip requirements install failed: {_tail(r.stderr)}'
         except subprocess.TimeoutExpired:
             return False, 'pip install timed out (requirements.txt)'
 
@@ -382,7 +391,7 @@ def _run_django_management(project_id: int, extra_env: dict[str, str]) -> tuple[
             capture_output=True, text=True, timeout=DJANGO_MANAGE_TIMEOUT,
         )
         if r.returncode != 0:
-            return False, f'manage.py migrate failed: {r.stderr[:600] or r.stdout[:600]}'
+            return False, f'manage.py migrate failed: {_tail(r.stderr) or _tail(r.stdout)}'
     except subprocess.TimeoutExpired:
         return False, 'manage.py migrate timed out'
 
@@ -393,7 +402,7 @@ def _run_django_management(project_id: int, extra_env: dict[str, str]) -> tuple[
             capture_output=True, text=True, timeout=DJANGO_MANAGE_TIMEOUT,
         )
         if r.returncode != 0:
-            log.warning('Project %s: collectstatic skipped/failed: %s', project_id, r.stderr[:300])
+            log.warning('Project %s: collectstatic skipped/failed: %s', project_id, _tail(r.stderr))
     except subprocess.TimeoutExpired:
         log.warning('Project %s: collectstatic timed out', project_id)
 
@@ -549,7 +558,7 @@ def django_superuser(project_id: int):
         return jsonify({'error': 'Operation timed out.'}), 500
 
     if r.returncode != 0:
-        return jsonify({'error': r.stderr[:800] or r.stdout[:800] or 'Unknown error'}), 500
+        return jsonify({'error': _tail(r.stderr) or _tail(r.stdout) or 'Unknown error'}), 500
 
     action = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else 'updated'
     log.info('Superuser %s for project %s: %s', action, project_id, username)

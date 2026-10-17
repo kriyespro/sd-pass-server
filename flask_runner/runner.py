@@ -32,8 +32,10 @@ GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '30'))
 PIP_TIMEOUT = int(os.environ.get('PIP_TIMEOUT', '180'))
 DJANGO_MANAGE_TIMEOUT = int(os.environ.get('DJANGO_MANAGE_TIMEOUT', '120'))
 
-# State file lives one level above SITES_ROOT (still on the same volume).
-_STATE_FILE = SITES_ROOT.parent / 'runner_state.json'
+# State file must live INSIDE SITES_ROOT — that's the only path actually backed by a
+# persisted volume (docker-compose mounts sites_data:/app/data/sites, not /app/data).
+# A sibling of SITES_ROOT is on the container's throwaway layer and is lost on rebuild/recreate.
+_STATE_FILE = SITES_ROOT / '_runner_state.json'
 
 # project_id (int) → subprocess.Popen
 _procs: dict[int, subprocess.Popen] = {}
@@ -60,7 +62,7 @@ def _remove_from_state(project_id: int) -> None:
         existing = {}
     existing.pop(str(project_id), None)
     try:
-        SITES_ROOT.parent.mkdir(parents=True, exist_ok=True)
+        SITES_ROOT.mkdir(parents=True, exist_ok=True)
         _STATE_FILE.write_text(json.dumps(existing, indent=2))
     except OSError as exc:
         log.warning('Could not update runner state: %s', exc)
@@ -75,7 +77,7 @@ def _save_state_with_port(project_id: int, port: int, project_type: str = 'flask
         pass
     existing[str(project_id)] = {'port': port, 'type': project_type}
     try:
-        SITES_ROOT.parent.mkdir(parents=True, exist_ok=True)
+        SITES_ROOT.mkdir(parents=True, exist_ok=True)
         _STATE_FILE.write_text(json.dumps(existing, indent=2))
     except OSError as exc:
         log.warning('Could not save runner state: %s', exc)

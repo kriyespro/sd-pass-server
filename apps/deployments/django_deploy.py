@@ -25,6 +25,9 @@ DJANGO_ALLOWED_SUFFIXES = frozenset({
     '.woff', '.woff2', '.ttf', '.eot', '.otf',
     # Data / config
     '.sqlite', '.db',
+    # Common document content apps legitimately store/serve (e.g. uploaded
+    # client documents, certificates) — not executable, no reason to block.
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx',
     '.txt', '.md',
     '.env', '.cfg', '.ini', '.toml', '.yaml', '.yml',
     '.csv', '.xml',

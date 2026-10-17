@@ -14,6 +14,10 @@
           <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
             🐍 Flask App
           </span>
+        {% elif is_django_project %}
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-green-500/15 px-3 py-1 text-xs font-semibold text-green-300 ring-1 ring-green-500/30">
+            🎸 Django App
+          </span>
         {% else %}
           <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
             🌐 Static Website
@@ -21,33 +25,47 @@
         {% endif %}
         <span class="text-xs text-slate-500">Project type</span>
       </div>
-      {# Change type mini-form #}
-      <form method="post" action="{{ url('projects:change_type', slug=project.slug) }}" class="flex items-center gap-2">
-        {{ csrf_input }}
-        {% if is_flask_project %}
-          <input type="hidden" name="project_type" value="static">
-          <button type="submit"
-            class="text-xs text-slate-400 hover:text-slate-200 underline"
-            onclick="return confirm('Switch to Static Website? Flask runtime will stop.')">
-            Switch to Static
-          </button>
-        {% else %}
-          <input type="hidden" name="project_type" value="flask">
-          <button type="submit"
-            class="text-xs text-amber-400 hover:text-amber-300 underline font-medium">
-            Switch to Flask App 🐍
-          </button>
+      {# Change type mini-form(s) #}
+      <div class="flex items-center gap-3">
+        {% if not is_static_project %}
+          <form method="post" action="{{ url('projects:change_type', slug=project.slug) }}">
+            {{ csrf_input }}
+            <input type="hidden" name="project_type" value="static">
+            <button type="submit"
+              class="text-xs text-slate-400 hover:text-slate-200 underline"
+              onclick="return confirm('Switch to Static Website? The Python runtime will stop.')">
+              Switch to Static
+            </button>
+          </form>
         {% endif %}
-      </form>
+        {% if not is_flask_project %}
+          <form method="post" action="{{ url('projects:change_type', slug=project.slug) }}">
+            {{ csrf_input }}
+            <input type="hidden" name="project_type" value="flask">
+            <button type="submit" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium">
+              Switch to Flask 🐍
+            </button>
+          </form>
+        {% endif %}
+        {% if not is_django_project %}
+          <form method="post" action="{{ url('projects:change_type', slug=project.slug) }}">
+            {{ csrf_input }}
+            <input type="hidden" name="project_type" value="django">
+            <button type="submit" class="text-xs text-green-400 hover:text-green-300 underline font-medium">
+              Switch to Django 🎸
+            </button>
+          </form>
+        {% endif %}
+      </div>
     </div>
 
     <h1 class="text-xl font-semibold text-white">
-      {% if is_flask_project %}🐍 Deploy Flask App{% else %}Upload project ZIP{% endif %}
+      {% if is_flask_project %}🐍 Deploy Flask App{% elif is_django_project %}🎸 Deploy Django App{% else %}Upload project ZIP{% endif %}
     </h1>
     <p class="mt-2 text-sm text-slate-400">
       Max {{ upload_max_mb }} MB · <code class="text-emerald-300">.zip</code> only ·
-      {% if is_flask_project %}
-        First deploy takes 1–3 minutes (installing packages). Subsequent deploys are faster.
+      {% if is_python_project %}
+        First deploy takes 1–3 minutes (installing packages{% if is_django_project %} and running migrations{% endif %}). Subsequent deploys are faster.
       {% else %}
         After upload, a security scan runs then files are published.
       {% endif %}
@@ -60,16 +78,16 @@
       </p>
     {% endif %}
 
-    {% if is_flask_project %}
-    {# ── Flask account status badge ── #}
+    {% if is_python_project %}
+    {# ── Python app account status badge (Flask + Django share one quota) ── #}
     {% if flask_enabled is defined %}
       {% if flask_enabled %}
         <div class="mt-4 flex items-center gap-3 rounded-xl border border-emerald-700/50 bg-emerald-950/30 px-4 py-3">
           <span class="text-2xl">🐍</span>
           <div class="flex-1">
-            <p class="text-sm font-semibold text-emerald-200">Python Flask support is enabled on your account</p>
+            <p class="text-sm font-semibold text-emerald-200">Python app support (Flask + Django) is enabled on your account</p>
             <p class="text-xs text-emerald-400/80 mt-0.5">
-              {{ flask_quota_used }} of {{ flask_quota_total }} Flask app{{ 's' if flask_quota_total != 1 }} used
+              {{ flask_quota_used }} of {{ flask_quota_total }} Python app{{ 's' if flask_quota_total != 1 }} used
               {% if flask_quota_used < flask_quota_total %}
                 · <span class="text-emerald-300">{{ flask_quota_total - flask_quota_used }} slot{{ 's' if (flask_quota_total - flask_quota_used) != 1 }} available</span>
               {% else %}
@@ -85,8 +103,8 @@
         <div class="mt-4 flex items-center gap-3 rounded-xl border border-rose-700/50 bg-rose-950/20 px-4 py-3">
           <span class="text-2xl">🔒</span>
           <div class="flex-1">
-            <p class="text-sm font-semibold text-rose-200">Flask support not available on your current plan</p>
-            <p class="text-xs text-rose-400/80 mt-0.5">Upgrade to WordPress Pro (₹3,699/yr) or higher to deploy Flask apps.</p>
+            <p class="text-sm font-semibold text-rose-200">Python app support not available on your current plan</p>
+            <p class="text-xs text-rose-400/80 mt-0.5">Upgrade to WordPress Pro (₹3,699/yr) or higher to deploy Flask or Django apps.</p>
           </div>
           <a href="{{ url('billing:redeem') }}"
              class="shrink-0 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500">
@@ -95,7 +113,9 @@
         </div>
       {% endif %}
     {% endif %}
+    {% endif %}
 
+    {% if is_flask_project %}
     {# ── Flask deploy instructions ── #}
     <div class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-5 space-y-4 text-sm">
       <p class="font-semibold text-amber-200">How to package your Flask app</p>
@@ -155,6 +175,58 @@ python-dotenv</pre>
       </div>
     </div>
     {% endif %}
+
+    {% if is_django_project %}
+    {# ── Django deploy instructions ── #}
+    <div class="mt-5 rounded-xl border border-green-700/40 bg-green-950/20 p-5 space-y-4 text-sm">
+      <p class="font-semibold text-green-200">How to package your Django app</p>
+
+      <div class="space-y-2 text-slate-300">
+        <p class="font-medium text-slate-100">1. Required file — <code class="text-green-300">manage.py</code></p>
+        <p class="text-slate-400 text-xs">
+          Must be at the ZIP root — the standard layout from
+          <code class="text-green-300">django-admin startproject myproject .</code>
+        </p>
+        <pre class="mt-1 rounded-lg bg-slate-900 px-4 py-3 text-xs text-emerald-300 overflow-x-auto">myproject.zip
+├── manage.py             ← required entry point
+├── myproject/
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py           ← application = get_wsgi_application()
+├── requirements.txt      ← optional
+└── db.sqlite3            ← SQLite (optional)</pre>
+      </div>
+
+      <div class="space-y-2 text-slate-300">
+        <p class="font-medium text-slate-100">2. Optional — <code class="text-green-300">requirements.txt</code></p>
+        <p class="text-slate-400 text-xs">List any extra packages. <code>django</code> and <code>gunicorn</code> are always installed automatically.</p>
+        <pre class="mt-1 rounded-lg bg-slate-900 px-4 py-3 text-xs text-emerald-300 overflow-x-auto">djangorestframework
+python-dotenv</pre>
+      </div>
+
+      <div class="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 space-y-1.5 text-xs text-slate-400">
+        <p class="font-semibold text-slate-300">✅ Allowed file types</p>
+        <p><span class="text-green-300">.py</span> Python · <span class="text-sky-300">.html .htm</span> Templates · <span class="text-emerald-300">.css .js</span> Static · <span class="text-slate-300">.sqlite .db</span> SQLite</p>
+        <p><span class="text-slate-300">.png .jpg .jpeg .gif .webp .svg .ico</span> Images · <span class="text-slate-300">.woff .woff2 .ttf</span> Fonts</p>
+        <p><span class="text-slate-300">.txt .json .csv .yaml .toml .cfg .ini .env .po .mo</span> Config / data / i18n</p>
+        <p class="text-rose-400 mt-1">❌ Not allowed: .exe · .sh · .bat · .php — and no <code>.venv/</code> folder in the ZIP (we create it for you)</p>
+      </div>
+
+      <div class="rounded-lg border border-sky-700/40 bg-sky-950/20 px-4 py-3 text-xs text-sky-300 space-y-1">
+        <p class="font-semibold text-sky-200">💡 Tips</p>
+        <ul class="space-y-1 list-disc pl-4 text-slate-300">
+          <li>We run <code class="text-green-300">manage.py migrate</code> automatically on every deploy</li>
+          <li>We also try <code class="text-green-300">manage.py collectstatic</code> — set <code class="text-emerald-300">STATIC_ROOT</code> in settings.py if you serve static files</li>
+          <li>Set <code class="text-emerald-300">ALLOWED_HOSTS = ['*']</code> (or your subdomain) in settings.py</li>
+          <li>For SQLite use a relative path for <code class="text-emerald-300">DATABASES['default']['NAME']</code></li>
+          <li>Do NOT include <code class="text-rose-300">.venv/</code> or <code class="text-rose-300">__pycache__/</code> in the ZIP</li>
+          <li>First visit after deploy may take a few extra seconds while gunicorn warms up</li>
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
     <div x-data="uploadForm({ redirectFallback: '{{ url('projects:dashboard') }}' })">
     {% include "partials/uploads/_upload_progress_overlay.jinja" %}
     <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" @submit.prevent="start($event)">
@@ -171,7 +243,7 @@ python-dotenv</pre>
           {% for err in form.file.errors %}<p class="mt-1 text-sm text-rose-300">{{ err }}</p>{% endfor %}
         {% endif %}
       </div>
-      {% if not is_flask_project %}
+      {% if not is_python_project %}
       <div x-data="{ subfolder: '' }">
         <label class="block text-sm font-medium text-slate-200" for="subfolder-input">
           Upload into subfolder <span class="text-slate-500 font-normal">(optional)</span>
@@ -208,16 +280,16 @@ python-dotenv</pre>
         {% endif %}
       </div>
       {% endif %}
-      {% if is_flask_project and flask_enabled is defined and not flask_enabled %}
+      {% if is_python_project and flask_enabled is defined and not flask_enabled %}
         <a href="{{ url('billing:redeem') }}"
            class="inline-block rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500">
-          🔒 Upgrade plan to deploy Flask apps
+          🔒 Upgrade plan to deploy {% if is_flask_project %}Flask{% else %}Django{% endif %} apps
         </a>
       {% else %}
         <button type="submit"
-          class="rounded-lg {% if is_flask_project %}bg-amber-500 hover:bg-amber-400{% else %}bg-emerald-500 hover:bg-emerald-400{% endif %} px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+          class="rounded-lg {% if is_flask_project %}bg-amber-500 hover:bg-amber-400{% elif is_django_project %}bg-green-500 hover:bg-green-400{% else %}bg-emerald-500 hover:bg-emerald-400{% endif %} px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
           :disabled="uploading">
-          {% if is_flask_project %}🐍 Upload &amp; Deploy Flask App{% else %}Upload &amp; queue scan{% endif %}
+          {% if is_flask_project %}🐍 Upload &amp; Deploy Flask App{% elif is_django_project %}🎸 Upload &amp; Deploy Django App{% else %}Upload &amp; queue scan{% endif %}
         </button>
       {% endif %}
     </form>

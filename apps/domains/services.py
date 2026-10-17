@@ -29,17 +29,18 @@ def write_project_router_file(project) -> tuple[Path, str]:
             if alias != fqdn.lower() and alias not in extra_hosts:
                 extra_hosts.append(alias)
     from apps.projects.models import ProjectType
-    flask_port = getattr(project, 'flask_port', None)
-    is_flask = (
-        getattr(project, 'project_type', None) == ProjectType.FLASK
-        and flask_port is not None
-    )
+    project_type = getattr(project, 'project_type', None)
+    runner_port = None
+    if project_type == ProjectType.FLASK:
+        runner_port = getattr(project, 'flask_port', None)
+    elif project_type == ProjectType.DJANGO:
+        runner_port = getattr(project, 'django_port', None)
     flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
     # Strip management port — use the app's allocated port instead
     flask_runner_host = flask_runner_base.rsplit(':', 1)[0] if ':' in flask_runner_base else flask_runner_base
     upstream = (
-        f'{flask_runner_host}:{flask_port}'
-        if is_flask
+        f'{flask_runner_host}:{runner_port}'
+        if runner_port is not None
         else settings.TRAEFIK_UPSTREAM_URL
     )
     content = render_to_string(

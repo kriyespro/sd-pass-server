@@ -1,6 +1,7 @@
 """
 Django-side client for the Flask Runner service.
-Celery workers call these functions to deploy/stop/check student Flask apps.
+Celery workers call these functions to deploy/stop/check student Flask and Django apps
+(the runner process manages both the same way — venv + gunicorn per project).
 """
 from __future__ import annotations
 
@@ -13,6 +14,9 @@ log = logging.getLogger(__name__)
 
 FLASK_PORT_START = 7000
 FLASK_PORT_END   = 7999
+
+DJANGO_PORT_START = 8000
+DJANGO_PORT_END   = 8999
 
 
 def _runner_url() -> str:
@@ -57,18 +61,46 @@ def free_flask_port(project_id: int) -> None:
     Project.objects.filter(pk=project_id).update(flask_port=None)
 
 
+def allocate_django_port(project_id: int) -> int:
+    """
+    Return this project's already-allocated port, or allocate the next free one
+    from DJANGO_PORT_START..DJANGO_PORT_END and persist it on the Project row.
+    """
+    from apps.projects.models import Project
+
+    proj = Project.objects.filter(pk=project_id).only('django_port').first()
+    if proj and proj.django_port:
+        return proj.django_port
+
+    used: set[int] = set(
+        Project.objects.filter(django_port__isnull=False)
+        .values_list('django_port', flat=True)
+    )
+    for port in range(DJANGO_PORT_START, DJANGO_PORT_END + 1):
+        if port not in used:
+            Project.objects.filter(pk=project_id).update(django_port=port)
+            return port
+
+    raise RuntimeError('Django port pool exhausted (8000-8999 all in use).')
+
+
+def free_django_port(project_id: int) -> None:
+    from apps.projects.models import Project
+    Project.objects.filter(pk=project_id).update(django_port=None)
+
+
 # ── Runner API calls ──────────────────────────────────────────────────────────
 
-def runner_deploy(project_id: int, port: int) -> tuple[bool, str]:
+def runner_deploy(project_id: int, port: int, project_type: str = 'flask') -> tuple[bool, str]:
     """
-    Ask the runner to (re)start the Flask app.
+    Ask the runner to (re)start the app (Flask or Django).
     Returns (True, entry_point) on success or (False, error_msg).
-    Blocks until pip install + gunicorn start completes (up to ~4 min).
+    Blocks until pip install (+ migrate for Django) + gunicorn start completes (up to ~4 min).
     """
     try:
         resp = requests.post(
             f'{_runner_url()}/deploy/{project_id}',
-            json={'port': port},
+            json={'port': port, 'project_type': project_type},
             headers=_headers(),
             timeout=300,
         )

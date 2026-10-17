@@ -81,6 +81,13 @@ class Project(models.Model):
         db_index=True,
         help_text='Port on the flask-runner container (7000-7999). Null = not a running Flask project.',
     )
+    django_port = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        unique=True,
+        db_index=True,
+        help_text='Port on the flask-runner container (8000-8999). Null = not a running Django project.',
+    )
 
     class Meta:
         ordering = ['-created_at']

@@ -342,7 +342,7 @@ def _resolve_project_for_static_host(host: str):
     if cached_pk is not None:
         project = (
             Project.objects.filter(pk=cached_pk, is_deleted=False)
-            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port')
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port', 'django_port')
             .first()
         )
         if project:
@@ -361,7 +361,7 @@ def _resolve_project_for_static_host(host: str):
             return None
         project = (
             Project.objects.filter(subdomain__iexact=sub, is_deleted=False)
-            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'site_subfolder', 'project_type', 'flask_port')
+            .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'site_subfolder', 'project_type', 'flask_port', 'django_port')
             .first()
         )
         if project is None:
@@ -378,7 +378,7 @@ def _resolve_project_for_static_host(host: str):
             custom_hostname__iexact=host,
             is_deleted=False,
         )
-        .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port')
+        .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port', 'django_port')
         .first()
     )
     if project is None:
@@ -391,7 +391,7 @@ def _resolve_project_for_static_host(host: str):
                     custom_hostname__iexact=sib,
                     is_deleted=False,
                 )
-                .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port')
+                .only('id', 'owner_id', 'subdomain', 'slug', 'custom_hostname', 'custom_hostname_verified', 'site_subfolder', 'project_type', 'flask_port', 'django_port')
                 .first()
             )
     if project is None:
@@ -507,8 +507,9 @@ class StudentStaticSiteMiddleware:
             return '/billing/redeem/'
 
     @staticmethod
-    def _proxy_to_flask(request, flask_port):
-        """Proxy an HTTP request to the Flask runner gunicorn process on flask_port."""
+    def _proxy_to_runner(request, runner_port):
+        """Proxy an HTTP request to the app-runner's gunicorn process on runner_port
+        (a Flask app on 7000-7999 or a Django app on 8000-8999)."""
         import urllib.error
         import urllib.request as ureq
 
@@ -526,11 +527,11 @@ class StudentStaticSiteMiddleware:
 
         opener = ureq.build_opener(_NoRedirect())
 
-        if not (7000 <= int(flask_port) <= 7999):
+        if not (7000 <= int(runner_port) <= 8999):
             return HttpResponse('Invalid app port.', status=502, content_type='text/plain')
         flask_runner_base = getattr(settings, 'FLASK_RUNNER_URL', 'http://flask-runner:6000')
         flask_host = flask_runner_base.rsplit(':', 1)[0]  # strip :6000 management port
-        target = f'{flask_host}:{flask_port}{request.path}'
+        target = f'{flask_host}:{runner_port}{request.path}'
         if request.META.get('QUERY_STRING'):
             target += '?' + request.META['QUERY_STRING']
 
@@ -572,7 +573,7 @@ class StudentStaticSiteMiddleware:
             return out
         except (ureq.URLError, OSError):
             return HttpResponse(
-                'Flask app is starting up or unavailable. Try again in a moment.',
+                'App is starting up or unavailable. Try again in a moment.',
                 status=503, content_type='text/plain; charset=utf-8',
             )
 
@@ -596,17 +597,19 @@ class StudentStaticSiteMiddleware:
                 )
                 return HttpResponsePermanentRedirect(f'{scheme}://{canonical}{path}')
 
-        # Flask projects: proxy all methods to the gunicorn process.
+        # Flask/Django projects: proxy all methods to the gunicorn process.
         # Custom domain traffic arrives here via nginx's default server block
         # (Traefik handles the *.krizn.com subdomain path directly).
         from apps.projects.models import ProjectType
-        if project.project_type == ProjectType.FLASK:
-            if not project.flask_port:
+        if project.project_type in (ProjectType.FLASK, ProjectType.DJANGO):
+            runner_port = project.flask_port if project.project_type == ProjectType.FLASK else project.django_port
+            if not runner_port:
+                label = 'Flask' if project.project_type == ProjectType.FLASK else 'Django'
                 return HttpResponse(
-                    'Flask app not yet deployed. Upload a ZIP from the dashboard.',
+                    f'{label} app not yet deployed. Upload a ZIP from the dashboard.',
                     status=503, content_type='text/plain; charset=utf-8',
                 )
-            return self._proxy_to_flask(request, project.flask_port)
+            return self._proxy_to_runner(request, runner_port)
 
         # Static projects — only serve GET and HEAD.
         if request.method not in ('GET', 'HEAD'):

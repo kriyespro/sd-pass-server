@@ -1,5 +1,5 @@
 """
-Flask App Runner — process manager for student Flask apps.
+App Runner — process manager for student Flask and Django apps.
 Exposes a JSON HTTP API on port 6000 (internal Docker network only).
 Django/Celery calls this API to deploy, stop, and check app status.
 """
@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -29,6 +30,7 @@ SITES_ROOT = Path(os.environ.get('STUDENT_SITE_ROOT', '/app/data/sites'))
 API_TOKEN = os.environ.get('FLASK_RUNNER_TOKEN', '')
 GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '30'))
 PIP_TIMEOUT = int(os.environ.get('PIP_TIMEOUT', '180'))
+DJANGO_MANAGE_TIMEOUT = int(os.environ.get('DJANGO_MANAGE_TIMEOUT', '120'))
 
 # State file lives one level above SITES_ROOT (still on the same volume).
 _STATE_FILE = SITES_ROOT.parent / 'runner_state.json'
@@ -64,14 +66,14 @@ def _remove_from_state(project_id: int) -> None:
         log.warning('Could not update runner state: %s', exc)
 
 
-def _save_state_with_port(project_id: int, port: int) -> None:
-    """Persist project_id→port mapping then write live state."""
-    existing: dict[str, int] = {}
+def _save_state_with_port(project_id: int, port: int, project_type: str = 'flask') -> None:
+    """Persist project_id→{port,type} mapping then write live state."""
+    existing: dict[str, dict] = {}
     try:
         existing = json.loads(_STATE_FILE.read_text()) if _STATE_FILE.exists() else {}
     except (OSError, json.JSONDecodeError):
         pass
-    existing[str(project_id)] = port
+    existing[str(project_id)] = {'port': port, 'type': project_type}
     try:
         SITES_ROOT.parent.mkdir(parents=True, exist_ok=True)
         _STATE_FILE.write_text(json.dumps(existing, indent=2))
@@ -84,7 +86,7 @@ def _restore_state() -> None:
     if not _STATE_FILE.exists():
         return
     try:
-        saved: dict[str, int] = json.loads(_STATE_FILE.read_text())
+        saved: dict[str, object] = json.loads(_STATE_FILE.read_text())
     except (OSError, json.JSONDecodeError) as exc:
         log.warning('Could not read runner state file: %s', exc)
         return
@@ -92,28 +94,48 @@ def _restore_state() -> None:
     if not saved:
         return
 
-    log.info('Restoring %d Flask app(s) from state file', len(saved))
-    for pid_str, port in saved.items():
+    log.info('Restoring %d app(s) from state file', len(saved))
+    for pid_str, value in saved.items():
         try:
             project_id = int(pid_str)
         except ValueError:
             continue
+        # Backward compat: old state files stored a bare port int (always Flask).
+        if isinstance(value, dict):
+            port = value.get('port')
+            project_type = value.get('type', 'flask')
+        else:
+            port = value
+            project_type = 'flask'
+        if not port:
+            continue
+
         project_dir = _project_dir(project_id)
         if not project_dir.exists():
             log.warning('Restore: project dir missing for %s — skipping', project_id)
             continue
-        entry = _detect_entry(project_dir)
-        if not entry:
-            log.warning('Restore: no entry point for project %s — skipping', project_id)
-            continue
 
-        ok, err = _setup_venv(project_id)
+        extra_env: dict[str, str] = {}
+        if project_type == 'django':
+            django_info = _detect_django_entry(project_dir)
+            if not django_info:
+                log.warning('Restore: no Django entry point for project %s — skipping', project_id)
+                continue
+            settings_module, entry = django_info
+            extra_env['DJANGO_SETTINGS_MODULE'] = settings_module
+        else:
+            entry = _detect_entry(project_dir)
+            if not entry:
+                log.warning('Restore: no entry point for project %s — skipping', project_id)
+                continue
+
+        ok, err = _setup_venv(project_id, project_type)
         if not ok:
             log.error('Restore: venv setup failed for project %s: %s', project_id, err)
             continue
 
         gunicorn = _venv_bin(project_id, 'gunicorn')
-        env = _student_env(project_dir)
+        env = _student_env(project_dir, extra_env)
         try:
             proc = subprocess.Popen(
                 [
@@ -135,7 +157,7 @@ def _restore_state() -> None:
 
         with _lock:
             _procs[project_id] = proc
-        log.info('Restored project %s  entry=%s  port=%s  pid=%s', project_id, entry, port, proc.pid)
+        log.info('Restored project %s  type=%s  entry=%s  port=%s  pid=%s', project_id, project_type, entry, port, proc.pid)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -147,10 +169,12 @@ _STUDENT_ENV_ALLOWLIST = frozenset({
 })
 
 
-def _student_env(project_dir: Path) -> dict[str, str]:
+def _student_env(project_dir: Path, extra: dict[str, str] | None = None) -> dict[str, str]:
     """Return a minimal env for student gunicorn — strips platform secrets."""
     base = {k: v for k, v in os.environ.items() if k in _STUDENT_ENV_ALLOWLIST}
     base['PYTHONPATH'] = str(project_dir)
+    if extra:
+        base.update(extra)
     return base
 
 
@@ -183,6 +207,45 @@ def _detect_entry(project_dir: Path) -> str | None:
     return None
 
 
+_DJANGO_SETTINGS_RE = re.compile(
+    r"""setdefault\(\s*['"]DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([\w.]+)['"]\s*\)"""
+)
+
+
+def _detect_django_entry(project_dir: Path) -> tuple[str, str] | None:
+    """
+    Return (settings_module, wsgi_app_spec) for a Django project, or None if this
+    doesn't look like one. settings_module e.g. 'myproject.settings'.
+    wsgi_app_spec e.g. 'myproject.wsgi:application' (a gunicorn app target).
+    """
+    manage_py = project_dir / 'manage.py'
+    if not manage_py.exists():
+        return None
+    try:
+        text = manage_py.read_text(errors='ignore')
+    except OSError:
+        return None
+    match = _DJANGO_SETTINGS_RE.search(text)
+    if not match:
+        return None
+    settings_module = match.group(1)
+    package = settings_module.split('.')[0]
+
+    wsgi_path = project_dir / package / 'wsgi.py'
+    if wsgi_path.exists():
+        return settings_module, f'{package}.wsgi:application'
+
+    # Fallback: search for any wsgi.py under the project root.
+    for candidate in project_dir.rglob('wsgi.py'):
+        if '.venv' in candidate.parts or '__pycache__' in candidate.parts:
+            continue
+        rel = candidate.relative_to(project_dir).with_suffix('')
+        module = '.'.join(rel.parts)
+        return settings_module, f'{module}:application'
+
+    return None
+
+
 def _stop_proc(project_id: int) -> None:
     with _lock:
         proc = _procs.pop(project_id, None)
@@ -201,8 +264,14 @@ def _stop_proc(project_id: int) -> None:
     _remove_from_state(project_id)
 
 
-def _setup_venv(project_id: int) -> tuple[bool, str]:
-    """Create venv if missing, then pip install flask+gunicorn+requirements.txt."""
+_BASE_PACKAGES = {
+    'flask':  ['flask', 'gunicorn'],
+    'django': ['django', 'gunicorn'],
+}
+
+
+def _setup_venv(project_id: int, project_type: str = 'flask') -> tuple[bool, str]:
+    """Create venv if missing, then pip install the framework baseline + requirements.txt."""
     project_dir = _project_dir(project_id)
     venv_dir = project_dir / '.venv'
 
@@ -211,11 +280,11 @@ def _setup_venv(project_id: int) -> tuple[bool, str]:
         venv.create(str(venv_dir), with_pip=True)
 
     pip = _venv_bin(project_id, 'pip')
+    base_packages = _BASE_PACKAGES.get(project_type, _BASE_PACKAGES['flask'])
 
-    # Always ensure flask + gunicorn present
     try:
         r = subprocess.run(
-            [str(pip), 'install', '--quiet', 'flask', 'gunicorn'],
+            [str(pip), 'install', '--quiet', *base_packages],
             capture_output=True, text=True, timeout=PIP_TIMEOUT,
         )
         if r.returncode != 0:
@@ -238,6 +307,37 @@ def _setup_venv(project_id: int) -> tuple[bool, str]:
     return True, ''
 
 
+def _run_django_management(project_id: int, settings_module: str) -> tuple[bool, str]:
+    """Run `manage.py migrate` (fatal on failure) then `collectstatic` (best-effort)."""
+    project_dir = _project_dir(project_id)
+    python = _venv_bin(project_id, 'python')
+    env = _student_env(project_dir, {'DJANGO_SETTINGS_MODULE': settings_module})
+
+    try:
+        r = subprocess.run(
+            [str(python), 'manage.py', 'migrate', '--noinput'],
+            cwd=str(project_dir), env=env,
+            capture_output=True, text=True, timeout=DJANGO_MANAGE_TIMEOUT,
+        )
+        if r.returncode != 0:
+            return False, f'manage.py migrate failed: {r.stderr[:600] or r.stdout[:600]}'
+    except subprocess.TimeoutExpired:
+        return False, 'manage.py migrate timed out'
+
+    try:
+        r = subprocess.run(
+            [str(python), 'manage.py', 'collectstatic', '--noinput'],
+            cwd=str(project_dir), env=env,
+            capture_output=True, text=True, timeout=DJANGO_MANAGE_TIMEOUT,
+        )
+        if r.returncode != 0:
+            log.warning('Project %s: collectstatic skipped/failed: %s', project_id, r.stderr[:300])
+    except subprocess.TimeoutExpired:
+        log.warning('Project %s: collectstatic timed out', project_id)
+
+    return True, ''
+
+
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 @management_app.get('/health')
@@ -250,6 +350,7 @@ def health():
 def deploy(project_id: int):
     data = request.get_json(force=True) or {}
     port = data.get('port')
+    project_type = data.get('project_type', 'flask')
     if not port:
         return jsonify({'error': 'port is required'}), 400
 
@@ -260,22 +361,41 @@ def deploy(project_id: int):
     # Stop any existing process before reinstalling/restarting
     _stop_proc(project_id)
 
-    ok, err = _setup_venv(project_id)
+    extra_env: dict[str, str] = {}
+    if project_type == 'django':
+        django_info = _detect_django_entry(project_dir)
+        if not django_info:
+            return jsonify({
+                'error': (
+                    'No Django entry point found. '
+                    'Create manage.py at the ZIP root (standard `django-admin startproject` layout).'
+                )
+            }), 400
+        settings_module, entry = django_info
+        extra_env['DJANGO_SETTINGS_MODULE'] = settings_module
+    else:
+        entry = _detect_entry(project_dir)
+        if not entry:
+            return jsonify({
+                'error': (
+                    'No Flask entry point found. '
+                    'Create app.py with: app = Flask(__name__)'
+                )
+            }), 400
+
+    ok, err = _setup_venv(project_id, project_type)
     if not ok:
         log.error('venv setup failed for project %s: %s', project_id, err)
         return jsonify({'error': err, 'status': 'install_failed'}), 500
 
-    entry = _detect_entry(project_dir)
-    if not entry:
-        return jsonify({
-            'error': (
-                'No Flask entry point found. '
-                'Create app.py with: app = Flask(__name__)'
-            )
-        }), 400
+    if project_type == 'django':
+        ok, err = _run_django_management(project_id, extra_env['DJANGO_SETTINGS_MODULE'])
+        if not ok:
+            log.error('manage.py step failed for project %s: %s', project_id, err)
+            return jsonify({'error': err, 'status': 'migrate_failed'}), 500
 
     gunicorn = _venv_bin(project_id, 'gunicorn')
-    env = _student_env(project_dir)
+    env = _student_env(project_dir, extra_env)
 
     try:
         proc = subprocess.Popen(
@@ -298,10 +418,10 @@ def deploy(project_id: int):
     with _lock:
         _procs[project_id] = proc
 
-    # Persist port so we can restore after a container restart
-    _save_state_with_port(project_id, port)
+    # Persist port + type so we can restore after a container restart
+    _save_state_with_port(project_id, port, project_type)
 
-    log.info('Started project %s  entry=%s  port=%s  pid=%s', project_id, entry, port, proc.pid)
+    log.info('Started project %s  type=%s  entry=%s  port=%s  pid=%s', project_id, project_type, entry, port, proc.pid)
     return jsonify({'status': 'started', 'pid': proc.pid, 'port': port, 'entry': entry})
 
 
@@ -341,6 +461,6 @@ if __name__ == '__main__':
             'Set a strong random token before running in production.'
         )
         sys.exit(1)
-    log.info('Flask Runner starting on :6000  sites_root=%s', SITES_ROOT)
+    log.info('App Runner starting on :6000 (flask + django)  sites_root=%s', SITES_ROOT)
     _restore_state()
     management_app.run(host='0.0.0.0', port=6000, debug=False)

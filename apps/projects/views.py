@@ -367,11 +367,17 @@ class ProjectSubfolderDeleteView(LoginRequiredMixin, View):
 
 
 class ProjectChangeTypeView(LoginRequiredMixin, View):
-    """Let the project owner change their project type (Static ↔ Flask)."""
+    """Let the project owner change their project type (Static ↔ Flask ↔ Django)."""
 
     http_method_names = ['post']
 
-    _ALLOWED = {ProjectType.STATIC, ProjectType.FLASK}
+    _ALLOWED = {ProjectType.STATIC, ProjectType.FLASK, ProjectType.DJANGO}
+    _PYTHON_TYPES = {ProjectType.FLASK, ProjectType.DJANGO}
+    _LABELS = {
+        ProjectType.STATIC: 'Static Website',
+        ProjectType.FLASK: 'Flask App',
+        ProjectType.DJANGO: 'Django App',
+    }
 
     def post(self, request, *args, **kwargs):
         from apps.billing.services import user_flask_limit
@@ -388,24 +394,24 @@ class ProjectChangeTypeView(LoginRequiredMixin, View):
             messages.error(request, 'Invalid project type.')
             return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))
 
-        if new_type == ProjectType.FLASK:
-            flask_limit = user_flask_limit(request.user)
-            if flask_limit == 0:
+        if new_type in self._PYTHON_TYPES:
+            python_limit = user_flask_limit(request.user)
+            if python_limit == 0:
                 messages.error(
                     request,
-                    'Flask app support requires WordPress Pro (₹3,699/year) or higher. '
-                    'Upgrade your plan to use Flask.',
+                    'Flask/Django app support requires WordPress Pro (₹3,699/year) or higher. '
+                    'Upgrade your plan to use Python apps.',
                 )
                 return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))
             from apps.projects.models import Project as P
-            current_flask = P.objects.filter(
-                owner=request.user, is_deleted=False, project_type=ProjectType.FLASK,
+            current_python = P.objects.filter(
+                owner=request.user, is_deleted=False, project_type__in=self._PYTHON_TYPES,
             ).exclude(pk=project.pk).count()
-            if current_flask >= flask_limit:
+            if current_python >= python_limit:
                 messages.error(
                     request,
-                    f'Flask app limit reached ({flask_limit} app'
-                    f'{"s" if flask_limit != 1 else ""}). '
+                    f'Python app limit reached ({python_limit} app'
+                    f'{"s" if python_limit != 1 else ""} across Flask + Django). '
                     'Upgrade or add a Flask Add-on.',
                 )
                 return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))
@@ -417,6 +423,5 @@ class ProjectChangeTypeView(LoginRequiredMixin, View):
         except OSError:
             pass
 
-        label = 'Flask App' if new_type == ProjectType.FLASK else 'Static Website'
-        messages.success(request, f'Project type changed to {label}.')
+        messages.success(request, f'Project type changed to {self._LABELS.get(new_type, new_type)}.')
         return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))

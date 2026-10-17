@@ -5,16 +5,12 @@ Called from the Celery deploy task when project_type == FLASK.
 from __future__ import annotations
 
 import shutil
-import time
 import zipfile
 from pathlib import Path
 
-from django.conf import settings
-
 from apps.deployments.flask_runtime import allocate_flask_port, runner_deploy
+from apps.deployments.python_zip_utils import extract_zip, validate_zip
 from apps.deployments.services import project_site_dir
-from apps.logs.models import LogKind
-from apps.logs.services import append_project_log
 from apps.projects.models import Project
 
 # File extensions allowed inside a Flask project ZIP
@@ -43,95 +39,6 @@ MAX_FLASK_ZIP_SIZE = 50 * 1024 * 1024   # 50 MB
 MAX_FLASK_FILES    = 500
 
 
-def _is_ignored_entry(name: str) -> bool:
-    """Return True for __pycache__, .pyc/.pyo, macOS metadata — safe to skip silently."""
-    parts = name.replace('\\', '/').split('/')
-    return (
-        '__pycache__' in parts
-        or parts[0] == '__MACOSX'
-        or any(p.startswith('._') for p in parts)
-        or Path(name).suffix.lower() in ('.pyc', '.pyo')
-    )
-
-
-def _validate_flask_zip(zip_path: Path) -> tuple[bool, str]:
-    try:
-        with zipfile.ZipFile(zip_path, 'r') as zf:
-            entries = [i for i in zf.infolist() if not i.is_dir()]
-            real_entries = [i for i in entries if not _is_ignored_entry(
-                (i.filename or '').replace('\\', '/').strip()
-            )]
-            if len(real_entries) > MAX_FLASK_FILES:
-                return False, f'ZIP contains {len(real_entries)} files (max {MAX_FLASK_FILES})'
-            total = 0
-            for info in real_entries:
-                name = (info.filename or '').replace('\\', '/').strip()
-                if not name or name.startswith('/') or '..' in name.split('/'):
-                    return False, f'Unsafe ZIP entry: {name!r}'
-                suf = Path(name).suffix.lower()
-                basename = Path(name).name.lower()
-                if basename not in FLASK_ALLOWED_FILENAMES and suf and suf not in FLASK_ALLOWED_SUFFIXES:
-                    return False, (
-                        f'File type not allowed: {name!r}. '
-                        f'Allowed: Python, HTML, CSS, JS, SQLite, images, config files.'
-                    )
-                total += info.file_size
-                if total > MAX_FLASK_ZIP_SIZE:
-                    return False, f'ZIP contents exceed {MAX_FLASK_ZIP_SIZE // 1024 // 1024} MB limit'
-    except (OSError, zipfile.BadZipFile) as exc:
-        return False, str(exc)
-    return True, ''
-
-
-def _extract_flask_zip(zip_path: Path, dest: Path) -> None:
-    """Extract ZIP to dest, skipping macOS metadata, stripping top-level folder if present."""
-    root = dest.resolve()
-    # Detect common root folder (e.g. myapp/app.py → strip myapp/)
-    strip_prefix: str | None = None
-    with zipfile.ZipFile(zip_path, 'r') as zf:
-        parts_set: set[str] = set()
-        for info in zf.infolist():
-            n = (info.filename or '').replace('\\', '/').strip().rstrip('/')
-            if not n:
-                continue
-            parts = [p for p in n.split('/') if p]
-            if len(parts) >= 2:
-                parts_set.add(parts[0])
-        if len(parts_set) == 1:
-            strip_prefix = parts_set.pop() + '/'
-
-    with zipfile.ZipFile(zip_path, 'r') as zf:
-        for info in zf.infolist():
-            name = (info.filename or '').replace('\\', '/').strip()
-            if not name:
-                continue
-            if _is_ignored_entry(name):
-                continue
-            if strip_prefix and name.startswith(strip_prefix):
-                name = name[len(strip_prefix):]
-            if not name:
-                continue
-            parts = [p.lower() for p in name.rstrip('/').split('/') if p]
-            lowered = '/'.join(parts)
-            if not lowered:
-                continue
-            is_dir = name.endswith('/') or info.is_dir()
-            rel = Path(lowered)
-            if '..' in rel.parts or rel.is_absolute():
-                raise ValueError(f'Unsafe path: {name!r}')
-            target = (root / rel).resolve()
-            if not target.is_relative_to(root):
-                raise ValueError(f'Path escapes dest: {name!r}')
-            if is_dir:
-                target.mkdir(parents=True, exist_ok=True)
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with zf.open(info, 'r') as src, open(target, 'wb') as out:
-                shutil.copyfileobj(src, out)
-            now = time.time()
-            import os; os.utime(target, (now, now))
-
-
 def deploy_flask_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     """
     Full Flask deploy pipeline:
@@ -142,7 +49,13 @@ def deploy_flask_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     5. Return (ok, message)
     """
     # 1. Validate
-    ok, err = _validate_flask_zip(zip_path)
+    ok, err = validate_zip(
+        zip_path,
+        allowed_suffixes=FLASK_ALLOWED_SUFFIXES,
+        allowed_filenames=FLASK_ALLOWED_FILENAMES,
+        max_files=MAX_FLASK_FILES,
+        max_size=MAX_FLASK_ZIP_SIZE,
+    )
     if not ok:
         return False, err
 
@@ -163,7 +76,7 @@ def deploy_flask_project(project: Project, zip_path: Path) -> tuple[bool, str]:
         shutil.move(str(venv_backup), str(venv_dir))
 
     try:
-        _extract_flask_zip(zip_path, site_dir)
+        extract_zip(zip_path, site_dir)
     except (OSError, ValueError, zipfile.BadZipFile) as exc:
         return False, f'ZIP extraction failed: {exc}'
 

@@ -101,12 +101,14 @@ class ZipUploadView(LoginRequiredMixin, CreateView):
         ctx['upload_max_mb'] = settings.STUDENT_UPLOAD_MAX_BYTES // (1024 * 1024)
         ctx['is_static_project'] = self.project.project_type == ProjectType.STATIC
         ctx['is_flask_project']  = self.project.project_type == ProjectType.FLASK
-        if ctx['is_flask_project']:
+        ctx['is_django_project'] = self.project.project_type == ProjectType.DJANGO
+        ctx['is_python_project'] = ctx['is_flask_project'] or ctx['is_django_project']
+        if ctx['is_python_project']:
             flask_limit = user_flask_limit(self.request.user)
             flask_used  = Project.objects.filter(
                 owner=self.request.user,
                 is_deleted=False,
-                project_type=ProjectType.FLASK,
+                project_type__in=(ProjectType.FLASK, ProjectType.DJANGO),
             ).count()
             ctx['flask_enabled']     = flask_limit > 0
             ctx['flask_quota_total'] = flask_limit

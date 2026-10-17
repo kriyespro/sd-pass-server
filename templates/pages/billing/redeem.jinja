@@ -60,7 +60,7 @@
           <span class="font-semibold text-emerald-300">{{ p.sites }} website{{ 's' if p.sites != '1' }}</span>
           {% if p.get('flask', 0) > 0 %}
             <span class="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
-              🐍 {{ p.flask }} Flask app{{ 's' if p.flask != 1 }}
+              🐍 {{ p.flask }} Flask/Django app{{ 's' if p.flask != 1 }}
             </span>
           {% endif %}
         </p>
@@ -69,7 +69,7 @@
           <li>✓ Static site hosting</li>
           <li>✓ Custom domain support</li>
           <li>✓ 1-year validity</li>
-          {% if p.get('flask', 0) > 0 %}<li>✓ Flask + SQLite app hosting</li>{% endif %}
+          {% if p.get('flask', 0) > 0 %}<li>✓ Flask or Django app hosting (shared quota)</li>{% endif %}
         </ul>
         <div class="mt-4 flex-1 flex items-end">
           {% if subscription.plan_slug == p.slug and subscription.is_active and subscription.is_paid %}

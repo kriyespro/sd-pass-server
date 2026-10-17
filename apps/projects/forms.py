@@ -97,16 +97,18 @@ class ProjectForm(forms.ModelForm):
         if 'name' in self.fields:
             self.fields['name'].widget.attrs['placeholder'] = 'My Portfolio Site'
         if 'project_type' in self.fields:
-            flask_limit = user_flask_limit(user) if user else 0
+            python_limit = user_flask_limit(user) if user else 0
+            upgrade_suffix = ' — upgrade required' if python_limit == 0 else ''
             type_choices = [
                 (ProjectType.STATIC, 'Static Website (HTML / CSS / JS / Tailwind)'),
-                (ProjectType.FLASK,  f'Flask App (Python · SQLite){" — upgrade required" if flask_limit == 0 else ""}'),
+                (ProjectType.FLASK,  f'Flask App (Python · SQLite){upgrade_suffix}'),
+                (ProjectType.DJANGO, f'Django App (Python){upgrade_suffix}'),
             ]
             self.fields['project_type'].choices = type_choices
             self.fields['project_type'].initial = ProjectType.STATIC
             self.fields['project_type'].help_text = (
                 'Static sites are fast and free to host. '
-                'Flask apps (Python) require WordPress Pro plan or higher.'
+                'Flask and Django apps (Python) share one quota and require WordPress Pro plan or higher.'
             )
         for _name, field in self.fields.items():
             field.widget.attrs.setdefault('class', _FIELD_CLASS)
@@ -141,21 +143,21 @@ class ProjectForm(forms.ModelForm):
                 'Upgrade your plan with a coupon code to add more.'
             )
 
-        # Flask-specific limit
-        if data.get('project_type') == ProjectType.FLASK:
-            flask_limit = user_flask_limit(self.user)
-            if flask_limit == 0:
+        # Flask/Django apps share one "Python app" quota.
+        if data.get('project_type') in (ProjectType.FLASK, ProjectType.DJANGO):
+            python_limit = user_flask_limit(self.user)
+            if python_limit == 0:
                 raise forms.ValidationError(
-                    'Flask app support requires WordPress Pro (₹3,699/year) or higher. '
+                    'Flask/Django app support requires WordPress Pro (₹3,699/year) or higher. '
                     'Upgrade your plan or add a Flask Add-on.'
                 )
-            flask_count = Project.objects.filter(
-                owner=self.user, is_deleted=False, project_type=ProjectType.FLASK,
+            python_count = Project.objects.filter(
+                owner=self.user, is_deleted=False, project_type__in=(ProjectType.FLASK, ProjectType.DJANGO),
             ).count()
-            if flask_count >= flask_limit:
+            if python_count >= python_limit:
                 raise forms.ValidationError(
-                    f'You have reached your Flask app limit '
-                    f'({flask_limit} app{"s" if flask_limit != 1 else ""}). '
+                    f'You have reached your Python app limit '
+                    f'({python_limit} app{"s" if python_limit != 1 else ""} across Flask + Django). '
                     'Upgrade your plan or purchase a Flask Add-on.'
                 )
 

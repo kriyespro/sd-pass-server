@@ -541,6 +541,14 @@ user.is_superuser = True
 user.is_active = True
 user.set_password(password)
 user.save()
+# If the app uses django-axes (brute-force login lockout), a reset must also
+# clear any existing lockout for this username — otherwise a perfectly valid
+# new password still fails to log in, silently, for up to the lockout window.
+try:
+    from axes.utils import reset as axes_reset
+    axes_reset(username=username)
+except Exception:
+    pass
 print('created' if created else 'updated')
 """
 

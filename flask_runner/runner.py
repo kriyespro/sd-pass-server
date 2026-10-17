@@ -610,6 +610,86 @@ def django_superuser(project_id: int):
     return jsonify({'status': 'ok', 'action': action, 'username': username})
 
 
+_DB_ENGINE_SCRIPT = """
+import os, django
+django.setup()
+from django.conf import settings
+db = settings.DATABASES.get('default', {})
+print(db.get('ENGINE', ''))
+print(db.get('HOST', ''))
+print(db.get('NAME', ''))
+"""
+
+
+@management_app.get('/audit/db_engines')
+def audit_db_engines():
+    """
+    For every Django project this runner knows about, report which database
+    engine its own settings.py actually resolved to at runtime -- not just
+    whether the platform injected a Postgres DATABASE_URL, but whether the
+    project's settings.py actually reads it. A project whose settings.py
+    ignores DATABASE_URL silently falls back to sqlite3, which loses all
+    data on every redeploy (the site dir, sqlite file included, is wiped
+    and re-extracted each time).
+    """
+    try:
+        saved: dict[str, object] = json.loads(_STATE_FILE.read_text()) if _STATE_FILE.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        saved = {}
+
+    results: dict[str, dict] = {}
+    for pid_str, value in saved.items():
+        if not isinstance(value, dict) or value.get('type') != 'django':
+            continue
+        try:
+            project_id = int(pid_str)
+        except ValueError:
+            continue
+
+        project_dir = _project_dir(project_id)
+        if not project_dir.exists() or not (project_dir / '.venv').exists():
+            results[pid_str] = {'error': 'project dir or venv missing'}
+            continue
+
+        django_info = _detect_django_entry(project_dir)
+        if not django_info:
+            results[pid_str] = {'error': 'no Django entry point found'}
+            continue
+        settings_module, _entry = django_info
+
+        extra_env = dict(value.get('env') or {})
+        extra_env['DJANGO_SETTINGS_MODULE'] = settings_module
+        python = _venv_bin(project_id, 'python')
+        env = _student_env(project_dir, extra_env)
+
+        try:
+            r = subprocess.run(
+                [str(python), '-c', _DB_ENGINE_SCRIPT],
+                cwd=str(project_dir), env=env,
+                capture_output=True, text=True, timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            results[pid_str] = {'error': 'timed out'}
+            continue
+
+        if r.returncode != 0:
+            results[pid_str] = {'error': _tail(r.stderr) or _tail(r.stdout) or 'unknown error'}
+            continue
+
+        lines = r.stdout.strip().splitlines()
+        engine = lines[0] if len(lines) > 0 else ''
+        host = lines[1] if len(lines) > 1 else ''
+        name = lines[2] if len(lines) > 2 else ''
+        results[pid_str] = {
+            'engine': engine,
+            'host': host,
+            'name': name,
+            'is_postgres': 'postgresql' in engine or 'postgis' in engine,
+        }
+
+    return jsonify(results)
+
+
 @management_app.post('/stop/<int:project_id>')
 def stop_project(project_id: int):
     _stop_proc(project_id)

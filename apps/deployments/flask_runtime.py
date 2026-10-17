@@ -148,6 +148,27 @@ def runner_set_django_superuser(
         return False, f'runner unreachable: {exc}'
 
 
+def runner_audit_db_engines() -> dict:
+    """
+    Ask the runner which database engine each Django project it knows about
+    is actually using at runtime (not just what the platform injected).
+    Returns {str(project_id): {'engine', 'host', 'name', 'is_postgres'} or {'error'}},
+    or {} if the runner is unreachable.
+    """
+    try:
+        resp = requests.get(
+            f'{_runner_url()}/audit/db_engines',
+            headers=_headers(),
+            timeout=120,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        return {}
+    except requests.RequestException as exc:
+        log.warning('runner_audit_db_engines() failed: %s', exc)
+        return {}
+
+
 def runner_status(project_id: int) -> dict:
     try:
         resp = requests.get(

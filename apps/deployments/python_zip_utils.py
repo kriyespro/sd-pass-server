@@ -36,17 +36,20 @@ def is_ignored_entry(name: str) -> bool:
     )
 
 
-# Extensions that can execute code or run as a native binary — this platform only
-# ever runs the student's code through gunicorn/Python, so these have no legitimate
-# purpose and are blocked outright. Everything else (documents, archives, media,
-# any template/content format) is allowed: content safety for those is the security
-# scanner's job (it inspects actual file content), not a fixed extension allow-list
-# that has to be manually extended every time a real app uses a file type it didn't
-# anticipate — .jinja, .pdf/.doc/.docx, and a plain .zip sitting in a repo have all
-# hit that wall in practice, each one perfectly benign.
+# Compiled/native-binary extensions — this platform only ever runs the student's
+# code through specific, hardcoded commands (pip install, manage.py migrate,
+# gunicorn against the one detected WSGI module), never by scanning the repo for
+# a script to execute. A .sh/.bat/.ps1 sitting in the ZIP is exactly as inert as a
+# .pdf: nothing here ever runs it. Native/compiled binaries are blocked anyway
+# since a Python web app has no legitimate use for one and they can't be
+# meaningfully content-scanned. Everything else (documents, archives, media,
+# scripts, any template/content format) is allowed: content safety is the
+# security scanner's job (it inspects actual file content), not a fixed
+# extension list that has to be manually extended every time a real app uses a
+# file type it didn't anticipate — .jinja, .pdf/.doc/.docx, a plain .zip, and a
+# docker/backup.sh have all hit that wall in practice, each one perfectly benign.
 BLOCKED_SUFFIXES = frozenset({
-    '.exe', '.dll', '.so', '.dylib', '.msi', '.com', '.scr',
-    '.bat', '.cmd', '.ps1', '.sh', '.bash', '.bin', '.app',
+    '.exe', '.dll', '.so', '.dylib', '.msi', '.com', '.scr', '.bin', '.app',
 })
 
 

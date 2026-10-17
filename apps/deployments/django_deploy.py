@@ -20,7 +20,7 @@ DJANGO_ALLOWED_SUFFIXES = frozenset({
     # Python
     '.py', '.pyw',
     # Templates / static
-    '.html', '.htm', '.css', '.js', '.mjs', '.json',
+    '.html', '.htm', '.jinja', '.jinja2', '.j2', '.css', '.js', '.mjs', '.json',
     '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico',
     '.woff', '.woff2', '.ttf', '.eot', '.otf',
     # Data / config

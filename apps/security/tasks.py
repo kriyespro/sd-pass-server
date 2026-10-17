@@ -53,11 +53,13 @@ def scan_upload(upload_id: int) -> dict:
     from apps.logs.models import LogKind
     from apps.logs.services import append_project_log
 
-    append_project_log(
-        project,
-        LogKind.SYSTEM,
-        f'Security scan finished: {scan_status}. {result.get("summary", "")}',
-    )
+    log_message = f'Security scan finished: {scan_status}. {result.get("summary", "")}'
+    issues = (result.get('details') or {}).get('issues') or []
+    if issues:
+        log_message += ' Issues: ' + '; '.join(issues[:20])
+        if len(issues) > 20:
+            log_message += f' (+{len(issues) - 20} more)'
+    append_project_log(project, LogKind.SYSTEM, log_message)
 
     if not passed:
         from django.urls import reverse

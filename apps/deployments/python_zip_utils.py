@@ -36,11 +36,24 @@ def is_ignored_entry(name: str) -> bool:
     )
 
 
+# Extensions that can execute code or run as a native binary — this platform only
+# ever runs the student's code through gunicorn/Python, so these have no legitimate
+# purpose and are blocked outright. Everything else (documents, archives, media,
+# any template/content format) is allowed: content safety for those is the security
+# scanner's job (it inspects actual file content), not a fixed extension allow-list
+# that has to be manually extended every time a real app uses a file type it didn't
+# anticipate — .jinja, .pdf/.doc/.docx, and a plain .zip sitting in a repo have all
+# hit that wall in practice, each one perfectly benign.
+BLOCKED_SUFFIXES = frozenset({
+    '.exe', '.dll', '.so', '.dylib', '.msi', '.com', '.scr',
+    '.bat', '.cmd', '.ps1', '.sh', '.bash', '.bin', '.app',
+})
+
+
 def validate_zip(
     zip_path: Path,
     *,
-    allowed_suffixes: frozenset[str],
-    allowed_filenames: frozenset[str],
+    blocked_suffixes: frozenset[str] = BLOCKED_SUFFIXES,
     max_files: int,
     max_size: int,
 ) -> tuple[bool, str]:
@@ -58,11 +71,10 @@ def validate_zip(
                 if not name or name.startswith('/') or '..' in name.split('/'):
                     return False, f'Unsafe ZIP entry: {name!r}'
                 suf = Path(name).suffix.lower()
-                basename = Path(name).name.lower()
-                if basename not in allowed_filenames and suf and suf not in allowed_suffixes:
+                if suf in blocked_suffixes:
                     return False, (
-                        f'File type not allowed: {name!r}. '
-                        f'Allowed: Python, HTML, CSS, JS, SQLite, images, config files.'
+                        f'File type not allowed: {name!r} ({suf}). '
+                        f'Executable/binary file types are blocked.'
                     )
                 total += info.file_size
                 if total > max_size:

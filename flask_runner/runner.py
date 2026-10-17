@@ -265,16 +265,25 @@ _PLATFORM_WSGI_WRAPPER_NAME = '_platform_wsgi_entry'
 
 def _write_platform_wsgi_wrapper(project_dir: Path, settings_module: str, wsgi_target: str) -> str:
     """
-    Write a tiny gunicorn entrypoint that force-allows every Host header before
-    importing the student's real WSGI app, and return its app spec.
+    Write a tiny gunicorn entrypoint that patches two settings before importing
+    the student's real WSGI app, and return its app spec:
 
-    `django-admin startproject` defaults ALLOWED_HOSTS to [] — every freshly
-    scaffolded Django app would otherwise reject its own subdomain/custom domain
-    with DisallowedHost on first request. Each project here runs in its own
-    isolated gunicorn process that Traefik only ever routes that project's own
-    domain(s) to, so Django's ALLOWED_HOSTS check is redundant in this
-    architecture; this file is regenerated on every deploy and never touches
-    the student's own settings.py.
+    1. ALLOWED_HOSTS += "*" — `django-admin startproject` defaults this to [],
+       which rejects every request with DisallowedHost. Each project here runs
+       in its own isolated gunicorn process that Traefik only ever routes that
+       project's own domain(s) to, so this check is redundant in this
+       architecture.
+    2. SECURE_PROXY_SSL_HEADER — Traefik terminates TLS and forwards to
+       gunicorn over plain HTTP, so without this Django thinks every request
+       is HTTP. That breaks the CSRF Origin check specifically: Django compares
+       the browser's real `https://...` Origin header against a same-origin
+       URL it computes as `http://...`, and rejects the mismatch ("Origin
+       checking failed"). This is the same setting the platform's own
+       core/settings/prod.py already relies on for itself.
+
+    Neither override fires if the student's own settings.py already set it —
+    this file is regenerated on every deploy and never touches their actual
+    settings.py.
     """
     module_path, _, attr = wsgi_target.partition(':')
     attr = attr or 'application'
@@ -288,6 +297,8 @@ def _write_platform_wsgi_wrapper(project_dir: Path, settings_module: str, wsgi_t
         'from django.conf import settings as _settings\n'
         'if "*" not in _settings.ALLOWED_HOSTS:\n'
         '    _settings.ALLOWED_HOSTS = [*_settings.ALLOWED_HOSTS, "*"]\n'
+        'if not getattr(_settings, "SECURE_PROXY_SSL_HEADER", None):\n'
+        '    _settings.SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")\n'
         f'from {module_path} import {attr} as {attr}  # noqa: F401\n'
     )
     return f'{_PLATFORM_WSGI_WRAPPER_NAME}:{attr}'

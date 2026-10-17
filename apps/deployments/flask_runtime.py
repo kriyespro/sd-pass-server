@@ -126,6 +126,28 @@ def runner_stop(project_id: int) -> None:
         log.warning('runner_stop(%s) failed: %s', project_id, exc)
 
 
+def runner_set_django_superuser(
+    project_id: int, username: str, email: str, password: str, env: dict[str, str] | None = None,
+) -> tuple[bool, str]:
+    """
+    Create or reset a Django superuser (is_staff + is_superuser) directly in the
+    project's own database. Returns (True, 'created'|'updated') or (False, error_msg).
+    """
+    try:
+        resp = requests.post(
+            f'{_runner_url()}/django_superuser/{project_id}',
+            json={'username': username, 'email': email, 'password': password, 'env': env or {}},
+            headers=_headers(),
+            timeout=60,
+        )
+        data = resp.json()
+        if resp.status_code == 200:
+            return True, data.get('action', 'updated')
+        return False, data.get('error', f'HTTP {resp.status_code}')
+    except requests.RequestException as exc:
+        return False, f'runner unreachable: {exc}'
+
+
 def runner_status(project_id: int) -> dict:
     try:
         resp = requests.get(

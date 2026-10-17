@@ -425,3 +425,52 @@ class ProjectChangeTypeView(LoginRequiredMixin, View):
 
         messages.success(request, f'Project type changed to {self._LABELS.get(new_type, new_type)}.')
         return HttpResponseRedirect(reverse('projects:upload_zip', kwargs={'slug': project.slug}))
+
+
+class DjangoSuperadminView(LoginRequiredMixin, View):
+    """Create or reset a Django superuser (admin) account for a deployed Django project."""
+
+    def dispatch(self, request, *args, **kwargs):
+        self.project = get_object_or_404(
+            Project,
+            slug=kwargs['slug'],
+            owner=request.user,
+            is_deleted=False,
+            project_type=ProjectType.DJANGO,
+        )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return render(request, 'pages/projects/superadmin.jinja', {'project': self.project})
+
+    def post(self, request, *args, **kwargs):
+        from apps.deployments.django_superuser import set_django_superuser
+        from apps.logs.models import LogKind
+        from apps.logs.services import append_project_log
+
+        ctx = {'project': self.project}
+        username = (request.POST.get('username') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        password = request.POST.get('password') or ''
+        password2 = request.POST.get('password2') or ''
+
+        if not username or not password:
+            messages.error(request, 'Username and password are required.')
+            return render(request, 'pages/projects/superadmin.jinja', ctx)
+        if password != password2:
+            messages.error(request, 'Passwords do not match.')
+            return render(request, 'pages/projects/superadmin.jinja', ctx)
+        if len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters.')
+            return render(request, 'pages/projects/superadmin.jinja', ctx)
+
+        ok, result = set_django_superuser(self.project, username, email, password)
+        if ok:
+            append_project_log(
+                self.project, LogKind.SYSTEM,
+                f'Superadmin account "{username}" {result} by the project owner.',
+            )
+            messages.success(request, f'Superadmin "{username}" {result}. Log in at /admin/ on your site.')
+        else:
+            messages.error(request, f'Could not set superadmin: {result}')
+        return HttpResponseRedirect(reverse('projects:django_superadmin', kwargs={'slug': self.project.slug}))

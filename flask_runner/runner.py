@@ -478,6 +478,73 @@ def deploy(project_id: int):
     return jsonify({'status': 'started', 'pid': proc.pid, 'port': port, 'entry': entry})
 
 
+_SUPERUSER_SCRIPT = """
+import os, django
+django.setup()
+from django.contrib.auth import get_user_model
+User = get_user_model()
+username = os.environ['PLATFORM_SU_USERNAME']
+email = os.environ.get('PLATFORM_SU_EMAIL', '')
+password = os.environ['PLATFORM_SU_PASSWORD']
+field = User.USERNAME_FIELD
+user, created = User.objects.get_or_create(**{field: username})
+if email:
+    user.email = email
+user.is_staff = True
+user.is_superuser = True
+user.is_active = True
+user.set_password(password)
+user.save()
+print('created' if created else 'updated')
+"""
+
+
+@management_app.post('/django_superuser/<int:project_id>')
+def django_superuser(project_id: int):
+    """Create or reset a Django superuser directly in the project's own database."""
+    data = request.get_json(force=True) or {}
+    username = (data.get('username') or '').strip()
+    password = data.get('password') or ''
+    email = (data.get('email') or '').strip()
+    posted_env = data.get('env') or {}
+    if not username or not password:
+        return jsonify({'error': 'username and password are required'}), 400
+
+    project_dir = _project_dir(project_id)
+    if not project_dir.exists() or not (project_dir / '.venv').exists():
+        return jsonify({'error': 'Deploy this app at least once before setting a superadmin.'}), 400
+
+    django_info = _detect_django_entry(project_dir)
+    if not django_info:
+        return jsonify({'error': 'No Django entry point found.'}), 400
+    settings_module, _entry = django_info
+
+    python = _venv_bin(project_id, 'python')
+    env = _student_env(project_dir, {
+        **posted_env,
+        'DJANGO_SETTINGS_MODULE': settings_module,
+        'PLATFORM_SU_USERNAME': username,
+        'PLATFORM_SU_EMAIL': email,
+        'PLATFORM_SU_PASSWORD': password,
+    })
+
+    try:
+        r = subprocess.run(
+            [str(python), '-c', _SUPERUSER_SCRIPT],
+            cwd=str(project_dir), env=env,
+            capture_output=True, text=True, timeout=DJANGO_MANAGE_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Operation timed out.'}), 500
+
+    if r.returncode != 0:
+        return jsonify({'error': r.stderr[:800] or r.stdout[:800] or 'Unknown error'}), 500
+
+    action = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else 'updated'
+    log.info('Superuser %s for project %s: %s', action, project_id, username)
+    return jsonify({'status': 'ok', 'action': action, 'username': username})
+
+
 @management_app.post('/stop/<int:project_id>')
 def stop_project(project_id: int):
     _stop_proc(project_id)

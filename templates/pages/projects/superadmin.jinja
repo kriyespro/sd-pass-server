@@ -1,0 +1,57 @@
+{% extends "base.jinja" %}
+{% block title %}Superadmin — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">🔑 Django Superadmin</h1>
+    <p class="mt-2 text-sm text-slate-400">
+      Create or reset the login for this app's <code class="text-emerald-300">/admin/</code> panel.
+      This writes directly into your app's own PostgreSQL database — no shell access needed.
+    </p>
+
+    <form method="post" class="mt-6 space-y-4">
+      {{ csrf_input }}
+      <div>
+        <label class="block text-sm font-medium text-slate-200">Username</label>
+        <input type="text" name="username" required maxlength="150" autocomplete="off"
+          class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2"
+          placeholder="admin">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-200">Email <span class="text-slate-500 font-normal">(optional)</span></label>
+        <input type="email" name="email" autocomplete="off"
+          class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2"
+          placeholder="admin@example.com">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-200">Password</label>
+        <input type="password" name="password" required minlength="8" autocomplete="new-password"
+          class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-200">Confirm password</label>
+        <input type="password" name="password2" required minlength="8" autocomplete="new-password"
+          class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2">
+      </div>
+      <button type="submit"
+        class="rounded-lg bg-emerald-500 hover:bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950">
+        🔑 Create / reset superadmin
+      </button>
+    </form>
+
+    <div class="mt-6 rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-xs text-slate-400 space-y-1">
+      <p class="font-semibold text-slate-300">Notes</p>
+      <ul class="space-y-1 list-disc pl-4">
+        <li>If the username already exists, its password is reset and it's promoted to staff + superuser.</li>
+        <li>Your app must have deployed successfully at least once, so its database exists.</li>
+        <li>Your Django app needs <code class="text-emerald-300">django.contrib.admin</code> enabled and registered in <code class="text-emerald-300">urls.py</code> to actually see <code class="text-emerald-300">/admin/</code>.</li>
+        <li>Passwords are never stored or logged by the platform — only passed through once to create the account.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

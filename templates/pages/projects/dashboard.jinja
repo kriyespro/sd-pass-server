@@ -257,6 +257,10 @@
                   <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
                   <span class="text-slate-700">·</span>
                   <a href="{{ url('projects:domain', slug=p.slug) }}" class="text-amber-400 hover:text-amber-300">Domain</a>
+                  {% if p.project_type == 'django' %}
+                  <span class="text-slate-700">·</span>
+                  <a href="{{ url('projects:django_superadmin', slug=p.slug) }}" class="text-violet-400 hover:text-violet-300">Admin</a>
+                  {% endif %}
                   <span class="text-slate-700">·</span>
                   <a href="{{ url('projects:logs', slug=p.slug) }}" class="text-slate-400 hover:text-white">Logs</a>
                   <span class="text-slate-700">·</span>

@@ -56,4 +56,9 @@ urlpatterns = [
         views.ProjectChangeTypeView.as_view(),
         name='change_type',
     ),
+    path(
+        '<slug:slug>/superadmin/',
+        views.DjangoSuperadminView.as_view(),
+        name='django_superadmin',
+    ),
 ]

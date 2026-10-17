@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 from apps.backups.models import BackupJob
 from apps.databases.models import DatabaseInstance
+from apps.databases.services import deprovision_postgres_db
 from apps.deployments.models import Deployment
 from apps.deployments.services import delete_runtime_env_snapshot, project_site_dir
 from apps.dnsmanager.models import DnsRecord
@@ -74,6 +75,7 @@ def soft_delete_project(*, project: Project, user) -> tuple[bool, str]:
         ProjectRoute.objects.filter(project=locked).delete()
         DnsRecord.objects.filter(project=locked).delete()
         BackupJob.objects.filter(project=locked).delete()
+        deprovision_postgres_db(locked)
         DatabaseInstance.objects.filter(project=locked).delete()
         EnvVar.objects.filter(project=locked).delete()
         LogEntry.objects.filter(project=locked).delete()

@@ -9,7 +9,8 @@
   <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
     <h1 class="text-xl font-semibold text-white">Databases</h1>
     <p class="mt-2 text-sm text-slate-400">
-      Per-project PostgreSQL/Redis instances will appear here. Provisioning runs in Celery (<code class="text-emerald-300">databases.provision_stub</code>) — not wired from the UI yet.
+      Django apps get a dedicated PostgreSQL database automatically on first deploy — connected via a
+      <code class="text-emerald-300">DATABASE_URL</code> env var, no setup needed. It appears below once provisioned.
     </p>
     {% if database_instances %}
       <ul class="mt-4 divide-y divide-slate-800 rounded-xl border border-slate-800 text-sm">

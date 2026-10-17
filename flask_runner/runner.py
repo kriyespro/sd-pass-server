@@ -68,17 +68,20 @@ def _remove_from_state(project_id: int) -> None:
         log.warning('Could not update runner state: %s', exc)
 
 
-def _save_state_with_port(project_id: int, port: int, project_type: str = 'flask') -> None:
-    """Persist project_id→{port,type} mapping then write live state."""
+def _save_state_with_port(
+    project_id: int, port: int, project_type: str = 'flask', env: dict[str, str] | None = None,
+) -> None:
+    """Persist project_id→{port,type,env} mapping then write live state."""
     existing: dict[str, dict] = {}
     try:
         existing = json.loads(_STATE_FILE.read_text()) if _STATE_FILE.exists() else {}
     except (OSError, json.JSONDecodeError):
         pass
-    existing[str(project_id)] = {'port': port, 'type': project_type}
+    existing[str(project_id)] = {'port': port, 'type': project_type, 'env': env or {}}
     try:
         SITES_ROOT.mkdir(parents=True, exist_ok=True)
         _STATE_FILE.write_text(json.dumps(existing, indent=2))
+        _STATE_FILE.chmod(0o600)
     except OSError as exc:
         log.warning('Could not save runner state: %s', exc)
 
@@ -102,13 +105,15 @@ def _restore_state() -> None:
             project_id = int(pid_str)
         except ValueError:
             continue
-        # Backward compat: old state files stored a bare port int (always Flask).
+        # Backward compat: old state files stored a bare port int (always Flask, no env).
         if isinstance(value, dict):
             port = value.get('port')
             project_type = value.get('type', 'flask')
+            saved_env = value.get('env') or {}
         else:
             port = value
             project_type = 'flask'
+            saved_env = {}
         if not port:
             continue
 
@@ -117,7 +122,7 @@ def _restore_state() -> None:
             log.warning('Restore: project dir missing for %s — skipping', project_id)
             continue
 
-        extra_env: dict[str, str] = {}
+        extra_env: dict[str, str] = dict(saved_env)
         if project_type == 'django':
             django_info = _detect_django_entry(project_dir)
             if not django_info:
@@ -135,6 +140,12 @@ def _restore_state() -> None:
         if not ok:
             log.error('Restore: venv setup failed for project %s: %s', project_id, err)
             continue
+
+        if project_type == 'django':
+            ok, err = _run_django_management(project_id, extra_env)
+            if not ok:
+                log.error('Restore: manage.py step failed for project %s: %s', project_id, err)
+                continue
 
         gunicorn = _venv_bin(project_id, 'gunicorn')
         env = _student_env(project_dir, extra_env)
@@ -268,7 +279,10 @@ def _stop_proc(project_id: int) -> None:
 
 _BASE_PACKAGES = {
     'flask':  ['flask', 'gunicorn'],
-    'django': ['django', 'gunicorn'],
+    # psycopg2-binary + django-environ are pre-installed so settings.py can do
+    # `DATABASES = {'default': env.db('DATABASE_URL')}` without adding either
+    # to requirements.txt — the platform always injects a Postgres DATABASE_URL.
+    'django': ['django', 'gunicorn', 'psycopg2-binary', 'django-environ'],
 }
 
 
@@ -309,11 +323,12 @@ def _setup_venv(project_id: int, project_type: str = 'flask') -> tuple[bool, str
     return True, ''
 
 
-def _run_django_management(project_id: int, settings_module: str) -> tuple[bool, str]:
-    """Run `manage.py migrate` (fatal on failure) then `collectstatic` (best-effort)."""
+def _run_django_management(project_id: int, extra_env: dict[str, str]) -> tuple[bool, str]:
+    """Run `manage.py migrate` (fatal on failure) then `collectstatic` (best-effort).
+    `extra_env` must include DJANGO_SETTINGS_MODULE and (normally) DATABASE_URL."""
     project_dir = _project_dir(project_id)
     python = _venv_bin(project_id, 'python')
-    env = _student_env(project_dir, {'DJANGO_SETTINGS_MODULE': settings_module})
+    env = _student_env(project_dir, extra_env)
 
     try:
         r = subprocess.run(
@@ -353,6 +368,7 @@ def deploy(project_id: int):
     data = request.get_json(force=True) or {}
     port = data.get('port')
     project_type = data.get('project_type', 'flask')
+    posted_env = data.get('env') or {}
     if not port:
         return jsonify({'error': 'port is required'}), 400
 
@@ -363,7 +379,7 @@ def deploy(project_id: int):
     # Stop any existing process before reinstalling/restarting
     _stop_proc(project_id)
 
-    extra_env: dict[str, str] = {}
+    extra_env: dict[str, str] = dict(posted_env)
     if project_type == 'django':
         django_info = _detect_django_entry(project_dir)
         if not django_info:
@@ -391,7 +407,7 @@ def deploy(project_id: int):
         return jsonify({'error': err, 'status': 'install_failed'}), 500
 
     if project_type == 'django':
-        ok, err = _run_django_management(project_id, extra_env['DJANGO_SETTINGS_MODULE'])
+        ok, err = _run_django_management(project_id, extra_env)
         if not ok:
             log.error('manage.py step failed for project %s: %s', project_id, err)
             return jsonify({'error': err, 'status': 'migrate_failed'}), 500
@@ -420,8 +436,8 @@ def deploy(project_id: int):
     with _lock:
         _procs[project_id] = proc
 
-    # Persist port + type so we can restore after a container restart
-    _save_state_with_port(project_id, port, project_type)
+    # Persist port + type + env so we can restore after a container restart
+    _save_state_with_port(project_id, port, project_type, extra_env)
 
     log.info('Started project %s  type=%s  entry=%s  port=%s  pid=%s', project_id, project_type, entry, port, proc.pid)
     return jsonify({'status': 'started', 'pid': proc.pid, 'port': port, 'entry': entry})

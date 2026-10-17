@@ -8,6 +8,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
+from apps.databases.services import database_url_for_instance, get_or_provision_postgres_db
 from apps.deployments.flask_runtime import allocate_django_port, runner_deploy
 from apps.deployments.python_zip_utils import extract_zip, validate_zip
 from apps.deployments.services import project_site_dir
@@ -89,8 +90,15 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     except RuntimeError as exc:
         return False, str(exc)
 
-    # 4. Runner: install deps, migrate, start gunicorn
-    ok, result = runner_deploy(project.pk, port, project_type='django')
+    # 4. Dedicated PostgreSQL database (created on first deploy, reused on redeploys)
+    db_instance = get_or_provision_postgres_db(project)
+    database_url = database_url_for_instance(db_instance)
+
+    # 5. Runner: install deps, migrate against Postgres, start gunicorn
+    ok, result = runner_deploy(
+        project.pk, port, project_type='django',
+        env={'DATABASE_URL': database_url},
+    )
     if not ok:
         return False, f'Runner failed: {result}'
 

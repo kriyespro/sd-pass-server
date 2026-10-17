@@ -194,20 +194,35 @@ python-dotenv</pre>
 │   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py           ← application = get_wsgi_application()
-├── requirements.txt      ← optional
-└── db.sqlite3            ← SQLite (optional)</pre>
+└── requirements.txt      ← optional</pre>
       </div>
 
       <div class="space-y-2 text-slate-300">
-        <p class="font-medium text-slate-100">2. Optional — <code class="text-green-300">requirements.txt</code></p>
-        <p class="text-slate-400 text-xs">List any extra packages. <code>django</code> and <code>gunicorn</code> are always installed automatically.</p>
+        <p class="font-medium text-slate-100">2. Database — a real PostgreSQL database is provisioned for you</p>
+        <p class="text-slate-400 text-xs">
+          No SQLite here. Every Django app gets its own dedicated PostgreSQL database automatically,
+          and we inject a <code class="text-green-300">DATABASE_URL</code> env var at deploy time.
+          Read it in <code class="text-green-300">settings.py</code> with <code class="text-green-300">django-environ</code>
+          (pre-installed, no need to add it to requirements.txt):
+        </p>
+        <pre class="mt-1 rounded-lg bg-slate-900 px-4 py-3 text-xs text-emerald-300 overflow-x-auto">import environ
+env = environ.Env()
+DATABASES = {'default': env.db('DATABASE_URL')}</pre>
+      </div>
+
+      <div class="space-y-2 text-slate-300">
+        <p class="font-medium text-slate-100">3. Optional — <code class="text-green-300">requirements.txt</code></p>
+        <p class="text-slate-400 text-xs">
+          List any extra packages. <code>django</code>, <code>gunicorn</code>, <code>psycopg2-binary</code>
+          and <code>django-environ</code> are always installed automatically.
+        </p>
         <pre class="mt-1 rounded-lg bg-slate-900 px-4 py-3 text-xs text-emerald-300 overflow-x-auto">djangorestframework
 python-dotenv</pre>
       </div>
 
       <div class="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 space-y-1.5 text-xs text-slate-400">
         <p class="font-semibold text-slate-300">✅ Allowed file types</p>
-        <p><span class="text-green-300">.py</span> Python · <span class="text-sky-300">.html .htm</span> Templates · <span class="text-emerald-300">.css .js</span> Static · <span class="text-slate-300">.sqlite .db</span> SQLite</p>
+        <p><span class="text-green-300">.py</span> Python · <span class="text-sky-300">.html .htm</span> Templates · <span class="text-emerald-300">.css .js</span> Static</p>
         <p><span class="text-slate-300">.png .jpg .jpeg .gif .webp .svg .ico</span> Images · <span class="text-slate-300">.woff .woff2 .ttf</span> Fonts</p>
         <p><span class="text-slate-300">.txt .json .csv .yaml .toml .cfg .ini .env .po .mo</span> Config / data / i18n</p>
         <p class="text-rose-400 mt-1">❌ Not allowed: .exe · .sh · .bat · .php — and no <code>.venv/</code> folder in the ZIP (we create it for you)</p>
@@ -216,10 +231,10 @@ python-dotenv</pre>
       <div class="rounded-lg border border-sky-700/40 bg-sky-950/20 px-4 py-3 text-xs text-sky-300 space-y-1">
         <p class="font-semibold text-sky-200">💡 Tips</p>
         <ul class="space-y-1 list-disc pl-4 text-slate-300">
-          <li>We run <code class="text-green-300">manage.py migrate</code> automatically on every deploy</li>
+          <li>We run <code class="text-green-300">manage.py migrate</code> against your PostgreSQL database automatically on every deploy</li>
           <li>We also try <code class="text-green-300">manage.py collectstatic</code> — set <code class="text-emerald-300">STATIC_ROOT</code> in settings.py if you serve static files</li>
           <li>Set <code class="text-emerald-300">ALLOWED_HOSTS = ['*']</code> (or your subdomain) in settings.py</li>
-          <li>For SQLite use a relative path for <code class="text-emerald-300">DATABASES['default']['NAME']</code></li>
+          <li>Your database persists across redeploys — redeploying only replaces your code, never your data</li>
           <li>Do NOT include <code class="text-rose-300">.venv/</code> or <code class="text-rose-300">__pycache__/</code> in the ZIP</li>
           <li>First visit after deploy may take a few extra seconds while gunicorn warms up</li>
         </ul>

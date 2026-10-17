@@ -91,16 +91,19 @@ def free_django_port(project_id: int) -> None:
 
 # ── Runner API calls ──────────────────────────────────────────────────────────
 
-def runner_deploy(project_id: int, port: int, project_type: str = 'flask') -> tuple[bool, str]:
+def runner_deploy(
+    project_id: int, port: int, project_type: str = 'flask', env: dict[str, str] | None = None,
+) -> tuple[bool, str]:
     """
     Ask the runner to (re)start the app (Flask or Django).
     Returns (True, entry_point) on success or (False, error_msg).
     Blocks until pip install (+ migrate for Django) + gunicorn start completes (up to ~4 min).
+    `env` (e.g. DATABASE_URL for Django) is injected into the app's process environment.
     """
     try:
         resp = requests.post(
             f'{_runner_url()}/deploy/{project_id}',
-            json={'port': port, 'project_type': project_type},
+            json={'port': port, 'project_type': project_type, 'env': env or {}},
             headers=_headers(),
             timeout=300,
         )

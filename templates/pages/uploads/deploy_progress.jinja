@@ -1,0 +1,17 @@
+{% extends "base.jinja" %}
+{% block title %}Deploying — {{ project.name }}{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl space-y-6">
+  <p class="text-sm text-slate-400">
+    <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
+    · <span class="text-slate-300">{{ project.name }}</span>
+  </p>
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">🚀 Deploying {{ upload.original_name }}</h1>
+    <p class="mt-2 text-sm text-slate-400">This page updates itself automatically — no need to refresh.</p>
+    <div class="mt-6">
+      {% include "partials/uploads/_deploy_progress.jinja" %}
+    </div>
+  </div>
+</section>
+{% endblock %}

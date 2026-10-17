@@ -17,7 +17,7 @@ from apps.logs.services import append_project_log
 from apps.projects.models import Project, ProjectSubfolder, ProjectType
 
 from .forms import GithubPullForm, MultiStaticUploadForm, ZipUploadForm
-from .models import ProjectUpload
+from .models import ProjectUpload, UploadStatus
 from .tasks import enqueue_upload_pipeline
 
 
@@ -212,7 +212,65 @@ class GithubPullView(LoginRequiredMixin, View):
         )
         enqueue_upload_pipeline.delay(upload.pk)
         messages.success(request, f'Pulling {owner}/{repo}@{branch} — security scan and deploy are running.')
-        return HttpResponseRedirect(reverse('projects:logs', kwargs={'slug': self.project.slug}))
+        return HttpResponseRedirect(
+            reverse('projects:upload_progress', kwargs={'slug': self.project.slug, 'upload_id': upload.pk})
+        )
+
+
+def _deploy_progress_context(project: Project, upload: ProjectUpload) -> dict:
+    """
+    Translate ProjectUpload.status + the project's own log entries into a
+    percent/label/state for the deploy-progress UI. There's no single reliable
+    "deploy finished" flag (Deployment rows are created SUCCEEDED before the
+    actual Flask/Django deploy attempt even runs), so the terminal state is
+    read from the BUILD/SYSTEM log lines the deploy task itself appends.
+    """
+    from apps.logs.models import LogEntry, LogKind
+
+    base = {'project': project, 'upload': upload}
+
+    if upload.status == UploadStatus.REJECTED:
+        return {**base, 'state': 'failed', 'percent': 100, 'label': 'Security scan rejected this upload'}
+
+    recent = LogEntry.objects.filter(
+        project=project, created_at__gte=upload.created_at,
+    ).order_by('-created_at')[:15]
+    for entry in recent:
+        msg = entry.message.lower()
+        if entry.kind == LogKind.SYSTEM and 'deploy failed' in msg:
+            return {**base, 'state': 'failed', 'percent': 100, 'label': 'Deploy failed'}
+        if entry.kind == LogKind.BUILD and ('deployed' in msg or 'published' in msg):
+            return {**base, 'state': 'success', 'percent': 100, 'label': 'Live!'}
+
+    if upload.status == UploadStatus.CLEAN:
+        return {**base, 'state': 'progress', 'percent': 75, 'label': 'Installing dependencies & deploying…'}
+    if upload.status == UploadStatus.SCANNING:
+        return {**base, 'state': 'progress', 'percent': 35, 'label': 'Running security scan…'}
+    return {**base, 'state': 'progress', 'percent': 10, 'label': 'Queued…'}
+
+
+class DeployProgressView(LoginRequiredMixin, View):
+    """Full page shown right after a GitHub pull (or any upload) — polls its own progress."""
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(
+            Project, slug=kwargs['slug'], owner=request.user, is_deleted=False,
+        )
+        upload = get_object_or_404(ProjectUpload, pk=kwargs['upload_id'], project=project)
+        ctx = _deploy_progress_context(project, upload)
+        return render(request, 'pages/uploads/deploy_progress.jinja', ctx)
+
+
+class UploadStatusPartialView(LoginRequiredMixin, View):
+    """HTMX polling fragment backing DeployProgressView — returns the next progress snapshot."""
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(
+            Project, slug=kwargs['slug'], owner=request.user, is_deleted=False,
+        )
+        upload = get_object_or_404(ProjectUpload, pk=kwargs['upload_id'], project=project)
+        ctx = _deploy_progress_context(project, upload)
+        return render(request, 'partials/uploads/_deploy_progress.jinja', ctx)
 
 
 class MultiStaticFilesView(LoginRequiredMixin, View):

@@ -24,6 +24,16 @@ urlpatterns = [
         upload_views.GithubPullView.as_view(),
         name='upload_github',
     ),
+    path(
+        '<slug:slug>/upload/<int:upload_id>/progress/',
+        upload_views.DeployProgressView.as_view(),
+        name='upload_progress',
+    ),
+    path(
+        '<slug:slug>/upload/<int:upload_id>/progress/partial/',
+        upload_views.UploadStatusPartialView.as_view(),
+        name='upload_status_partial',
+    ),
     path('<slug:slug>/environment/', env_views.ProjectEnvironmentView.as_view(), name='environment'),
     path('<slug:slug>/logs/', log_views.ProjectLogsView.as_view(), name='logs'),
     path('<slug:slug>/logs/table/', log_views.ProjectLogsTablePartialView.as_view(), name='logs_partial'),

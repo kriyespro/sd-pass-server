@@ -5,6 +5,7 @@ from pathlib import Path
 
 from django.conf import settings
 
+from apps.deployments.python_zip_utils import is_ignored_entry
 from apps.security.models import ScanStatus
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,11 @@ def run_security_scan(zip_path: Path) -> dict:
 
     # ── ZIP member scanning ───────────────────────────────────────────────────
     with zipfile.ZipFile(zip_path, 'r') as zf:
-        members = [m for m in zf.infolist() if not m.is_dir()]
+        all_members = [m for m in zf.infolist() if not m.is_dir()]
+        # Skip vendored dependency trees (committed venv/node_modules/site-packages) —
+        # never actually used at runtime, and a reliable source of false-positive
+        # "dangerous pattern" hits inside third-party library source.
+        members = [m for m in all_members if not is_ignored_entry(m.filename)]
 
         if len(members) > MAX_ZIP_MEMBERS:
             issues.append(f'zip:too_many_files:{len(members)}')

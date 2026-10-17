@@ -12,12 +12,25 @@ import zipfile
 from pathlib import Path
 
 
+# Vendored dependency trees: the runner always installs its own deps from
+# requirements.txt, so a committed venv/node_modules/site-packages folder is
+# never actually used — it's dead weight at best, and a source of false-positive
+# security-scan hits at worst (third-party library internals legitimately use
+# os.system/subprocess for their own reasons).
+_NOISE_DIR_SEGMENTS = frozenset({
+    '__pycache__', '__macosx', 'node_modules', '.git', '.tox',
+    'venv', '.venv', 'env', 'site-packages', 'dist-packages',
+})
+
+
 def is_ignored_entry(name: str) -> bool:
-    """Return True for __pycache__, .pyc/.pyo, macOS metadata — safe to skip silently."""
+    """Return True for __pycache__, .pyc/.pyo, macOS metadata, and vendored
+    dependency trees (venv/.venv/env/node_modules/site-packages/.git/.tox) at
+    any depth — safe to skip silently."""
     parts = name.replace('\\', '/').split('/')
+    lowered = [p.lower() for p in parts]
     return (
-        '__pycache__' in parts
-        or parts[0] == '__MACOSX'
+        any(p in _NOISE_DIR_SEGMENTS for p in lowered)
         or any(p.startswith('._') for p in parts)
         or Path(name).suffix.lower() in ('.pyc', '.pyo')
     )

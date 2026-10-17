@@ -339,6 +339,32 @@ _BASE_PACKAGES = {
     'django': ['django', 'gunicorn', 'psycopg2-binary', 'django-environ'],
 }
 
+# A plain requirements.txt at the root is the common case, but splitting
+# requirements into a requirements/ directory (base/prod/dev) is a very common,
+# legitimate Django convention too — pip resolves `-r base.txt` references
+# inside these files relative to the including file's own directory, so just
+# pointing pip at the right one handles the whole chain. Checked in order;
+# first match wins. Production-leaning names are preferred over dev/local ones
+# since this is always a production deploy.
+_REQUIREMENTS_CANDIDATES = (
+    'requirements.txt',
+    'requirements/production.txt',
+    'requirements/prod.txt',
+    'requirements/base.txt',
+    'requirements/common.txt',
+    'requirements/dev.txt',
+    'requirements/local.txt',
+    'requirements/development.txt',
+)
+
+
+def _find_requirements_file(project_dir: Path) -> Path | None:
+    for candidate in _REQUIREMENTS_CANDIDATES:
+        p = project_dir / candidate
+        if p.is_file():
+            return p
+    return None
+
 
 def _setup_venv(project_id: int, project_type: str = 'flask') -> tuple[bool, str]:
     """Create venv if missing, then pip install the framework baseline + requirements.txt."""
@@ -362,17 +388,17 @@ def _setup_venv(project_id: int, project_type: str = 'flask') -> tuple[bool, str
     except subprocess.TimeoutExpired:
         return False, 'pip install timed out (base packages)'
 
-    req = project_dir / 'requirements.txt'
-    if req.exists():
+    req = _find_requirements_file(project_dir)
+    if req:
         try:
             r = subprocess.run(
                 [str(pip), 'install', '--quiet', '-r', str(req)],
                 capture_output=True, text=True, timeout=PIP_TIMEOUT,
             )
             if r.returncode != 0:
-                return False, f'pip requirements install failed: {_tail(r.stderr)}'
+                return False, f'pip install failed ({req.relative_to(project_dir)}): {_tail(r.stderr)}'
         except subprocess.TimeoutExpired:
-            return False, 'pip install timed out (requirements.txt)'
+            return False, f'pip install timed out ({req.relative_to(project_dir)})'
 
     return True, ''
 

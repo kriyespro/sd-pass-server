@@ -61,4 +61,9 @@ urlpatterns = [
         views.DjangoSuperadminView.as_view(),
         name='django_superadmin',
     ),
+    path(
+        '<slug:slug>/superadmin/regenerate/',
+        views.DjangoSuperadminRegenerateView.as_view(),
+        name='django_superadmin_regenerate',
+    ),
 ]

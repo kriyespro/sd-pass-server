@@ -103,6 +103,17 @@ def deploy_after_scan(scan_result: dict) -> dict:
             except OSError as exc:
                 append_project_log(proj, LogKind.SYSTEM, f'Traefik route update after Django deploy failed: {exc}')
             append_project_log(proj, LogKind.BUILD, f'Django app deployed: {extract_msg}')
+
+            from apps.deployments.django_superuser import ensure_django_superadmin
+
+            try:
+                superadmin = ensure_django_superadmin(proj)
+                append_project_log(
+                    proj, LogKind.SYSTEM,
+                    f'Superadmin auto-provisioned: {superadmin.email} (see the Admin page for the password).',
+                )
+            except RuntimeError as exc:
+                append_project_log(proj, LogKind.SYSTEM, f'Superadmin auto-provisioning skipped: {exc}')
         else:
             append_project_log(proj, LogKind.SYSTEM, f'Django deploy failed: {extract_msg}')
 

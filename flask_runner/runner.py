@@ -529,12 +529,22 @@ import os, django
 django.setup()
 from django.contrib.auth import get_user_model
 User = get_user_model()
-username = os.environ['PLATFORM_SU_USERNAME']
+raw_username = os.environ['PLATFORM_SU_USERNAME']
 email = os.environ.get('PLATFORM_SU_EMAIL', '')
 password = os.environ['PLATFORM_SU_PASSWORD']
 field = User.USERNAME_FIELD
-user, created = User.objects.get_or_create(**{field: username})
-if email:
+# A lot of real Django projects use the email address as the login
+# identifier even though USERNAME_FIELD is still the plain default
+# 'username' (a very common custom-login-form pattern) -- the value that
+# actually has to be stored in that field is whatever the project's login
+# page asks for, which in that case IS the email. If we stored a
+# separately-typed "username" there instead, the account gets created
+# fine but can never log in: the identifier we tell the operator to type
+# and the one actually saved silently diverge. So whenever an email is
+# given, it IS the identifier -- not a second, independent value.
+identifier = email or raw_username
+user, created = User.objects.get_or_create(**{field: identifier})
+if email and field != 'email':
     user.email = email
 user.is_staff = True
 user.is_superuser = True
@@ -542,11 +552,12 @@ user.is_active = True
 user.set_password(password)
 user.save()
 # If the app uses django-axes (brute-force login lockout), a reset must also
-# clear any existing lockout for this username — otherwise a perfectly valid
-# new password still fails to log in, silently, for up to the lockout window.
+# clear any existing lockout for this identifier -- otherwise a perfectly
+# valid new password still fails to log in, silently, for up to the
+# lockout window.
 try:
     from axes.utils import reset as axes_reset
-    axes_reset(username=username)
+    axes_reset(username=identifier)
 except Exception:
     pass
 print('created' if created else 'updated')

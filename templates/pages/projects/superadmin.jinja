@@ -6,10 +6,47 @@
     <a href="{{ url('projects:dashboard') }}" class="font-medium text-emerald-400 hover:text-emerald-300">← Projects</a>
     · <span class="text-slate-300">{{ project.name }}</span>
   </p>
-  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-    <h1 class="text-xl font-semibold text-white">🔑 Django Superadmin</h1>
+  {% if auto_email %}
+  <div class="rounded-2xl border border-emerald-700/50 bg-emerald-900/10 p-6">
+    <h1 class="text-xl font-semibold text-white">🔑 Auto-generated Superadmin</h1>
     <p class="mt-2 text-sm text-slate-400">
-      Create or reset the login for this app's <code class="text-emerald-300">/admin/</code> panel.
+      Created automatically on first deploy, using your app's name — log in at
+      <code class="text-emerald-300">/admin/</code> with these.
+    </p>
+    <dl class="mt-4 space-y-3">
+      <div>
+        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Email</dt>
+        <dd class="mt-1 flex items-center gap-2">
+          <code class="rounded bg-slate-950 px-2 py-1 text-sm text-emerald-300">{{ auto_email }}</code>
+          <button type="button" onclick="navigator.clipboard.writeText('{{ auto_email }}')"
+            class="text-xs text-slate-400 hover:text-emerald-300">Copy</button>
+        </dd>
+      </div>
+      <div x-data="{ show: false }">
+        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Password</dt>
+        <dd class="mt-1 flex items-center gap-2">
+          <code class="rounded bg-slate-950 px-2 py-1 text-sm text-emerald-300" x-text="show ? '{{ auto_password }}' : '••••••••••••'"></code>
+          <button type="button" @click="show = !show" class="text-xs text-slate-400 hover:text-emerald-300" x-text="show ? 'Hide' : 'Show'"></button>
+          <button type="button" onclick="navigator.clipboard.writeText('{{ auto_password }}')"
+            class="text-xs text-slate-400 hover:text-emerald-300">Copy</button>
+        </dd>
+      </div>
+    </dl>
+    <form method="post" action="{{ url('projects:django_superadmin_regenerate', slug=project.slug) }}" class="mt-5">
+      {{ csrf_input }}
+      <button type="submit"
+        class="rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200">
+        🔄 Regenerate password
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <h1 class="text-xl font-semibold text-white">🔑 Custom Superadmin {{ '(advanced)' if auto_email else '' }}</h1>
+    <p class="mt-2 text-sm text-slate-400">
+      Create or reset the login for this app's <code class="text-emerald-300">/admin/</code> panel with your own
+      username/email/password instead of the auto-generated one above.
       This writes directly into your app's own PostgreSQL database — no shell access needed.
     </p>
 
@@ -22,7 +59,7 @@
           placeholder="admin">
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-200">Email <span class="text-slate-500 font-normal">(optional)</span></label>
+        <label class="block text-sm font-medium text-slate-200">Email <span class="text-slate-500 font-normal">(strongly recommended)</span></label>
         <input type="email" name="email" autocomplete="off"
           class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2"
           placeholder="admin@example.com">
@@ -49,7 +86,7 @@
         <li>If the username already exists, its password is reset and it's promoted to staff + superuser.</li>
         <li>Your app must have deployed successfully at least once, so its database exists.</li>
         <li>Your Django app needs <code class="text-emerald-300">django.contrib.admin</code> enabled and registered in <code class="text-emerald-300">urls.py</code> to actually see <code class="text-emerald-300">/admin/</code>.</li>
-        <li>Passwords are never stored or logged by the platform — only passed through once to create the account.</li>
+        <li>If your app's login asks for an email (not a username), fill the Email field above with the same address you expect to log in with — whatever's there becomes the actual login identifier.</li>
       </ul>
     </div>
   </div>

@@ -6,7 +6,7 @@ import secrets
 from django.conf import settings
 
 from apps.databases.models import DatabaseInstance
-from apps.databases.services import database_url_for_instance
+from apps.databases.services import database_env_vars_for_instance
 from apps.deployments.flask_runtime import runner_set_django_superuser
 from apps.projects.models import Project
 
@@ -21,8 +21,7 @@ def set_django_superuser(project: Project, username: str, email: str, password: 
 
     from apps.envmanager.services import decrypted_env_for_project
 
-    database_url = database_url_for_instance(db_instance)
-    env = {**decrypted_env_for_project(project), 'DATABASE_URL': database_url}
+    env = {**decrypted_env_for_project(project), **database_env_vars_for_instance(db_instance)}
     return runner_set_django_superuser(
         project.pk, username, email, password, env=env,
     )

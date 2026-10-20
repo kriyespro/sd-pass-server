@@ -10,7 +10,7 @@ import subprocess
 import zipfile
 from pathlib import Path
 
-from apps.databases.services import database_url_for_instance, get_or_provision_postgres_db
+from apps.databases.services import database_env_vars_for_instance, get_or_provision_postgres_db
 from apps.deployments.flask_runtime import allocate_django_port, runner_deploy
 from apps.deployments.python_zip_utils import extract_zip, validate_zip
 from apps.deployments.services import project_site_dir
@@ -178,14 +178,14 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     # Dedicated PostgreSQL database (created on first deploy, reused on
     # redeploys/updates — never dropped or recreated here).
     db_instance = get_or_provision_postgres_db(project)
-    database_url = database_url_for_instance(db_instance)
+    db_env = database_env_vars_for_instance(db_instance)
 
     # The owner's own custom env vars (set on the project's Environment page)
     # — e.g. REDIS_URL for a prod settings module that needs a cache backend
-    # this platform doesn't provision automatically. DATABASE_URL always
-    # wins over a same-named custom var, since that one is platform-managed.
+    # this platform doesn't provision automatically. The platform's own
+    # database vars always win over a same-named custom one.
     from apps.envmanager.services import decrypted_env_for_project
-    runner_env = {**decrypted_env_for_project(project), 'DATABASE_URL': database_url}
+    runner_env = {**decrypted_env_for_project(project), **db_env}
 
     if is_redeploy:
         # Carry over user-uploaded media so an update never deletes it.

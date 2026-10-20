@@ -94,6 +94,36 @@ def database_url_for_instance(instance: DatabaseInstance) -> str:
     return f'postgres://{instance.username}:{password}@{instance.host}:{instance.port}/{instance.name}'
 
 
+def database_env_vars_for_instance(instance: DatabaseInstance) -> dict[str, str]:
+    """
+    Every env var naming convention a Django project might reasonably use to
+    pick up this database, injected automatically so the project owner never
+    has to hand-copy credentials onto the Environment page themselves:
+    - DATABASE_URL: the common django-environ / dj-database-url style DSN.
+    - DATABASE_{URL_NAME,NAME,USER,PASSWORD,HOST,PORT}: discrete components,
+      for settings.py written to read them individually instead of a DSN
+      (seen in practice — a project's own prod.py required exactly these).
+    - PG{DATABASE,USER,PASSWORD,HOST,PORT}: libpq's own standard env vars,
+      which psycopg2 (and `psql`) honor natively with zero settings.py code.
+    """
+    password = _decrypt(instance.password_encrypted)
+    port = str(instance.port)
+    return {
+        'DATABASE_URL': f'postgres://{instance.username}:{password}@{instance.host}:{port}/{instance.name}',
+        'DATABASE_URL_NAME': instance.name,
+        'DATABASE_NAME': instance.name,
+        'DATABASE_USER': instance.username,
+        'DATABASE_PASSWORD': password,
+        'DATABASE_HOST': instance.host,
+        'DATABASE_PORT': port,
+        'PGDATABASE': instance.name,
+        'PGUSER': instance.username,
+        'PGPASSWORD': password,
+        'PGHOST': instance.host,
+        'PGPORT': port,
+    }
+
+
 def deprovision_postgres_db(project: Project) -> None:
     """Drop this project's database + role, if any. Safe to call even if never provisioned."""
     instance = DatabaseInstance.objects.filter(

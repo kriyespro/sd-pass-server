@@ -178,6 +178,49 @@ class ZipSource(Source):
         return rel_path.rstrip('/') in self._dirs
 
 
+# manage.py's hardcoded DJANGO_SETTINGS_MODULE default is very commonly a DEV
+# settings module (config.settings.dev) — correct for local development, but
+# this platform only ever runs in production. A dev settings module commonly
+# hardcodes a local sqlite3 database (silently ignoring the Postgres
+# DATABASE_URL this platform injects, so every redeploy wipes whatever was in
+# that sqlite file since it isn't part of the git repo) and DEBUG=True. If a
+# sibling prod/production module exists next to the detected one, the
+# platform prefers it — exactly like requirements/prod.txt is preferred over
+# requirements/dev.txt. Mirrors flask_runner/runner.py's own version of this.
+_DEV_SETTINGS_NAMES = frozenset({'dev', 'development', 'local', 'debug'})
+_PROD_SETTINGS_CANDIDATES = ('prod', 'production', 'release')
+
+
+def _prefer_production_settings(src: Source, settings_module: str) -> tuple[str, list[str]]:
+    problems = []
+    parts = settings_module.split('.')
+    if parts[-1].lower() not in _DEV_SETTINGS_NAMES:
+        return settings_module, problems
+
+    settings_dir = '/'.join(parts[:-1])
+    for candidate in _PROD_SETTINGS_CANDIDATES:
+        rel = f'{settings_dir}/{candidate}.py' if settings_dir else f'{candidate}.py'
+        if src.exists(rel):
+            resolved = '.'.join(parts[:-1] + [candidate])
+            problems.append(
+                WARN + f' manage.py defaults to dev-looking "{settings_module}" — the platform '
+                f'will use "{resolved}" instead (found alongside it), since this is always a '
+                'production deploy. Double-check that module is really meant for this.'
+            )
+            return resolved, problems
+
+    problems.append(
+        WARN + f' DJANGO_SETTINGS_MODULE is "{settings_module}", which looks like a dev '
+        'settings module, and no sibling prod/production module was found next to it. Dev '
+        'settings commonly hardcode a local sqlite3 database (silently ignoring the '
+        'DATABASE_URL this platform injects) and DEBUG=True — if this one does too, every '
+        "single redeploy silently wipes all data, since the sqlite file lives inside the "
+        "extracted site folder and isn't part of your git repo. See the Database config "
+        'section below — if it also warns about DATABASE_URL, treat this as serious.'
+    )
+    return settings_module, problems
+
+
 def detect_django_entry(src: Source) -> tuple[str | None, str | None, list[str]]:
     """Returns (settings_module, wsgi_target, problems)."""
     problems = []
@@ -198,7 +241,8 @@ def detect_django_entry(src: Source) -> tuple[str | None, str | None, list[str]]
         )
         return None, None, problems
 
-    settings_module = match.group(1)
+    settings_module, pref_problems = _prefer_production_settings(src, match.group(1))
+    problems.extend(pref_problems)
     package = settings_module.split('.')[0]
     wsgi_rel = f'{package}/wsgi.py'
     if src.exists(wsgi_rel):

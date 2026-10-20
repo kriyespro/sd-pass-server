@@ -25,6 +25,18 @@ MAX_DJANGO_FILES    = 500
 _DJANGO_SETTINGS_RE = re.compile(
     r"""setdefault\(\s*['"]DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([\w.]+)['"]\s*\)"""
 )
+# manage.py's hardcoded DJANGO_SETTINGS_MODULE default is very commonly a DEV
+# settings module (config.settings.dev) — correct for local development, but
+# this platform only ever runs in production. A dev settings module commonly
+# hardcodes a local sqlite3 database (silently ignoring the Postgres
+# DATABASE_URL this platform injects, so every redeploy wipes whatever was in
+# that sqlite file since it isn't part of the git repo) and DEBUG=True. If a
+# sibling prod/production module exists next to the detected one, prefer it —
+# exactly like requirements/prod.txt is preferred over requirements/dev.txt
+# elsewhere in this pipeline. Mirrors flask_runner/runner.py's own version of
+# this same heuristic.
+_DEV_SETTINGS_NAMES = frozenset({'dev', 'development', 'local', 'debug'})
+_PROD_SETTINGS_CANDIDATES = ('prod', 'production', 'release')
 _MEDIA_ROOT_SCRIPT = """
 import django
 django.setup()
@@ -32,6 +44,30 @@ from django.conf import settings
 print(str(getattr(settings, 'MEDIA_ROOT', '') or ''))
 """
 _MEDIA_PROBE_TIMEOUT = 30
+
+
+def _prefer_production_settings(project_dir: Path, settings_module: str) -> str:
+    parts = settings_module.split('.')
+    if parts[-1].lower() not in _DEV_SETTINGS_NAMES:
+        return settings_module
+    settings_dir = project_dir.joinpath(*parts[:-1])
+    for candidate in _PROD_SETTINGS_CANDIDATES:
+        if (settings_dir / f'{candidate}.py').is_file():
+            return '.'.join(parts[:-1] + [candidate])
+    return settings_module
+
+
+def _detect_settings_module(project_dir: Path) -> str | None:
+    manage_py = project_dir / 'manage.py'
+    if not manage_py.is_file():
+        return None
+    try:
+        match = _DJANGO_SETTINGS_RE.search(manage_py.read_text(errors='ignore'))
+    except OSError:
+        return None
+    if not match:
+        return None
+    return _prefer_production_settings(project_dir, match.group(1))
 
 
 def _resolve_media_root(site_dir: Path, database_url: str) -> Path | None:
@@ -43,22 +79,15 @@ def _resolve_media_root(site_dir: Path, database_url: str) -> Path | None:
     site_dir, else None (including on any failure — this is advisory, never
     allowed to block a deploy).
     """
-    manage_py = site_dir / 'manage.py'
     python = site_dir / '.venv' / 'bin' / 'python'
-    if not manage_py.is_file() or not python.is_file():
-        return None
-
-    try:
-        match = _DJANGO_SETTINGS_RE.search(manage_py.read_text(errors='ignore'))
-    except OSError:
-        return None
-    if not match:
+    settings_module = _detect_settings_module(site_dir)
+    if not settings_module or not python.is_file():
         return None
 
     env = {
         'PATH': '/usr/bin:/bin',
         'PYTHONPATH': str(site_dir),
-        'DJANGO_SETTINGS_MODULE': match.group(1),
+        'DJANGO_SETTINGS_MODULE': settings_module,
         'DATABASE_URL': database_url,
     }
     try:
@@ -110,7 +139,14 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
 
     The project's PostgreSQL database is never dropped or recreated here
     (get_or_provision_postgres_db reuses the existing instance), so existing
-    data and user accounts are never affected by a redeploy/update.
+    data and user accounts are never affected by a redeploy/update — PROVIDED
+    the app's settings module actually reads DATABASE_URL. If manage.py
+    defaults to a dev-looking settings module (config.settings.dev) that
+    hardcodes sqlite3 instead, _prefer_production_settings swaps in a sibling
+    prod/production module when one exists, since a sqlite file living
+    inside the extracted site dir would otherwise be silently wiped on every
+    single redeploy (it isn't part of the git repo, so each fresh extraction
+    starts with none).
     """
     # 1. Validate
     ok, err = validate_zip(
@@ -188,4 +224,5 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     if previous_dir.exists():
         shutil.rmtree(previous_dir, ignore_errors=True)
 
-    return True, f'Django app started on port {port} (entry: {result})'
+    settings_module = _detect_settings_module(site_dir) or '?'
+    return True, f'Django app started on port {port} (entry: {result}, settings: {settings_module})'

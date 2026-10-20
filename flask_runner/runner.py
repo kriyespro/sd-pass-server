@@ -234,6 +234,40 @@ _DJANGO_SETTINGS_RE = re.compile(
     r"""setdefault\(\s*['"]DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([\w.]+)['"]\s*\)"""
 )
 
+# manage.py's hardcoded DJANGO_SETTINGS_MODULE default is very commonly a DEV
+# settings module (config.settings.dev) -- correct for local development, but
+# this platform only ever runs in production. A dev settings module commonly
+# hardcodes a local sqlite3 database (silently ignoring the Postgres
+# DATABASE_URL this platform injects, so every redeploy wipes whatever was in
+# that sqlite file since it isn't part of the git repo) and DEBUG=True. If a
+# sibling prod/production module exists next to the detected one, prefer it --
+# exactly like requirements/prod.txt is preferred over requirements/dev.txt
+# elsewhere in this pipeline.
+_DEV_SETTINGS_NAMES = frozenset({'dev', 'development', 'local', 'debug'})
+_PROD_SETTINGS_CANDIDATES = ('prod', 'production', 'release')
+
+
+def _prefer_production_settings(project_dir: Path, settings_module: str) -> str:
+    parts = settings_module.split('.')
+    if parts[-1].lower() not in _DEV_SETTINGS_NAMES:
+        return settings_module
+
+    settings_dir = project_dir.joinpath(*parts[:-1])
+    for candidate in _PROD_SETTINGS_CANDIDATES:
+        if (settings_dir / f'{candidate}.py').is_file():
+            resolved = '.'.join(parts[:-1] + [candidate])
+            log.info(
+                'Project %s: manage.py defaults to dev-looking %r — using %r instead.',
+                project_dir.name, settings_module, resolved,
+            )
+            return resolved
+    log.warning(
+        "Project %s: manage.py's DJANGO_SETTINGS_MODULE (%r) looks like a dev settings "
+        'module and no sibling prod/production module was found — using it as-is.',
+        project_dir.name, settings_module,
+    )
+    return settings_module
+
 
 def _detect_django_entry(project_dir: Path) -> tuple[str, str] | None:
     """
@@ -251,7 +285,7 @@ def _detect_django_entry(project_dir: Path) -> tuple[str, str] | None:
     match = _DJANGO_SETTINGS_RE.search(text)
     if not match:
         return None
-    settings_module = match.group(1)
+    settings_module = _prefer_production_settings(project_dir, match.group(1))
     package = settings_module.split('.')[0]
 
     wsgi_path = project_dir / package / 'wsgi.py'

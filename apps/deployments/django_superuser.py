@@ -19,9 +19,12 @@ def set_django_superuser(project: Project, username: str, email: str, password: 
     if not db_instance:
         return False, 'This project has not deployed successfully yet — deploy it once first.'
 
+    from apps.envmanager.services import decrypted_env_for_project
+
     database_url = database_url_for_instance(db_instance)
+    env = {**decrypted_env_for_project(project), 'DATABASE_URL': database_url}
     return runner_set_django_superuser(
-        project.pk, username, email, password, env={'DATABASE_URL': database_url},
+        project.pk, username, email, password, env=env,
     )
 
 

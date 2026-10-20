@@ -70,7 +70,7 @@ def _detect_settings_module(project_dir: Path) -> str | None:
     return _prefer_production_settings(project_dir, match.group(1))
 
 
-def _resolve_media_root(site_dir: Path, database_url: str) -> Path | None:
+def _resolve_media_root(site_dir: Path, runner_env: dict[str, str]) -> Path | None:
     """
     Best-effort: ask the CURRENTLY deployed code (its own venv, its own
     settings) where it keeps user-uploaded files, so a redeploy can carry
@@ -84,11 +84,15 @@ def _resolve_media_root(site_dir: Path, database_url: str) -> Path | None:
     if not settings_module or not python.is_file():
         return None
 
+    # Include the owner's own custom env vars too — some settings modules
+    # (e.g. ones requiring REDIS_URL for a cache backend) raise at import
+    # time without them, which would otherwise make this probe fail even
+    # though it isn't actually about the database.
     env = {
         'PATH': '/usr/bin:/bin',
         'PYTHONPATH': str(site_dir),
+        **runner_env,
         'DJANGO_SETTINGS_MODULE': settings_module,
-        'DATABASE_URL': database_url,
     }
     try:
         r = subprocess.run(
@@ -176,9 +180,16 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     db_instance = get_or_provision_postgres_db(project)
     database_url = database_url_for_instance(db_instance)
 
+    # The owner's own custom env vars (set on the project's Environment page)
+    # — e.g. REDIS_URL for a prod settings module that needs a cache backend
+    # this platform doesn't provision automatically. DATABASE_URL always
+    # wins over a same-named custom var, since that one is platform-managed.
+    from apps.envmanager.services import decrypted_env_for_project
+    runner_env = {**decrypted_env_for_project(project), 'DATABASE_URL': database_url}
+
     if is_redeploy:
         # Carry over user-uploaded media so an update never deletes it.
-        old_media_root = _resolve_media_root(site_dir, database_url)
+        old_media_root = _resolve_media_root(site_dir, runner_env)
         if old_media_root and old_media_root.is_dir():
             rel = old_media_root.relative_to(site_dir.resolve())
             new_media_root = staging_dir / rel
@@ -213,11 +224,11 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     # 5. Runner: install deps, migrate against Postgres, start gunicorn
     ok, result = runner_deploy(
         project.pk, port, project_type='django',
-        env={'DATABASE_URL': database_url},
+        env=runner_env,
     )
     if not ok:
         if _rollback(site_dir, previous_dir):
-            runner_deploy(project.pk, port, project_type='django', env={'DATABASE_URL': database_url})
+            runner_deploy(project.pk, port, project_type='django', env=runner_env)
             return False, f'Update failed and was rolled back to the previous working version: {result}'
         return False, f'Runner failed: {result}'
 

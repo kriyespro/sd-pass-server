@@ -63,7 +63,8 @@ def deploy_flask_project(project: Project, zip_path: Path) -> tuple[bool, str]:
         return False, str(exc)
 
     # 4. Runner: install deps + start gunicorn
-    ok, result = runner_deploy(project.pk, port)
+    from apps.envmanager.services import decrypted_env_for_project
+    ok, result = runner_deploy(project.pk, port, env=decrypted_env_for_project(project))
     if not ok:
         return False, f'Runner failed: {result}'
 

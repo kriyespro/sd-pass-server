@@ -88,6 +88,18 @@ class Project(models.Model):
         db_index=True,
         help_text='Port on the flask-runner container (8000-8999). Null = not a running Django project.',
     )
+    github_repo = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Last "owner/repo" pulled from GitHub, e.g. "kriyespro/myapp". Blank if never pulled.',
+    )
+    github_branch = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Branch last pulled from GitHub for github_repo.',
+    )
 
     class Meta:
         ordering = ['-created_at']

@@ -25,6 +25,11 @@ urlpatterns = [
         name='upload_github',
     ),
     path(
+        '<slug:slug>/upload/github/update/',
+        upload_views.GithubUpdateView.as_view(),
+        name='upload_github_update',
+    ),
+    path(
         '<slug:slug>/upload/<int:upload_id>/progress/',
         upload_views.DeployProgressView.as_view(),
         name='upload_progress',

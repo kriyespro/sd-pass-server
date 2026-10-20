@@ -4,7 +4,9 @@ Called from the Celery deploy task when project_type == DJANGO.
 """
 from __future__ import annotations
 
+import re
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -17,15 +19,98 @@ from apps.projects.models import Project
 MAX_DJANGO_ZIP_SIZE = 50 * 1024 * 1024   # 50 MB
 MAX_DJANGO_FILES    = 500
 
+# Mirrors flask_runner/runner.py's own detection — duplicated deliberately
+# (a different process/container; same shared filesystem) so resolving
+# MEDIA_ROOT below doesn't need a round trip through the runner's HTTP API.
+_DJANGO_SETTINGS_RE = re.compile(
+    r"""setdefault\(\s*['"]DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([\w.]+)['"]\s*\)"""
+)
+_MEDIA_ROOT_SCRIPT = """
+import django
+django.setup()
+from django.conf import settings
+print(str(getattr(settings, 'MEDIA_ROOT', '') or ''))
+"""
+_MEDIA_PROBE_TIMEOUT = 30
+
+
+def _resolve_media_root(site_dir: Path, database_url: str) -> Path | None:
+    """
+    Best-effort: ask the CURRENTLY deployed code (its own venv, its own
+    settings) where it keeps user-uploaded files, so a redeploy can carry
+    them over instead of silently deleting them along with the old code.
+    Returns an absolute path if MEDIA_ROOT resolves to somewhere inside
+    site_dir, else None (including on any failure — this is advisory, never
+    allowed to block a deploy).
+    """
+    manage_py = site_dir / 'manage.py'
+    python = site_dir / '.venv' / 'bin' / 'python'
+    if not manage_py.is_file() or not python.is_file():
+        return None
+
+    try:
+        match = _DJANGO_SETTINGS_RE.search(manage_py.read_text(errors='ignore'))
+    except OSError:
+        return None
+    if not match:
+        return None
+
+    env = {
+        'PATH': '/usr/bin:/bin',
+        'PYTHONPATH': str(site_dir),
+        'DJANGO_SETTINGS_MODULE': match.group(1),
+        'DATABASE_URL': database_url,
+    }
+    try:
+        r = subprocess.run(
+            [str(python), '-c', _MEDIA_ROOT_SCRIPT],
+            cwd=str(site_dir), env=env,
+            capture_output=True, text=True, timeout=_MEDIA_PROBE_TIMEOUT,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    if r.returncode != 0:
+        return None
+
+    media_root = (r.stdout or '').strip()
+    if not media_root:
+        return None
+    try:
+        resolved = Path(media_root).resolve()
+        if resolved.is_relative_to(site_dir.resolve()):
+            return resolved
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _rollback(site_dir: Path, previous_dir: Path) -> bool:
+    """Swap a broken new deploy back out for the last-known-good version, if any."""
+    if not previous_dir.exists():
+        return False
+    shutil.rmtree(site_dir, ignore_errors=True)
+    shutil.move(str(previous_dir), str(site_dir))
+    return True
+
 
 def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     """
     Full Django deploy pipeline:
     1. Validate ZIP
-    2. Extract files to project site dir
-    3. Allocate port
-    4. Call runner to install deps, migrate, and start gunicorn
-    5. Return (ok, message)
+    2. Extract into a staging dir — the live site is never touched until the
+       new ZIP is known to have extracted cleanly
+    3. Carry over locally-stored user uploads (MEDIA_ROOT) and a copy of the
+       existing venv from the currently-deployed code, if any
+    4. Atomically swap the staging dir into place, keeping the previous
+       version as a rollback point untouched on disk
+    5. Allocate port, get/provision the project's Postgres database
+    6. Call runner to install deps, migrate, and start gunicorn — rolling
+       back to the previous working version (and restarting it) on failure
+    7. Return (ok, message)
+
+    The project's PostgreSQL database is never dropped or recreated here
+    (get_or_provision_postgres_db reuses the existing instance), so existing
+    data and user accounts are never affected by a redeploy/update.
     """
     # 1. Validate
     ok, err = validate_zip(
@@ -36,36 +121,58 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
     if not ok:
         return False, err
 
-    # 2. Extract (wipe existing files first so stale .pyc etc. don't linger)
     site_dir = project_site_dir(project)
-    # Keep .venv intact to avoid reinstalling everything on every deploy
-    venv_backup: Path | None = None
-    venv_dir = site_dir / '.venv'
-    if venv_dir.exists():
-        venv_backup = site_dir.parent / f'.venv_backup_{project.pk}'
-        shutil.move(str(venv_dir), str(venv_backup))
+    is_redeploy = site_dir.exists()
 
-    if site_dir.exists():
-        shutil.rmtree(site_dir)
-    site_dir.mkdir(parents=True, exist_ok=True)
-
-    if venv_backup and venv_backup.exists():
-        shutil.move(str(venv_backup), str(venv_dir))
-
+    # 2. Extract into a staging dir first.
+    staging_dir = site_dir.parent / f'.staging_{project.pk}'
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
+    staging_dir.mkdir(parents=True, exist_ok=True)
     try:
-        extract_zip(zip_path, site_dir)
+        extract_zip(zip_path, staging_dir)
     except (OSError, ValueError, zipfile.BadZipFile) as exc:
+        shutil.rmtree(staging_dir, ignore_errors=True)
         return False, f'ZIP extraction failed: {exc}'
 
-    # 3. Port
+    # Dedicated PostgreSQL database (created on first deploy, reused on
+    # redeploys/updates — never dropped or recreated here).
+    db_instance = get_or_provision_postgres_db(project)
+    database_url = database_url_for_instance(db_instance)
+
+    if is_redeploy:
+        # Carry over user-uploaded media so an update never deletes it.
+        old_media_root = _resolve_media_root(site_dir, database_url)
+        if old_media_root and old_media_root.is_dir():
+            rel = old_media_root.relative_to(site_dir.resolve())
+            new_media_root = staging_dir / rel
+            if new_media_root.exists():
+                shutil.rmtree(new_media_root)
+            new_media_root.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(old_media_root, new_media_root)
+
+        # Copy (not move) the existing venv so the rollback copy below stays
+        # untouched even if this redeploy's pip install mutates it.
+        old_venv = site_dir / '.venv'
+        if old_venv.is_dir():
+            shutil.copytree(old_venv, staging_dir / '.venv', symlinks=False)
+
+    # 3. Atomic swap: move the current site_dir aside as a rollback point
+    #    (kept until the new version deploys successfully), then move the
+    #    staging dir into place.
+    previous_dir = site_dir.parent / f'.previous_{project.pk}'
+    if is_redeploy:
+        if previous_dir.exists():
+            shutil.rmtree(previous_dir)
+        shutil.move(str(site_dir), str(previous_dir))
+    shutil.move(str(staging_dir), str(site_dir))
+
+    # 4. Port
     try:
         port = allocate_django_port(project.pk)
     except RuntimeError as exc:
+        _rollback(site_dir, previous_dir)
         return False, str(exc)
-
-    # 4. Dedicated PostgreSQL database (created on first deploy, reused on redeploys)
-    db_instance = get_or_provision_postgres_db(project)
-    database_url = database_url_for_instance(db_instance)
 
     # 5. Runner: install deps, migrate against Postgres, start gunicorn
     ok, result = runner_deploy(
@@ -73,6 +180,12 @@ def deploy_django_project(project: Project, zip_path: Path) -> tuple[bool, str]:
         env={'DATABASE_URL': database_url},
     )
     if not ok:
+        if _rollback(site_dir, previous_dir):
+            runner_deploy(project.pk, port, project_type='django', env={'DATABASE_URL': database_url})
+            return False, f'Update failed and was rolled back to the previous working version: {result}'
         return False, f'Runner failed: {result}'
+
+    if previous_dir.exists():
+        shutil.rmtree(previous_dir, ignore_errors=True)
 
     return True, f'Django app started on port {port} (entry: {result})'

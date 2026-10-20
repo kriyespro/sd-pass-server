@@ -179,7 +179,7 @@ class GithubPullView(LoginRequiredMixin, View):
         return render(request, 'pages/uploads/github_pull.jinja', self._context(GithubPullForm()))
 
     def post(self, request, *args, **kwargs):
-        from apps.uploads.github_pull import fetch_github_zipball, parse_github_repo, resolve_default_branch
+        from apps.uploads.github_pull import parse_github_repo, resolve_default_branch
 
         form = GithubPullForm(request.POST)
         if not form.is_valid():
@@ -190,30 +190,83 @@ class GithubPullView(LoginRequiredMixin, View):
         if not branch:
             branch = resolve_default_branch(owner, repo) or 'main'
 
-        ok, result = fetch_github_zipball(owner, repo, branch, settings.STUDENT_UPLOAD_MAX_BYTES)
+        ok, upload_or_error = _pull_github_and_enqueue(request, self.project, owner, repo, branch)
         if not ok:
-            form.add_error(None, result)
+            form.add_error(None, upload_or_error)
             return render(request, 'pages/uploads/github_pull.jinja', self._context(form))
 
-        zip_bytes = result
-        filename = f'{repo}-{branch}.zip'
-
-        upload = ProjectUpload(
-            project=self.project,
-            owner=request.user,
-            original_name=filename,
-            size_bytes=len(zip_bytes),
-        )
-        upload.file.save(filename, ContentFile(zip_bytes), save=True)
-
-        append_project_log(
-            self.project, LogKind.SYSTEM,
-            f'Pulled {owner}/{repo}@{branch} from GitHub ({len(zip_bytes) // 1024} KB).',
-        )
-        enqueue_upload_pipeline.delay(upload.pk)
+        upload = upload_or_error
         messages.success(request, f'Pulling {owner}/{repo}@{branch} — security scan and deploy are running.')
         return HttpResponseRedirect(
             reverse('projects:upload_progress', kwargs={'slug': self.project.slug, 'upload_id': upload.pk})
+        )
+
+
+def _pull_github_and_enqueue(request, project: Project, owner: str, repo: str, branch: str):
+    """
+    Shared by the initial "Pull from GitHub" form and the one-click "Update
+    from GitHub" button: fetch the zipball, queue it through the exact same
+    scan/deploy pipeline as a manual ZIP upload, and remember owner/repo@branch
+    on the project so a later "Update" doesn't need it typed again.
+    Returns (True, ProjectUpload) or (False, error_message).
+    """
+    from apps.uploads.github_pull import fetch_github_zipball
+
+    ok, result = fetch_github_zipball(owner, repo, branch, settings.STUDENT_UPLOAD_MAX_BYTES)
+    if not ok:
+        return False, result
+
+    zip_bytes = result
+    filename = f'{repo}-{branch}.zip'
+
+    upload = ProjectUpload(
+        project=project,
+        owner=request.user,
+        original_name=filename,
+        size_bytes=len(zip_bytes),
+    )
+    upload.file.save(filename, ContentFile(zip_bytes), save=True)
+
+    Project.objects.filter(pk=project.pk).update(github_repo=f'{owner}/{repo}', github_branch=branch)
+
+    append_project_log(
+        project, LogKind.SYSTEM,
+        f'Pulled {owner}/{repo}@{branch} from GitHub ({len(zip_bytes) // 1024} KB). '
+        'Existing database and user accounts are not affected by this.',
+    )
+    enqueue_upload_pipeline.delay(upload.pk)
+    return True, upload
+
+
+class GithubUpdateView(LoginRequiredMixin, View):
+    """
+    POST-only one-click re-pull of the same owner/repo@branch this project was
+    last pulled from (remembered on the Project row) — no form, no retyping.
+    Goes through the identical scan/deploy pipeline as a fresh pull, which
+    never drops or recreates the project's database, so existing data and
+    user accounts are preserved.
+    """
+
+    def post(self, request, *args, **kwargs):
+        project = get_object_or_404(
+            Project, slug=kwargs['slug'], owner=request.user, is_deleted=False,
+        )
+        if not project.github_repo:
+            messages.error(request, 'This project has never been pulled from GitHub — use "Pull from GitHub" first.')
+            return HttpResponseRedirect(reverse('projects:upload_github', kwargs={'slug': project.slug}))
+
+        owner, repo = project.github_repo.split('/', 1)
+        branch = project.github_branch or 'main'
+
+        ok, upload_or_error = _pull_github_and_enqueue(request, project, owner, repo, branch)
+        if not ok:
+            messages.error(request, f'Update failed: {upload_or_error}')
+            return HttpResponseRedirect(reverse('projects:upload_github', kwargs={'slug': project.slug}))
+
+        upload = upload_or_error
+        messages.success(request, f'Updating from {owner}/{repo}@{branch} — security scan and deploy are running.')
+        return HttpResponseRedirect(
+            reverse('projects:upload_progress', kwargs={'slug': project.slug, 'upload_id': upload.pk})
         )
 
 

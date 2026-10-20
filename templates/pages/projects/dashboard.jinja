@@ -253,6 +253,15 @@
                   <a href="{{ url('projects:upload_zip', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">ZIP</a>
                   <span class="text-slate-700">·</span>
                   <a href="{{ url('projects:upload_github', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">GitHub</a>
+                  {% if p.github_repo %}
+                  {% set _branch = p.github_branch or 'main' %}
+                  <span class="text-slate-700">·</span>
+                  <form method="post" action="{{ url('projects:upload_github_update', slug=p.slug) }}" class="inline"
+                        onsubmit="return confirm('Pull the latest {{ p.github_repo }}@{{ _branch }} and redeploy? Your database and user accounts are not affected.')">
+                    {{ csrf_input }}
+                    <button type="submit" class="text-emerald-400 hover:text-emerald-300" title="Re-pull {{ p.github_repo }}@{{ _branch }}">🔄 Update</button>
+                  </form>
+                  {% endif %}
                   <span class="text-slate-700">·</span>
                   <a href="{{ url('projects:upload_static_files', slug=p.slug) }}" class="text-emerald-400 hover:text-emerald-300">Files</a>
                   <span class="text-slate-700">·</span>

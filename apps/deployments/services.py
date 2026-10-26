@@ -41,6 +41,9 @@ STATIC_ASSET_SUFFIXES = frozenset(
         '.gif',
         '.webp',
         '.webmanifest',
+        # robots.txt and sitemap.xml — SEO files every static site needs at its root.
+        '.txt',
+        '.xml',
     }
 )
 

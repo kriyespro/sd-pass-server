@@ -403,11 +403,21 @@ def project_site_has_files(project: Project) -> bool:
 
 
 def build_project_site_zip(project: Project) -> io.BytesIO | None:
-    """Zip published site files under STUDENT_SITE_ROOT/<project_id>/."""
+    """
+    Zip published site files under STUDENT_SITE_ROOT/<project_id>/ — for any
+    project type (Static, Flask, Django). Noise directories (.venv,
+    __pycache__, etc.) are excluded so a Flask/Django download is the
+    actual app source, not gigabytes of installed dependencies.
+    """
+    from apps.deployments.python_zip_utils import is_ignored_entry
+
     root = project_site_dir(project)
     if not root.is_dir():
         return None
-    files = [p for p in root.rglob('*') if p.is_file()]
+    files = [
+        p for p in root.rglob('*')
+        if p.is_file() and not is_ignored_entry(p.relative_to(root).as_posix())
+    ]
     if not files:
         return None
     buf = io.BytesIO()

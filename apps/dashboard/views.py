@@ -114,6 +114,8 @@ def _student_website_rows(bust_cache: bool = False):
             'subfolder_url': subfolder_url,
             'subfolder': subfolder,
             'has_site_files': p.pk in projects_with_files,
+            'project_type': p.project_type,
+            'project_type_label': p.get_project_type_display(),
             'email': owner.email,
             'name': name,
             'city': owner.city or '—',
@@ -148,6 +150,7 @@ class StudentProjectSiteZipView(LoginRequiredMixin, UserPassesTestMixin, View):
         if buf is None:
             raise Http404('No site files for this project yet.')
         safe = slugify(project.slug) or f'project-{project.pk}'
+        safe = f'{safe}-{project.project_type}'
         filename = f'{safe}-site-files.zip'
         return FileResponse(buf, as_attachment=True, filename=filename)
 
